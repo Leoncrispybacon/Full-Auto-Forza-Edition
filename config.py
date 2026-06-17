@@ -251,17 +251,18 @@ DEFAULTS = {
     "buy_post_key_wait":      0.5,
     "delete_post_key_wait":   0.5,
     # Buy menu-navigation (optional — start/end the buy run on the main menu;
-    # skipped if these templates aren't captured). custom-only (no bundled set).
-    "buy_resolution":             "custom",
+    # skipped if these templates aren't captured). Defaults to built-in for a
+    # consistent template set across functions (capture your own into it).
+    "buy_resolution":             "built-in",
     "thresh_collection_log":      0.60,
     "thresh_discover_japan":      0.60,
     "thresh_car_collection":      0.60,
     "thresh_subaru":              0.60,
     "thresh_buy_target_car":      0.60,
-    # Auto Spin Wheel settings. No default templates are bundled (custom-only),
-    # so the resolution defaults to "custom" to nudge a capture. dup_mode is
-    # "garage" (safe) | "sell" (sells duplicates UNATTENDED — warned in the UI).
-    "wheelspin_resolution":      "custom",
+    # Auto Spin Wheel settings. Defaults to built-in for a consistent template
+    # set across functions (capture your own into it). dup_mode is "garage"
+    # (safe) | "sell" (sells duplicates UNATTENDED — warned in the UI).
+    "wheelspin_resolution":      "built-in",
     "thresh_wheelspin_duplicate": 0.60,
     "thresh_super_wheelspin":     0.60,
     "thresh_normal_wheelspin":    0.60,

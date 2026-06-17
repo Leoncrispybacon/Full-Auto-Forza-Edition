@@ -131,6 +131,8 @@ echo  [+]    Writing default config.json...
   echo   "monitor_index": 1,
   echo   "race_resolution": "built-in",
   echo   "mastery_resolution": "built-in",
+  echo   "wheelspin_resolution": "built-in",
+  echo   "buy_resolution": "built-in",
   echo   "race_threshold": 0.6,
   echo   "thresh_start_menu": 0.5,
   echo   "thresh_racing": 0.5,
