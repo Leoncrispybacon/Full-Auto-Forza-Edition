@@ -152,7 +152,6 @@ echo  [+]    Writing default config.json...
   echo   "mastery_start_loop": 1,
   echo   "mastery_post_click_wait": 0.8,
   echo   "mastery_post_key_wait": 1.2,
-  echo   "mastery_node_click_wait": 0.8,
   echo   "buy_post_key_wait": 0.5,
   echo   "delete_post_key_wait": 0.5
   echo }
