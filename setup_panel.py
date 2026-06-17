@@ -12,7 +12,8 @@ from capture import (CaptureSession, NodeSession,
                       list_monitors, show_example, close_example)
 from config import (RESOLUTION_SETS, get_examples_dir,
                     get_race_templates, get_mastery_templates,
-                    get_wheelspin_templates, get_buy_templates, get_nodes_file)
+                    get_wheelspin_templates, get_buy_templates,
+                    get_full_auto_templates, get_nodes_file)
 import config
 import theme
 
@@ -121,7 +122,10 @@ class SetupPanel(ctk.CTkFrame):
     """
     Collapsible setup panel.
 
-    template_defs: list of (key, label) tuples
+    template_defs: either a FLAT list of (key, label) tuples, or a CATEGORIZED
+        list of (section_label, [(key, label), ...]) tuples (detected by the
+        second element being a list). Categorized renders a bold sub-header per
+        section; capture/complete logic flattens it transparently.
     folder: path where templates are stored
     nodes_file: path to nodes JSON (None if not applicable)
     log_cb: function(msg) for log output
@@ -151,6 +155,15 @@ class SetupPanel(ctk.CTkFrame):
         self._lang        = lang
         self._capture_key = capture_key
         self._tpl_defs    = template_defs
+        # template_defs may be flat [(key, label), ...] or categorized
+        # [(section_label, [(key, label), ...]), ...]. Detect by the 2nd element
+        # being a list; keep a flattened [(key, label)] for capture/complete logic.
+        self._categorized = bool(template_defs) and isinstance(template_defs[0][1], list)
+        if self._categorized:
+            self._flat_defs = [(k, lb) for _sec, items in template_defs
+                               for k, lb in items]
+        else:
+            self._flat_defs = list(template_defs)
         # Load saved monitor index from config
         _saved_cfg = config.load()
         self._monitor_index = _saved_cfg.get('monitor_index', 1)
@@ -170,6 +183,8 @@ class SetupPanel(ctk.CTkFrame):
             return get_wheelspin_templates(self._resolution, self._tpl_lang)
         if self._mode == 'buy':
             return get_buy_templates(self._resolution, self._tpl_lang)
+        if self._mode == 'full_auto':
+            return get_full_auto_templates(self._resolution, self._tpl_lang)
         return get_mastery_templates(self._resolution, self._tpl_lang)
 
     def _get_nodes_file(self):
@@ -233,19 +248,32 @@ class SetupPanel(ctk.CTkFrame):
             button_color=theme.token("accent"),
             button_hover_color=theme.token("accent_hover")).pack(side='left', padx=8)
 
-        # Template rows (none in mastery keys mode — nodes are the only capture)
-        if template_defs:
-            ctk.CTkLabel(c, text=_at("label_templates", self._lang),
-                         anchor="w",
-                         font=("Arial", 11)).pack(fill="x", pady=(4, 2))
-
-        for key, label in template_defs:
+        # Template rows (none in mastery keys mode — nodes are the only capture).
+        # Categorized defs render a bold sub-header per section; flat defs keep
+        # the single "Templates" header.
+        def _add_row(key, label):
             row = TemplateRow(c, label, lambda: self.folder, key,
                               on_recapture=lambda k=key: self._recapture_one(k),
                               main_cfg=self._main_cfg,
                               lang=self._lang)
             row.pack(fill="x", pady=1)
             self._rows[key] = row
+
+        if self._categorized:
+            for sec_label, items in template_defs:
+                ctk.CTkLabel(c, text=sec_label, anchor="w",
+                             font=("Arial", 11, "bold"),
+                             text_color=theme.token("accent")).pack(
+                                 fill="x", pady=(8, 2))
+                for key, label in items:
+                    _add_row(key, label)
+        else:
+            if template_defs:
+                ctk.CTkLabel(c, text=_at("label_templates", self._lang),
+                             anchor="w",
+                             font=("Arial", 11)).pack(fill="x", pady=(4, 2))
+            for key, label in template_defs:
+                _add_row(key, label)
 
         # Nodes row
         if nodes_file:
@@ -373,7 +401,7 @@ class SetupPanel(ctk.CTkFrame):
 
     def _start_session(self):
         """Start listening for Caps Lock captures, cycling through templates."""
-        self._pending = [k for k, _ in self._tpl_defs
+        self._pending = [k for k, _ in self._flat_defs
                          if not template_exists(self.folder, k)]
         # Also add nodes if missing
         if self.nodes_file and not nodes_exist(self.nodes_file):
@@ -413,7 +441,7 @@ class SetupPanel(ctk.CTkFrame):
             self._session = sess
             sess.start()
         else:
-            label = next((lb for k, lb in self._tpl_defs if k == next_key), next_key)
+            label = next((lb for k, lb in self._flat_defs if k == next_key), next_key)
             if next_key in self._rows:
                 self._rows[next_key].set_capturing(True)
             self._cap_label.configure(
@@ -522,7 +550,7 @@ class SetupPanel(ctk.CTkFrame):
 
     def is_complete(self) -> bool:
         templates_ok = all(template_exists(self.folder, k)
-                           for k, _ in self._tpl_defs)
+                           for k, _ in self._flat_defs)
         nodes_ok     = (not self.nodes_file or
                         nodes_exist(self.nodes_file))
         return templates_ok and nodes_ok

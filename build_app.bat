@@ -71,6 +71,7 @@ python -m PyInstaller --onedir --windowed --name FAFE ^
     --add-data "%CD%\mastery.py;." ^
     --add-data "%CD%\main_window.py;." ^
     --add-data "%CD%\setup_panel.py;." ^
+    --add-data "%CD%\grid_widget.py;." ^
     --add-data "%CD%\log_widget.py;." ^
     --add-data "%CD%\version.py;." ^
     --add-data "%CD%\updater.py;." ^

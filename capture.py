@@ -203,6 +203,13 @@ _WM_MOUSEMOVE   = 0x0200
 _WM_LBUTTONDOWN = 0x0201
 _WM_LBUTTONUP   = 0x0202
 _MK_LBUTTON     = 0x0001
+# Hover dwell between moving to the target and pressing: posted-message clicks
+# don't move the real cursor, so the game only "hovers" the target when it
+# processes the WM_MOUSEMOVE. UI elements that highlight-on-hover (top-nav tabs,
+# menu rows) need that highlight to settle BEFORE the button-down, or the click
+# lands on a stale target / is dropped (the CARS-tab-not-switching bug). We post
+# the move twice (so motion is registered) and dwell this long before clicking.
+_CLICK_MOVE_DWELL = 0.15
 
 
 def find_game_window(title_substr: str = "Forza Horizon 6"):
@@ -317,8 +324,12 @@ def post_click(hwnd, screen_x: int, screen_y: int, post_wait: float = 0.5):
         pt = _PT(int(screen_x), int(screen_y))
         u32.ScreenToClient(hwnd, ctypes.byref(pt))
         lparam = ((pt.y & 0xFFFF) << 16) | (pt.x & 0xFFFF)
+        # Move to the target (twice, so motion registers) and dwell so a
+        # hover-highlight settles before the press; then click.
         u32.PostMessageW(hwnd, _WM_MOUSEMOVE, 0, lparam)
-        time.sleep(0.02)
+        time.sleep(0.03)
+        u32.PostMessageW(hwnd, _WM_MOUSEMOVE, 0, lparam)
+        time.sleep(_CLICK_MOVE_DWELL)
         u32.PostMessageW(hwnd, _WM_LBUTTONDOWN, _MK_LBUTTON, lparam)
         time.sleep(0.05)
         u32.PostMessageW(hwnd, _WM_LBUTTONUP, 0, lparam)
@@ -340,8 +351,12 @@ def post_client_click(hwnd, client_x: int, client_y: int, post_wait: float = 0.5
         u32.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint,
                                      ctypes.c_size_t, ctypes.c_size_t]
         lparam = ((int(client_y) & 0xFFFF) << 16) | (int(client_x) & 0xFFFF)
+        # Move to the target (twice, so motion registers) and dwell so a
+        # hover-highlight settles before the press; then click.
         u32.PostMessageW(hwnd, _WM_MOUSEMOVE, 0, lparam)
-        time.sleep(0.02)
+        time.sleep(0.03)
+        u32.PostMessageW(hwnd, _WM_MOUSEMOVE, 0, lparam)
+        time.sleep(_CLICK_MOVE_DWELL)
         u32.PostMessageW(hwnd, _WM_LBUTTONDOWN, _MK_LBUTTON, lparam)
         time.sleep(0.05)
         u32.PostMessageW(hwnd, _WM_LBUTTONUP, 0, lparam)
@@ -867,6 +882,36 @@ def load_nodes(nodes_file: str, current_w: int, current_h: int,
 
 def nodes_exist(nodes_file: str) -> bool:
     return os.path.exists(nodes_file)
+
+
+# ── Mastery grid spec (keyboard tree-nav) ───────────────────
+# An ordered list of [row, col] cells in the 4x4 mastery tree, in unlock order.
+# Replaces the old pixel node-click capture: navigation is WASD from the bottom-
+# left start, so the spec is just the logical path (resolution-independent).
+
+def save_grid(grid_file: str, order: list):
+    """Persist the ordered list of (row, col) cells."""
+    import json
+    os.makedirs(os.path.dirname(grid_file), exist_ok=True)
+    data = {"rows": 4, "cols": 4,
+            "order": [[int(r), int(c)] for (r, c) in order]}
+    with open(grid_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def load_grid(grid_file: str) -> list:
+    """Return the ordered list of (row, col) tuples, or [] if absent/invalid."""
+    import json
+    try:
+        with open(grid_file, encoding="utf-8") as f:
+            data = json.load(f)
+        return [(int(p[0]), int(p[1])) for p in data.get("order", [])]
+    except Exception:
+        return []
+
+
+def grid_exists(grid_file: str) -> bool:
+    return bool(load_grid(grid_file))
 
 
 # ── Example image window ────────────────────────────────────

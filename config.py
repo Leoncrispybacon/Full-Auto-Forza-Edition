@@ -96,6 +96,34 @@ def get_buy_templates(res: str = "custom",
     return path
 
 
+def get_full_auto_templates(res: str = "custom",
+                            lang: str = DEFAULT_TEMPLATE_LANG) -> str:
+    """Templates used ONLY by the Full Auto chained orchestrator's transition
+    navigation (e.g. the mastery positioning nav). Reusable per-function nav
+    templates (race/buy/wheelspin) live in those functions' own folders;
+    this folder holds the chain-only ones, grouped by category in the UI."""
+    path = os.path.join(_lang_dir(lang), "full_auto", res)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def get_mastery_grid_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
+    """The mastery-tree unlock path spec (an ordered list of 4x4 grid cells).
+    Resolution-independent — it's a logical cell sequence, not pixel coords — so
+    it lives directly under the category folder, not a per-resolution subfolder.
+    Mastery tab and Full Auto keep SEPARATE specs (different car trees)."""
+    d = os.path.join(_lang_dir(lang), "mastery_full")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "mastery_grid.json")
+
+
+def get_full_auto_grid_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
+    """Full Auto's own mastery-tree unlock path spec (for the 22B tree)."""
+    d = os.path.join(_lang_dir(lang), "full_auto")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "mastery_grid.json")
+
+
 def get_examples_dir(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     path = os.path.join(_lang_dir(lang), "examples")
     os.makedirs(path, exist_ok=True)
@@ -135,7 +163,7 @@ def _migrate_flat_templates():
 # Migrate any old flat layout, THEN ensure the per-language tree exists.
 _migrate_flat_templates()
 for _lang in TEMPLATE_LANGS:
-    for _mode in ("race", "mastery_full"):
+    for _mode in ("race", "mastery_full", "full_auto"):
         for _res in RESOLUTION_SETS:
             os.makedirs(os.path.join(TEMPLATES_DIR, _lang, _mode, _res),
                         exist_ok=True)
@@ -202,6 +230,23 @@ DEFAULTS = {
     # straight back to racing, no wheelspin) | "wheelspin" (run wheelspin each
     # cycle). The buy/master/sell count is fixed (33) in full_auto.py.
     "full_auto_branch_mode":  "racing",
+    # How many cars the chain buys, unlocks mastery on, and sells per cycle.
+    # Default 33 (999 max mastery pts ÷ 30 per Subaru 22B); user-adjustable for
+    # those who farm differently.
+    "full_auto_car_count":    33,
+    # Which step the FIRST cycle starts at — "race" (full cycle) | "buy" |
+    # "mastery" | "sell" — for users who already have points/cars lined up.
+    # Cycle 2 onward always runs the full loop from racing.
+    "full_auto_start_from":   "race",
+    # Full Auto chain-only navigation templates (grouped by category in the
+    # Setup panel). Currently the mastery positioning nav: main menu → My
+    # Horizon → Return Home → CARS → My Cars → sort Recently Added → newest car.
+    # custom-only (no bundled set). my_horizon_tab is reused from the wheelspin
+    # set, so it isn't listed here.
+    "full_auto_resolution":   "custom",
+    "thresh_return_home":     0.60,
+    "thresh_cars_tab":        0.60,
+    "thresh_recently_added":  0.60,
     # Buy / Delete settings
     "buy_post_key_wait":      0.5,
     "delete_post_key_wait":   0.5,
@@ -299,7 +344,8 @@ def load() -> dict:
         # one auto-scaled "built-in" set. Migrate any stored preset value so it
         # points at the built-in set (and the Setup picker shows Built-in).
         for _rk in ("race_resolution", "mastery_resolution",
-                    "wheelspin_resolution", "buy_resolution"):
+                    "wheelspin_resolution", "buy_resolution",
+                    "full_auto_resolution"):
             if data.get(_rk) in ("1080p", "1440p", "2160p"):
                 data[_rk] = REFERENCE_RES
                 added = True

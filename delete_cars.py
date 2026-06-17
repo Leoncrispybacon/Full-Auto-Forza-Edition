@@ -74,6 +74,10 @@ def _key_press(key, post_wait=0.5):
 # share one IME-safe (scancode) key sender.
 key_press = _key_press
 
+# Delay after each menu Down-arrow tap (hardcoded — the menu cursor keeps up at
+# this rate). The Enter confirms keep their own longer, deliberate waits.
+_DOWN_TAP_WAIT = 0.1
+
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0):
@@ -116,7 +120,7 @@ def run(cfg: dict, stop_event: threading.Event,
 
         # ── Navigate to Remove / Sell option (Down × 4) ──────
         for i in range(4):
-            press('down', f'Down {i+1}/4')
+            press('down', f'Down {i+1}/4', wait=_DOWN_TAP_WAIT)
             if stop(): break
         if stop(): break
 
@@ -125,7 +129,7 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop(): break
 
         # ── Confirm dialog: Down × 1 → Enter ─────────────────
-        press('down', 'Confirm: move to Yes')
+        press('down', 'Confirm: move to Yes', wait=_DOWN_TAP_WAIT)
         if stop(): break
 
         press('enter', 'Confirm delete', wait=1.5)

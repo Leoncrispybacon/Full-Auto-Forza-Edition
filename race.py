@@ -230,6 +230,7 @@ def run(cfg: dict, stop_event: threading.Event,
         except FileNotFoundError:
             log_cb(_at("log_template_missing", cfg.get("lang","en"), key=key))
             status_cb(_at("status_setup_incomplete", cfg.get("lang","en")))
+            io.cleanup()   # mute already ran above — always unmute on exit
             return
 
     # ── Optional menu-navigation templates ──
@@ -367,11 +368,15 @@ def run(cfg: dict, stop_event: threading.Event,
     # lingering/re-press problem.
     _NAV_STEP_WINDOW = 12.0
     # MY HISTORY → Race type: selecting the history entry loads the event for an
-    # uncertain time, and the first Enter can be dropped. Re-press Enter every
-    # _NAV_RETRY_EVERY until Race type appears, up to _NAV_LOAD_WINDOW (generous,
-    # to cover a slow load). Extra Enters on a loading screen are harmless.
-    _NAV_RETRY_EVERY = 3.0
-    _NAV_LOAD_WINDOW = 45.0
+    # uncertain time, and the first Enter can be dropped. We re-press Enter ONLY
+    # while MY HISTORY is still on screen (see _enter_until) — never on a blind
+    # timer — because every screen here (Race Type, car select, Start) advances
+    # on Enter, so a blind re-press could cascade into the race. After each press
+    # we wait _NAV_PRESS_COOLDOWN for the menu to transition off the source
+    # before re-checking (a registered Enter clears MY HISTORY promptly), up to
+    # _NAV_LOAD_WINDOW total (generous, to cover a slow load).
+    _NAV_PRESS_COOLDOWN = 1.2
+    _NAV_LOAD_WINDOW    = 45.0
 
     def _detect_nav(key, window_s):
         end = time.time() + window_s
@@ -388,34 +393,47 @@ def run(cfg: dict, stop_event: threading.Event,
             time.sleep(0.15)
         return None
 
-    def _enter_until(next_key, retry_every, window):
-        """Press Enter, then poll for next_key, re-pressing Enter every
-        retry_every seconds until it appears or the window elapses. Failsafe for
-        the MY HISTORY step: the event loads for an uncertain time and the first
-        Enter can be dropped, so re-trigger until Race type shows. We only re-
-        press while next_key is NOT detected, so we never advance past it."""
-        tpl = nav_tpls[next_key]
+    def _enter_until(source_key, target_key, window):
+        """Advance from the SOURCE screen to the TARGET screen by pressing Enter,
+        re-pressing ONLY while the source screen is still positively detected —
+        never on a blind timer. Failsafe for the MY HISTORY step: the event loads
+        for an uncertain time and the confirming Enter can be dropped, so it must
+        be re-triggered. But every screen in this stretch (Race Type, car select,
+        Start) advances on Enter, so a blind re-press could cascade through all of
+        them into the race. Pressing only while `source` is still on screen makes
+        overshoot impossible: an already-advanced menu is never pressed.
+
+        Per iteration: target detected → return True. Source still detected → the
+        Enter was dropped / not yet processed → press Enter, then wait
+        _NAV_PRESS_COOLDOWN for the menu to leave source before re-checking (a
+        registered Enter clears MY HISTORY promptly, so this won't double-press).
+        Neither (loading/transition) → wait, do NOT press. Returns False on
+        timeout/stop (a clean abort, far safer than launching a race)."""
         end = time.time() + window
-        last = 0.0
         presses = 0
         while time.time() < end:
             if stop():
                 return False
+            on_source = False
             try:
-                r = detector.detect(_grab(), next_key, tpl,
-                                    _thresh(next_key), stable=False)
-                if r.matched:
+                frame = _grab()
+                if detector.detect(frame, target_key, nav_tpls[target_key],
+                                   _thresh(target_key), stable=False).matched:
                     return True
+                on_source = detector.detect(
+                    frame, source_key, nav_tpls[source_key],
+                    _thresh(source_key), stable=False).matched
             except Exception:
-                pass
-            if time.time() - last >= retry_every:
+                on_source = False
+            if on_source:
                 _kp('enter', post_wait=0.0)
                 presses += 1
                 if presses > 1:
                     log_cb(_at("log_race_nav_retry", lang,
-                               label=_at("race_tpl_" + next_key, lang)))
-                last = time.time()
-            time.sleep(0.2)
+                               label=_at("race_tpl_" + target_key, lang)))
+                wait(_NAV_PRESS_COOLDOWN)   # let a registered Enter clear source
+            else:
+                time.sleep(0.2)             # loading/transition — wait, don't press
         return False
 
     def _detect_start_state(window_s):
@@ -487,7 +505,11 @@ def run(cfg: dict, stop_event: threading.Event,
                 _click(r.location[0], r.location[1])
             elif retry_to:
                 log_cb(_at("log_race_nav_enter", lang, label=lbl))
-                if not _enter_until(retry_to, _NAV_RETRY_EVERY, _NAV_LOAD_WINDOW):
+                # Source-gated: re-press Enter only while still on this step's
+                # screen (`key`, e.g. MY HISTORY), until the target (retry_to)
+                # appears — never blindly, so we can't cascade past Race Type /
+                # car select / Start into the race.
+                if not _enter_until(key, retry_to, _NAV_LOAD_WINDOW):
                     if not stop():
                         log_cb(_at("log_race_nav_fail", lang,
                                    label=_at("race_tpl_" + retry_to, lang),
@@ -507,6 +529,7 @@ def run(cfg: dict, stop_event: threading.Event,
             if not _navigate_to_event(_hit):
                 log_cb(_at("log_race_stopped", cfg.get("lang", "en")))
                 status_cb(_at("status_stopped", lang))
+                io.cleanup()   # always unmute / stop keep-alive on nav abort
                 return
         elif _which == "start_menu":
             log_cb(_at("log_race_at_start", lang))

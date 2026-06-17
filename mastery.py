@@ -12,9 +12,20 @@ import pydirectinput
 
 from app_lang import t as _at
 import config
-from config import get_nodes_file
-from capture import load_nodes, get_monitor_dims, force_english_ime
+from config import get_mastery_grid_file
+from capture import load_grid, get_monitor_dims, force_english_ime
 from gameio import GameIO
+
+# The mastery tree is a 4x4 grid; the in-game cursor always starts bottom-left.
+# We navigate it with WASD (one cell per press) + Enter to unlock — no mouse, so
+# it's fully background-safe (see grid_widget.py for the picker UI).
+_GRID_ROWS, _GRID_COLS = 4, 4
+_GRID_START = (_GRID_ROWS - 1, 0)   # bottom-left
+# Hardcoded grid-nav pacing (NOT configurable): a short pause after each WASD
+# move (incl. move→Enter), then a longer pause after Enter so the node-unlock
+# settles before the next node's movement.
+_GRID_MOVE_WAIT   = 0.25
+_GRID_UNLOCK_WAIT = 1.0
 
 
 
@@ -140,13 +151,16 @@ _POST_KEY_WAIT          = 1.25
 _POST_CUTSCENE_ESC_WAIT = 1.75
 _KEYS_CUTSCENE_WAIT     = 11.0
 _KEYS_SCREEN_WAIT       = 1.5
-_TAP_WAIT               = 0.25
+_TAP_WAIT               = 0.1
 
 
 def run(cfg: dict, stop_event: threading.Event,
-        log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None):
+        log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
+        grid_file: str = None):
     # warn_cb is accepted for call-site compatibility but unused — this flow
     # never detects, so there's no "not detected" warning to raise.
+    # grid_file: which mastery-tree path spec to use. None → the Mastery tab's
+    # own spec; Full Auto passes its separate spec.
     section       = section_cb or log_cb
     lang          = cfg.get("lang", "en")
     monitor_index = cfg.get("monitor_index", 1)
@@ -168,16 +182,13 @@ def run(cfg: dict, stop_event: threading.Event,
     current_w, current_h = io.width, io.height
     mon_left, mon_top = io.cap_left, io.cap_top
 
-    # Nodes are the ONLY capture this mode needs (no templates).
-    res      = _fresh.get('mastery_resolution', 'custom')
-    tpl_lang = _cfg_mod.resolve_template_lang(_fresh)
-    try:
-        nodes_file = get_nodes_file(res, tpl_lang)
-        nodes = load_nodes(nodes_file, current_w, current_h,
-                           aspect_fix=_fresh.get("nodes_aspect_fix", True))
-        log_cb(_at("log_nodes_loaded", lang, n=len(nodes)))
-    except Exception:
-        log_cb(_at("log_nodes_missing", lang))
+    # The mastery-tree unlock path (ordered 4x4 cells) is the only config this
+    # mode needs — navigated by keyboard, not clicked. Resolution-independent.
+    tpl_lang   = _cfg_mod.resolve_template_lang(_fresh)
+    gfile      = grid_file or get_mastery_grid_file(tpl_lang)
+    grid_order = load_grid(gfile)
+    if not grid_order:
+        log_cb(_at("log_grid_missing", lang))
         status_cb(_at("status_setup_incomplete", lang))
         return
 
@@ -273,13 +284,28 @@ def run(cfg: dict, stop_event: threading.Event,
         wait(screen_wait)
         if stop(): break
 
-        # ── 8. Click 6 nodes (unchanged) ──────────────────────
-        announce(_at("log_clicking_nodes", lang, n=len(nodes)))
-        for i, (nx, ny) in enumerate(nodes, start=1):
+        # ── 8. Unlock nodes via keyboard (WASD from bottom-left + Enter) ──
+        # The cursor starts bottom-left; for each cell in the saved path we press
+        # the single W/A/S/D move to reach it (consecutive cells are adjacent),
+        # then Enter to unlock. Scancode path — same as the snake nav, and
+        # background-safe (no mouse). Pacing: _GRID_MOVE_WAIT after each move
+        # (incl. move→Enter), _GRID_UNLOCK_WAIT after Enter before the next node.
+        announce(_at("log_grid_unlock", lang, n=len(grid_order)))
+        cur = _GRID_START
+        for i, (gr, gc) in enumerate(grid_order, start=1):
             if stop(): break
-            log_cb(_at("log_node", lang, i=i, n=len(nodes), x=nx, y=ny))
-            io.click(nx, ny, post_ncw)
-            time.sleep(0.3)
+            keys = []
+            dr, dc = gr - cur[0], gc - cur[1]
+            keys += ['w'] * (-dr) if dr < 0 else ['s'] * dr
+            keys += ['a'] * (-dc) if dc < 0 else ['d'] * dc
+            log_cb(_at("log_grid_step", lang, i=i, n=len(grid_order),
+                       keys=' '.join(k.upper() for k in keys + ['enter'])))
+            for k in keys:
+                if stop(): break
+                io.press(k, scancode=True, post_wait=_GRID_MOVE_WAIT)
+            if stop(): break
+            io.press('enter', post_wait=_GRID_UNLOCK_WAIT)   # unlock this node
+            cur = (gr, gc)
         if stop(): break
 
         # ── 9. ESC ×2 to exit ─────────────────────────────────

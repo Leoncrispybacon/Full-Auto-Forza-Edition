@@ -212,6 +212,30 @@ STRINGS = {
         "en":    "Races per cycle (mastery points):",
         "zh-tw": "每循環賽事數（熟練點數）：",
     },
+    "full_auto_car_count_label": {
+        "en":    "Cars to buy / unlock / sell per cycle:",
+        "zh-tw": "每循環購買／解鎖／賣出車輛數：",
+    },
+    "full_auto_start_label": {
+        "en":    "Start cycle from:",
+        "zh-tw": "循環起始於：",
+    },
+    "full_auto_start_race": {
+        "en":    "Race (full cycle)",
+        "zh-tw": "賽事（完整循環）",
+    },
+    "full_auto_start_buy": {
+        "en":    "Buy cars",
+        "zh-tw": "購買車輛",
+    },
+    "full_auto_start_mastery": {
+        "en":    "Unlock mastery",
+        "zh-tw": "解鎖熟練",
+    },
+    "full_auto_start_sell": {
+        "en":    "Sell cars",
+        "zh-tw": "賣出車輛",
+    },
     "full_auto_branch_label": {
         "en":    "After selling:",
         "zh-tw": "賣出後：",
@@ -260,9 +284,71 @@ STRINGS = {
         "en":    "[5/5] Wheelspin branch — NOT YET WIRED (skipped).",
         "zh-tw": "[5/5] 轉輪分支 — 尚未接入（略過）。",
     },
+    "log_fa_step_mastery": {
+        "en":    "[3/5] Mastery {n} cars…",
+        "zh-tw": "[3/5] 熟練 {n} 輛車…",
+    },
+    # Full Auto — mastery positioning nav (main menu → My Cars → newest car)
+    "log_fa_mastery_nav_begin": {
+        "en":    "  Mastery: navigating main menu → My Cars…",
+        "zh-tw": "  熟練：從主選單導航至車庫…",
+    },
+    "log_fa_mastery_nav_detected": {
+        "en":    "  ✓ {label} detected ({conf}) — {secs}s",
+        "zh-tw": "  ✓ 偵測到 {label}（{conf}）— {secs}s",
+    },
+    "log_fa_mastery_nav_click": {
+        "en":    "  → click {label}",
+        "zh-tw": "  → 點擊 {label}",
+    },
+    "log_fa_mastery_tab_right": {
+        "en":    "  → switch to CARS tab (D ×2)",
+        "zh-tw": "  → 切換到 車輛 分頁（D ×2）",
+    },
+    "log_fa_mastery_mycars": {
+        "en":    "  → Enter → My Cars grid",
+        "zh-tw": "  → Enter → 我的車輛 列表",
+    },
+    "log_fa_mastery_sort": {
+        "en":    "  → X → open sort menu",
+        "zh-tw": "  → X → 開啟排序選單",
+    },
+    "log_fa_mastery_nav_fail": {
+        "en":    "  ✗ {label} not found in {secs}s — aborting mastery nav.",
+        "zh-tw": "  ✗ {secs}s 內找不到 {label} — 中止熟練導航。",
+    },
+    "log_fa_mastery_at_grid": {
+        "en":    "  ✓ at My Cars, positioned on the newest car.",
+        "zh-tw": "  ✓ 已在車庫，定位至最新車輛。",
+    },
+    "log_fa_mastery_nav_skip": {
+        "en":    "  Mastery nav templates not captured — skipping mastery step.",
+        "zh-tw": "  熟練導航模板尚未擷取 — 略過熟練步驟。",
+    },
+    # Full Auto template setup — categories + labels
+    "fa_cat_mastery": {
+        "en":    "Mastery (main menu → My Cars)",
+        "zh-tw": "熟練（主選單 → 車庫）",
+    },
+    "fa_tpl_return_home": {
+        "en":    "Return Home tile",
+        "zh-tw": "返回住宅 圖塊",
+    },
+    "fa_tpl_cars_tab": {
+        "en":    "CARS tab",
+        "zh-tw": "車輛 分頁",
+    },
+    "fa_tpl_recently_added": {
+        "en":    "Recently Added (sort)",
+        "zh-tw": "最近新增（排序）",
+    },
     "log_fa_stopped": {
         "en":    "Full Auto stopped.",
         "zh-tw": "全自動已停止。",
+    },
+    "log_fa_aborted": {
+        "en":    "Full Auto stopped — a step could not proceed (not advancing to the next cycle).",
+        "zh-tw": "全自動已停止 — 某步驟無法繼續（不進入下一循環）。",
     },
     "label_activity": {
         "en":    "Activity",
@@ -1168,6 +1254,32 @@ STRINGS = {
     "log_node": {
         "en":    "    Node {i}/{n} at ({x},{y})",
         "zh-tw": "    節點 {i}/{n} 位於 ({x},{y})",
+    },
+    # Keyboard grid navigation of the mastery tree (replaces node clicking)
+    "log_grid_unlock": {
+        "en":    "  Unlocking {n} nodes via keyboard (WASD + Enter)...",
+        "zh-tw": "  以鍵盤解鎖 {n} 個節點（WASD + Enter）...",
+    },
+    "log_grid_step": {
+        "en":    "    Node {i}/{n}: {keys}",
+        "zh-tw": "    節點 {i}/{n}：{keys}",
+    },
+    "log_grid_missing": {
+        "en":    "  Mastery tree path not set — open Setup and pick the nodes on the grid.",
+        "zh-tw": "  尚未設定熟練度路徑 — 請開啟設定並在格子上選取節點。",
+    },
+    # Mastery grid picker widget
+    "grid_title": {
+        "en":    "Mastery tree — unlock path",
+        "zh-tw": "熟練度樹 — 解鎖路徑",
+    },
+    "grid_hint": {
+        "en":    "Click nodes in unlock order (S = start, bottom-left). Click the last one again to undo. The bot navigates them with WASD + Enter.",
+        "zh-tw": "依解鎖順序點擊節點（S = 起點，左下角）。再次點擊最後一個可取消。程式會以 WASD + Enter 導航。",
+    },
+    "grid_clear": {
+        "en":    "Clear",
+        "zh-tw": "清除",
     },
     "log_loop": {
         "en":    "Loop",

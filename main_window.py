@@ -13,8 +13,11 @@ import config
 import theme
 from app_lang import t as _at
 from config import (load, save, resolve_template_lang,
-                    get_race_templates, get_mastery_templates, get_nodes_file,
-                    get_wheelspin_templates, get_buy_templates)
+                    get_race_templates, get_mastery_templates,
+                    get_wheelspin_templates, get_buy_templates,
+                    get_full_auto_templates,
+                    get_mastery_grid_file, get_full_auto_grid_file)
+from grid_widget import MasteryGridWidget
 from log_widget import LogWidget
 from setup_panel import SetupPanel
 from updater import check_async, RELEASES_PAGE
@@ -23,11 +26,11 @@ from version import VERSION
 
 # ── Race template definitions ─────────────────────────────────
 # Template label keys looked up via app_lang at runtime
-# Full Auto is a WIP scaffold (race+buy wired; mastery/sell/wheelspin-branch are
-# TODO placeholders). Hidden for the v1.6.0 release — flip to True to show the
-# sidebar nav item again when resuming the chain work. The tab frame is still
-# built (so its widgets/handlers stay valid); only the nav entry is gated.
-SHOW_FULL_AUTO = False
+# Full Auto is a WIP (race+buy+mastery wired; sell/wheelspin-branch are TODO).
+# Shown again while resuming the chain work so the tab can be used to capture the
+# chain-only nav templates and test. Flip to False to hide the sidebar nav entry
+# for a release; the tab frame is still built either way (handlers stay valid).
+SHOW_FULL_AUTO = True
 
 # Show the Setup & Templates panel on Race / Buy / Auto Spin Wheel. These ship
 # pre-captured templates, but the panel stays visible so users can switch
@@ -86,6 +89,20 @@ BUY_TEMPLATE_KEYS = [
 ]
 # Mastery is keyboard-driven (no detection), so it has no template list — the
 # Setup panel shows node capture only.
+
+# Full Auto chain-only templates, grouped by category (section_label_key,
+# [(key, label_key), ...]). Full Auto keeps its OWN copy of every template it
+# uses — even ones also used elsewhere (my_horizon_tab) — so the set is self-
+# contained and managed entirely in the Full Auto tab, separate from other
+# functions' folders.
+FULL_AUTO_TEMPLATE_KEYS = [
+    ("fa_cat_mastery", [
+        ("my_horizon_tab", "spin_tpl_my_horizon"),
+        ("return_home",    "fa_tpl_return_home"),
+        ("cars_tab",       "fa_tpl_cars_tab"),
+        ("recently_added", "fa_tpl_recently_added"),
+    ]),
+]
 
 
 
@@ -689,8 +706,8 @@ class MainWindow(ctk.CTk):
                      anchor="w", wraplength=480, justify="left",
                      font=("Arial", 12)).pack(fill="x", padx=12, pady=(8, 0))
 
-        # Setup panel — mastery is keyboard-driven, so it only needs node
-        # capture (no templates, no threshold sliders).
+        # Mastery is keyboard-driven and walks the tree with WASD, so its only
+        # config is the unlock-path grid (no templates, no node-click capture).
         self._mastery_setup = self._make_mastery_setup(frame)
         self._mastery_setup.pack(fill="x", padx=8, pady=(4, 8))
 
@@ -797,6 +814,44 @@ class MainWindow(ctk.CTk):
         ctk.CTkEntry(count_row, textvariable=self._full_auto_count_var,
                      width=70, justify="center").pack(side="left", padx=8)
 
+        # Cars to buy / unlock / sell per cycle (default 33, user-adjustable)
+        car_row = ctk.CTkFrame(frame, fg_color="transparent")
+        car_row.pack(fill="x", padx=12, pady=(8, 0))
+        ctk.CTkLabel(car_row, text=_at("full_auto_car_count_label", self._lang),
+                     font=("Arial", 12)).pack(side="left")
+        self._full_auto_car_count_var = ctk.StringVar(
+            value=str(self._cfg.get("full_auto_car_count", 33)))
+        ctk.CTkEntry(car_row, textvariable=self._full_auto_car_count_var,
+                     width=70, justify="center").pack(side="left", padx=8)
+
+        # Start-cycle-from selector (first cycle only) — for users who already
+        # have points/cars lined up and want to skip ahead.
+        start_row = ctk.CTkFrame(frame, fg_color="transparent")
+        start_row.pack(fill="x", padx=12, pady=(8, 0))
+        ctk.CTkLabel(start_row, text=_at("full_auto_start_label", self._lang),
+                     font=theme.LABEL_FONT).pack(side="left")
+        self._fa_start_labels = {
+            "race":    _at("full_auto_start_race", self._lang),
+            "buy":     _at("full_auto_start_buy", self._lang),
+            "mastery": _at("full_auto_start_mastery", self._lang),
+            "sell":    _at("full_auto_start_sell", self._lang),
+        }
+        cur_start = self._cfg.get("full_auto_start_from", "race")
+        if cur_start not in self._fa_start_labels:
+            cur_start = "race"
+        self._fa_start_var = ctk.StringVar(value=self._fa_start_labels[cur_start])
+        ctk.CTkOptionMenu(
+            start_row,
+            variable=self._fa_start_var,
+            values=[self._fa_start_labels[k]
+                    for k in ("race", "buy", "mastery", "sell")],
+            command=self._on_fa_start_change,
+            width=200, height=30, corner_radius=theme.token("corner_sm"),
+            fg_color=theme.token("surface"), text_color=theme.token("text"),
+            button_color=theme.token("accent"),
+            button_hover_color=theme.token("accent_hover"),
+        ).pack(side="left", padx=theme.PAD_INLINE)
+
         # Branch toggle: spin wheels each cycle, or straight back to racing
         branch_row = ctk.CTkFrame(frame, fg_color="transparent")
         branch_row.pack(fill="x", padx=12, pady=(8, 0))
@@ -821,6 +876,19 @@ class MainWindow(ctk.CTk):
             **theme.segbtn_kwargs(self._cfg),
         ).pack(side="left", padx=theme.PAD_INLINE)
 
+        # Setup panel — chain-only nav templates, grouped by category.
+        self._full_auto_setup = self._make_full_auto_setup(frame)
+        self._full_auto_setup.pack(fill="x", padx=8, pady=(4, 8))
+
+        # Mastery-tree unlock path (Full Auto's own grid spec, for the 22B tree).
+        self._full_auto_grid = MasteryGridWidget(
+            frame, grid_file=get_full_auto_grid_file(self._tpl_lang),
+            lang=self._lang,
+            fg_color=self._t("surface_alt"),
+            border_width=1, border_color=self._t("border"),
+            corner_radius=self._t("corner"))
+        self._full_auto_grid.pack(fill="x", padx=8, pady=(0, 8))
+
         # Run controls
         self._build_run_controls(frame, mode="full_auto")
 
@@ -839,6 +907,11 @@ class MainWindow(ctk.CTk):
     def _on_fa_branch_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_fa_branch_labels", {}).items()}
         self._cfg["full_auto_branch_mode"] = rev.get(val, "racing")
+        save(self._cfg)
+
+    def _on_fa_start_change(self, val: str):
+        rev = {v: k for k, v in getattr(self, "_fa_start_labels", {}).items()}
+        self._cfg["full_auto_start_from"] = rev.get(val, "race")
         save(self._cfg)
 
     def _build_buy_tab(self) -> ctk.CTkFrame:
@@ -1040,6 +1113,29 @@ class MainWindow(ctk.CTk):
             nodes_file=None,
             res_cfg_key='buy_resolution',
             mode='buy',
+            log_cb=self._log,
+            status_cb=self._set_status,
+            lang=self._lang,
+            capture_key=self._capture_key,
+            main_cfg=self._cfg,
+            tpl_lang=self._tpl_lang,
+            fg_color=self._t("surface_alt"),
+            border_width=1, border_color=self._t("border"),
+            corner_radius=self._t("corner"),
+        )
+
+    def _make_full_auto_setup(self, parent) -> SetupPanel:
+        """Full Auto Setup panel — chain-only nav templates, grouped by category
+        (currently the mastery positioning nav). custom-only; no node capture."""
+        return SetupPanel(
+            parent,
+            template_defs=[(_at(cat, self._lang),
+                            [(k, _at(lk, self._lang)) for k, lk in items])
+                           for cat, items in FULL_AUTO_TEMPLATE_KEYS],
+            folder=get_full_auto_templates('custom', self._tpl_lang),
+            nodes_file=None,
+            res_cfg_key='full_auto_resolution',
+            mode='full_auto',
             log_cb=self._log,
             status_cb=self._set_status,
             lang=self._lang,
@@ -1255,6 +1351,7 @@ class MainWindow(ctk.CTk):
                             "buy": self._buy_log, "delete": self._delete_log,
                             "spin": self._spin_log}[tab]
         self._active_setup_panel = {
+            "full_auto": getattr(self, "_full_auto_setup", None),
             "race":    getattr(self, "_race_setup", None),
             "mastery": getattr(self, "_mastery_setup", None),
             "spin":    getattr(self, "_spin_setup", None),
@@ -1626,14 +1723,26 @@ class MainWindow(ctk.CTk):
                     race_count = int(self._full_auto_count_var.get())
                 except ValueError:
                     race_count = 0
+                try:
+                    car_count = int(self._full_auto_car_count_var.get())
+                except ValueError:
+                    car_count = 33
+                if car_count <= 0:
+                    car_count = 33
+                # Persist the entered car count so it survives restarts.
+                self._cfg['full_auto_car_count'] = car_count
+                save(self._cfg)
                 branch = self._cfg.get('full_auto_branch_mode', 'racing')
+                start_from = self._cfg.get('full_auto_start_from', 'race')
                 fa_run(
                     cfg=_cfg_mod.load(),
                     stop_event=self._stop_event,
                     log_cb=log_cb,
                     status_cb=self._set_status,
                     race_count=race_count,
+                    car_count=car_count,
                     branch_mode=branch,
+                    start_from=start_from,
                     section_cb=self._full_auto_log.log_section,
                 )
             except Exception as e:
@@ -2438,24 +2547,13 @@ class MainWindow(ctk.CTk):
             self._cfg["mastery_start_loop"] = 1
         save(self._cfg)
 
-    def _make_mastery_setup(self, parent) -> SetupPanel:
-        """Build the mastery Setup panel. Mastery is keyboard-driven, so it
-        needs NO templates — only node capture. The panel gets an empty
-        template_defs, showing just the resolution selector + node capture (no
-        template rows, hence no per-template threshold sliders)."""
-        return SetupPanel(
+    def _make_mastery_setup(self, parent) -> MasteryGridWidget:
+        """Mastery is keyboard-driven and walks the tree with WASD, so the only
+        config is the unlock-path grid (no templates, no node-click capture)."""
+        return MasteryGridWidget(
             parent,
-            template_defs=[],
-            folder=get_mastery_templates('custom', self._tpl_lang),
-            nodes_file=get_nodes_file('custom', self._tpl_lang),
-            res_cfg_key='mastery_resolution',
-            mode='mastery',
-            log_cb=self._log,
-            status_cb=self._set_status,
+            grid_file=get_mastery_grid_file(self._tpl_lang),
             lang=self._lang,
-            capture_key=self._capture_key,
-            main_cfg=self._cfg,
-            tpl_lang=self._tpl_lang,
             fg_color=self._t("surface_alt"),
             border_width=1, border_color=self._t("border"),
             corner_radius=self._t("corner"),

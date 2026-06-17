@@ -87,6 +87,11 @@ DEFAULT_ROIS: dict[str, Rect] = {
     # The recommended "What's Next" menu shown after Continue. Capture the
     # fixed top-left "接下來做什麼" / "What's Next" heading (invariant position).
     "next_activity":        (0.00, 0.00, 0.45, 0.20),  # top-left heading
+    # ── Full Auto: mastery positioning (main menu → My Horizon → My Cars) ──
+    # Fallback ROIs only; user captures carry a geometry box. Generous bands.
+    "return_home":          (0.20, 0.10, 0.55, 0.60),  # "Return Home" tile, My Horizon
+    "cars_tab":             (0.00, 0.00, 1.00, 0.15),  # top-nav CARS tab (home menu)
+    "recently_added":       (0.20, 0.05, 0.60, 0.30),  # "Recently Added" sort header/option
 }
 
 
@@ -140,6 +145,11 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     "car_collection": ("car collection", "collection", "車輛收藏", "車輛", "收藏"),
     "subaru": ("subaru", "速霸陸", "速霸陆"),  # brand tile (logo may have no text)
     "buy_target_car": (),  # a specific car tile (image), no reliable text hint
+    # Full Auto mastery positioning nav.
+    "return_home": ("return home", "home", "fast travel", "返回住宅", "返回", "回家"),
+    "cars_tab": ("cars", "car", "車輛", "汽車", "车辆"),
+    "recently_added": ("recently added", "recently", "recent", "added",
+                       "最近新增", "最近", "新增"),
 }
 
 # All template images capture text UI elements. Edge matching on text is

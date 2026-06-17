@@ -43,6 +43,12 @@ _KEYEVENTF_SCANCODE    = 0x0008
 _EXTENDED_VKS = frozenset({0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
                            0x2D, 0x2E, 0xA3, 0xA5})
 
+# How often the keep-alive re-asserts "active" to the game window. 0.5s is the
+# sweet spot: frequent enough to keep an unfocused game from auto-pausing, but
+# sparse enough not to interfere with menu input (a tighter 0.15s tick fired
+# WM_ACTIVATE/SETFOCUS bursts that dropped keystrokes during menu navigation).
+_KEEPALIVE_INTERVAL = 0.5
+
 
 class _KEYBDINPUT(ctypes.Structure):
     _fields_ = [("wVk", wintypes.WORD), ("wScan", wintypes.WORD),
@@ -223,7 +229,7 @@ class GameIO:
         def _loop():
             while not self._ka_stop.is_set() and not stop_cb():
                 capture.set_window_active(self.hwnd)
-                time.sleep(0.5)
+                time.sleep(_KEEPALIVE_INTERVAL)
         threading.Thread(target=_loop, daemon=True).start()
 
     def stop_keepalive(self):
