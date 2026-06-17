@@ -21,11 +21,12 @@ from gameio import GameIO
 # it's fully background-safe (see grid_widget.py for the picker UI).
 _GRID_ROWS, _GRID_COLS = 4, 4
 _GRID_START = (_GRID_ROWS - 1, 0)   # bottom-left
-# Hardcoded grid-nav pacing (NOT configurable): a short pause after each WASD
-# move (incl. move→Enter), then a longer pause after Enter so the node-unlock
-# settles before the next node's movement.
+# Grid-nav pacing. The post-Enter unlock settle (pause after unlocking a node,
+# before moving to the next) is Settings-tunable — weaker hardware needs the
+# unlock to register before the cursor moves on; default 1.25s, adjustable 1–2s
+# via mastery_grid_unlock_wait. The WASD move interval stays fixed.
 _GRID_MOVE_WAIT   = 0.25
-_GRID_UNLOCK_WAIT = 1.0
+_GRID_UNLOCK_WAIT = 1.25   # default for mastery_grid_unlock_wait
 
 
 
@@ -146,7 +147,6 @@ def _nav_keys_for_loop(loop: int) -> list:
 #   _KEYS_CUTSCENE_WAIT     step 4: default cutscene wait (overridable in Settings)
 #   _KEYS_SCREEN_WAIT       step 7: wait for the Car Mastery screen before clicking
 #   _TAP_WAIT               gap between repeated Down/Up cursor taps within a menu
-# Node clicks still use the mastery_node_click_wait Setting.
 _POST_KEY_WAIT          = 1.25
 _POST_CUTSCENE_ESC_WAIT = 1.75
 _KEYS_CUTSCENE_WAIT     = 11.0
@@ -169,7 +169,6 @@ def run(cfg: dict, stop_event: threading.Event,
     import config as _cfg_mod
     _fresh = _cfg_mod.load()
     post_kw    = _POST_KEY_WAIT          # fixed (menu-step transitions)
-    post_ncw   = _fresh.get("mastery_node_click_wait", 0.8)
     start_loop = max(1, min(3, int(_fresh.get("mastery_start_loop", 1))))
     # Step waits — fixed constants (see top of section), except the cutscene
     # wait which is user-raisable (default 11, floor 11) via Settings.
@@ -177,6 +176,11 @@ def run(cfg: dict, stop_event: threading.Event,
                       float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT)))
     screen_wait = _KEYS_SCREEN_WAIT
     tap_wait    = _TAP_WAIT
+    # Grid node-unlock settle (after Enter, before the next node) — Settings-
+    # tunable for weaker hardware (default 1.25, slider 1–2s).
+    grid_unlock_wait = max(0.25,
+                           float(_fresh.get("mastery_grid_unlock_wait",
+                                            _GRID_UNLOCK_WAIT)))
 
     io = GameIO(_fresh, log_cb)
     current_w, current_h = io.width, io.height
@@ -289,7 +293,7 @@ def run(cfg: dict, stop_event: threading.Event,
         # the single W/A/S/D move to reach it (consecutive cells are adjacent),
         # then Enter to unlock. Scancode path — same as the snake nav, and
         # background-safe (no mouse). Pacing: _GRID_MOVE_WAIT after each move
-        # (incl. move→Enter), _GRID_UNLOCK_WAIT after Enter before the next node.
+        # (incl. move→Enter), grid_unlock_wait after Enter before the next node.
         announce(_at("log_grid_unlock", lang, n=len(grid_order)))
         cur = _GRID_START
         for i, (gr, gc) in enumerate(grid_order, start=1):
@@ -304,7 +308,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 if stop(): break
                 io.press(k, scancode=True, post_wait=_GRID_MOVE_WAIT)
             if stop(): break
-            io.press('enter', post_wait=_GRID_UNLOCK_WAIT)   # unlock this node
+            io.press('enter', post_wait=grid_unlock_wait)   # unlock this node
             cur = (gr, gc)
         if stop(): break
 

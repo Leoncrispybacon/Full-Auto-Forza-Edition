@@ -220,12 +220,15 @@ DEFAULTS = {
     "race_check_interval":    0.5,
     "race_post_key_wait":     0.75,
     # Mastery settings (keyboard-driven; no detection)
-    "mastery_node_click_wait":0.8,
     "mastery_start_loop":     1,
     # Cutscene ("Ride This Car") wait before ESC — default 11, user-raisable
     # via a Settings slider (min 11). The other mastery step waits
     # (screen/tap + menu-transition delays) stay FIXED constants in mastery.py.
     "mastery_cutscene_wait":  11.0,
+    # Grid node-unlock settle (after Enter, before the next node's move) for the
+    # keyboard mastery-tree nav. Higher helps weaker hardware register the
+    # unlock; default 1.25, Settings slider 1–2s.
+    "mastery_grid_unlock_wait": 1.25,
     # Full Auto (chained orchestrator): branch after selling — "racing" (loop
     # straight back to racing, no wheelspin) | "wheelspin" (run wheelspin each
     # cycle). The buy/master/sell count is fixed (33) in full_auto.py.
