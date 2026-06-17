@@ -229,6 +229,10 @@ DEFAULTS = {
     # keyboard mastery-tree nav. Higher helps weaker hardware register the
     # unlock; default 1.25, Settings slider 1–2s.
     "mastery_grid_unlock_wait": 1.25,
+    # Delay after each menu cursor tap (Up/Down arrows) shared by Mastery's
+    # in-menu nav and Delete Cars. Higher helps weaker hardware register each
+    # tap; default 0.25, Settings slider 0.1–0.5s.
+    "menu_tap_wait":          0.25,
     # Full Auto (chained orchestrator): branch after selling — "racing" (loop
     # straight back to racing, no wheelspin) | "wheelspin" (run wheelspin each
     # cycle). The buy/master/sell count is fixed (33) in full_auto.py.
@@ -305,6 +309,11 @@ DEFAULTS = {
     # grab the screen rectangle it occupies (fast, but blank if occluded).
     # PrintWindow may return black for some DirectX games — switch to "region".
     "background_capture":     "window",
+    # When the window's aspect ratio differs from the game's render aspect, the
+    # game draws black letterbox/pillarbox bars inside the client. Detect them
+    # once at run start and crop the capture to the game content so detection
+    # (template scaling + ROIs) lines up. KILL-SWITCH: set false to disable.
+    "crop_letterbox":         True,
     # Mute ONLY the game's audio while an automation run is active (per-app;
     # leaves other apps' sound alone), and unmute when it stops. Settings toggle.
     "mute_game":              False,

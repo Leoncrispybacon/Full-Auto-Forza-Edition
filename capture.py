@@ -701,6 +701,62 @@ def grab_window(hwnd) -> np.ndarray:
             user32.ReleaseDC(hwnd, hdc)
 
 
+def detect_content_rect(frame, dark_thresh: float = 12.0,
+                        min_bar_frac: float = 0.012,
+                        max_bar_frac: float = 0.45):
+    """Find the game's content rectangle inside a CLIENT-area frame that may be
+    letterboxed / pillarboxed with black bars (window aspect != game render
+    aspect). Scans inward from each edge for contiguous near-black rows/columns;
+    a bar pair is only cropped when BOTH opposite sides are dark AND roughly
+    symmetric, so a scene that's merely dark on one edge is never over-cropped.
+    Returns (x, y, w, h) of the content, or None to crop nothing.
+
+    Detect-once-at-start usage: bars are drawn outside the 3D render and are
+    black on every screen, so any non-black frame yields the same crop."""
+    if frame is None or getattr(frame, "size", 0) == 0:
+        return None
+    h, w = frame.shape[:2]
+    if h < 8 or w < 8:
+        return None
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Whole frame near-black → capture failure (e.g. PrintWindow black frame); skip.
+    if float(gray.mean()) <= dark_thresh:
+        return None
+    col_mean = gray.mean(axis=0)
+    row_mean = gray.mean(axis=1)
+
+    def _run(means):
+        # contiguous count of near-black entries from the front
+        n = 0
+        for v in means:
+            if v <= dark_thresh:
+                n += 1
+            else:
+                break
+        return n
+
+    def _pair(a, b, span):
+        lo = int(span * min_bar_frac)
+        hi = int(span * max_bar_frac)
+        if a < lo or b < lo:        # at least one side has no real bar
+            return 0, 0
+        if a > hi or b > hi:        # implausibly large → bail
+            return 0, 0
+        tol = max(6, int(0.25 * max(a, b)))
+        if abs(a - b) > tol:        # not symmetric → not a true bar pair
+            return 0, 0
+        return a, b
+
+    left, right = _pair(_run(col_mean), _run(col_mean[::-1]), w)
+    top, bottom = _pair(_run(row_mean), _run(row_mean[::-1]), h)
+    if not (left or right or top or bottom):
+        return None
+    cw, ch = w - left - right, h - top - bottom
+    if cw < w * 0.4 or ch < h * 0.4:   # sanity — never crop away most of the frame
+        return None
+    return (left, top, cw, ch)
+
+
 def list_monitors() -> list:
     with mss.MSS() as sct:
         return [

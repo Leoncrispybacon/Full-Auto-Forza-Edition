@@ -74,9 +74,11 @@ def _key_press(key, post_wait=0.5):
 # share one IME-safe (scancode) key sender.
 key_press = _key_press
 
-# Delay after each menu Down-arrow tap (hardcoded — the menu cursor keeps up at
-# this rate). The Enter confirms keep their own longer, deliberate waits.
-_DOWN_TAP_WAIT = 0.1
+# Default delay after each menu Down-arrow tap. Overridable via the shared
+# `menu_tap_wait` setting (Settings → Mastery; default 0.25, range 0.1–0.5s) —
+# 0.1 was too fast for weaker hardware's menu cursor to register every tap.
+# The Enter confirms keep their own longer, deliberate waits.
+_DOWN_TAP_WAIT = 0.25
 
 
 def run(cfg: dict, stop_event: threading.Event,
@@ -84,6 +86,9 @@ def run(cfg: dict, stop_event: threading.Event,
 
     lang    = cfg.get('lang', 'en')
     post_kw = cfg.get('delete_post_key_wait', 0.5)
+    # Menu cursor tap delay — shared `menu_tap_wait` setting (default 0.25,
+    # clamp 0.1–0.5s). Higher helps weak hardware register each Down tap.
+    down_tap = max(0.1, min(0.5, float(cfg.get('menu_tap_wait', _DOWN_TAP_WAIT))))
     io = GameIO(cfg, log_cb)
 
     def stop():
@@ -120,7 +125,7 @@ def run(cfg: dict, stop_event: threading.Event,
 
         # ── Navigate to Remove / Sell option (Down × 4) ──────
         for i in range(4):
-            press('down', f'Down {i+1}/4', wait=_DOWN_TAP_WAIT)
+            press('down', f'Down {i+1}/4', wait=down_tap)
             if stop(): break
         if stop(): break
 
@@ -129,7 +134,7 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop(): break
 
         # ── Confirm dialog: Down × 1 → Enter ─────────────────
-        press('down', 'Confirm: move to Yes', wait=_DOWN_TAP_WAIT)
+        press('down', 'Confirm: move to Yes', wait=down_tap)
         if stop(): break
 
         press('enter', 'Confirm delete', wait=1.5)

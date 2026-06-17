@@ -117,6 +117,12 @@ class GameIO:
         self.hwnd = None
         self.bg = False
         self.win_capture = False
+        # Letterbox/pillarbox crop (detected once at start). _crop = (x,y,w,h)
+        # in client-frame px, or None. _crop_x/_crop_y offset frame-local click
+        # coords back to client coords.
+        self._crop = None
+        self._crop_x = 0
+        self._crop_y = 0
 
         if cfg.get("background_input", True):
             title = cfg.get("background_window_title", "Forza Horizon 6")
@@ -133,12 +139,12 @@ class GameIO:
                                   w=self.width, h=self.height))
                     if self.win_capture:
                         self._log(_at("log_bg_capture_window", self._lang))
+                    if cfg.get("crop_letterbox", True):
+                        self._detect_letterbox()
 
     # ── Capture ──────────────────────────────────────────────
-    def grab(self):
-        """Current frame: window client area (background) or whole monitor. The
-        rect is re-queried each call so MOVING the window is tracked live
-        (RESIZING needs a restart — templates are scaled to the start size)."""
+    def _grab_raw(self):
+        """Raw client-area / monitor frame, BEFORE any letterbox crop."""
         if self.win_capture:
             f = capture.grab_window(self.hwnd)
             if f is not None:
@@ -149,6 +155,41 @@ class GameIO:
             if r:
                 return capture.grab_region(*r)
         return capture.grab_frame(self.monitor_index)
+
+    def grab(self):
+        """Current frame: window client area (background) or whole monitor. The
+        rect is re-queried each call so MOVING the window is tracked live
+        (RESIZING needs a restart — templates are scaled to the start size).
+        When black bars were detected at start, the frame is cropped to the
+        game content so detection sees a clean image (matches a fullscreen
+        capture → template scaling + ROIs line up)."""
+        f = self._grab_raw()
+        if f is not None and self._crop is not None:
+            cx, cy, cw, ch = self._crop
+            fh, fw = f.shape[:2]
+            if cy + ch <= fh and cx + cw <= fw:
+                f = f[cy:cy + ch, cx:cx + cw]
+        return f
+
+    def _detect_letterbox(self):
+        """Detect black pillarbox/letterbox bars ONCE at start; store the crop
+        and shrink width/height to the content size (used for template scaling
+        at run start). Bars are black on every screen, so any non-black startup
+        frame works. No bars / capture failure → no crop (legacy behaviour)."""
+        try:
+            raw = self._grab_raw()
+        except Exception:
+            raw = None
+        rect = capture.detect_content_rect(raw) if raw is not None else None
+        if not rect:
+            return
+        cx, cy, cw, ch = rect
+        if cw <= 0 or ch <= 0:
+            return
+        self._crop = rect
+        self._crop_x, self._crop_y = cx, cy
+        self.width, self.height = cw, ch
+        self._log(_at("log_bg_letterbox", self._lang, w=cw, h=ch))
 
     # ── Keys ─────────────────────────────────────────────────
     def press(self, key, post_wait=0.0, scancode=False):
@@ -204,12 +245,16 @@ class GameIO:
         """Left-click at FRAME-LOCAL (fx, fy) (i.e. MatchResult.location). In
         window-capture mode the frame IS the client area, so we post client
         coords directly (independent of the window's screen position)."""
+        # fx,fy are in the (possibly cropped) frame; add the crop origin back to
+        # land on the real client pixel.
+        cx, cy = self._crop_x, self._crop_y
         if self.bg and self.win_capture:
-            capture.post_client_click(self.hwnd, int(fx), int(fy), post_wait)
+            capture.post_client_click(self.hwnd, int(fx) + cx, int(fy) + cy, post_wait)
         elif self.bg:
             r = capture.get_client_rect(self.hwnd) or \
                 (self.cap_left, self.cap_top, self.width, self.height)
-            capture.post_click(self.hwnd, int(fx) + r[0], int(fy) + r[1], post_wait)
+            capture.post_click(self.hwnd, int(fx) + cx + r[0],
+                               int(fy) + cy + r[1], post_wait)
         else:
             capture.mouse_click(fx, fy, self.cap_left, self.cap_top, post_wait)
 

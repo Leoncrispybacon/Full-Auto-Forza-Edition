@@ -151,7 +151,7 @@ _POST_KEY_WAIT          = 1.25
 _POST_CUTSCENE_ESC_WAIT = 1.75
 _KEYS_CUTSCENE_WAIT     = 11.0
 _KEYS_SCREEN_WAIT       = 1.5
-_TAP_WAIT               = 0.1
+_TAP_WAIT               = 0.25   # matches grid move rate; 0.1 dropped taps on slow PCs
 
 
 def run(cfg: dict, stop_event: threading.Event,
@@ -175,7 +175,9 @@ def run(cfg: dict, stop_event: threading.Event,
     cut_wait    = max(_KEYS_CUTSCENE_WAIT,
                       float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT)))
     screen_wait = _KEYS_SCREEN_WAIT
-    tap_wait    = _TAP_WAIT
+    # Menu cursor tap delay (Up/Down) — Settings-tunable (default 0.25, slider
+    # 0.1–0.5s), shared with Delete Cars. Higher helps weak hardware register taps.
+    tap_wait    = max(0.1, min(0.5, float(_fresh.get("menu_tap_wait", _TAP_WAIT))))
     # Grid node-unlock settle (after Enter, before the next node) — Settings-
     # tunable for weaker hardware (default 1.25, slider 1–2s).
     grid_unlock_wait = max(0.25,

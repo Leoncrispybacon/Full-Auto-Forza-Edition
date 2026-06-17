@@ -924,6 +924,10 @@ STRINGS = {
         "en":    "Node unlock delay (s)",
         "zh-tw": "節點解鎖延遲（秒）",
     },
+    "setting_menu_tap_wait": {
+        "en":    "Menu tap delay (s)",
+        "zh-tw": "選單點按延遲（秒）",
+    },
     "setting_buy_post_key_wait": {
         "en":    "Key interval (s)",
         "zh-tw": "按鍵間隔（秒）",
@@ -1167,6 +1171,10 @@ STRINGS = {
         "en":    "  Detecting against game window: {w}×{h} (don't move/resize it while running).",
         "zh-tw": "  以遊戲視窗為偵測範圍：{w}×{h}（執行期間請勿移動或縮放視窗）。",
     },
+    "log_bg_letterbox": {
+        "en":    "  Black bars detected — cropping to game content {w}×{h} (window aspect ≠ game aspect).",
+        "zh-tw": "  偵測到黑邊 — 裁切至遊戲畫面內容 {w}×{h}（視窗比例與遊戲比例不符）。",
+    },
     "log_bg_keep_active": {
         "en":    "  Keep-alive ON — telling the game it's active so it won't auto-pause (experimental; only works if the game trusts it).",
         "zh-tw": "  保持作用中已開啟 — 持續告知遊戲它仍為作用中視窗以避免自動暫停（實驗性；僅在遊戲採信時有效）。",
@@ -1345,6 +1353,10 @@ STRINGS = {
     "tip_mastery_grid_unlock_wait": {
         "en":    "How long to wait after unlocking each mastery-tree node before moving to the next (in seconds).\nDefault 1.25. Increase on weaker hardware if nodes don't register before the cursor moves on.",
         "zh-tw": "解鎖每個熟練度樹節點後、移動到下一個之前的等待時間（秒）。\n預設 1.25。若硬體較弱、節點尚未生效游標就移動，請調高。",
+    },
+    "tip_menu_tap_wait": {
+        "en":    "Delay after each menu cursor tap (Up/Down arrows) in Mastery and Delete Cars (in seconds).\nDefault 0.25. Increase on weaker hardware if menu taps don't register before the next press.",
+        "zh-tw": "熟練度與刪除車輛中，每次選單游標點按（上/下方向鍵）後的延遲（秒）。\n預設 0.25。若硬體較弱、點按尚未生效就按下一鍵，請調高。",
     },
     "tip_buy_post_key_wait": {
         "en":    "How long to wait between each key press during purchase (in seconds).",

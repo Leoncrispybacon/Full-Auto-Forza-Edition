@@ -2502,6 +2502,7 @@ class MainWindow(ctk.CTk):
             fields=[
                 (_at('setting_mastery_cutscene_wait', self._lang), 'mastery_cutscene_wait', 11.0, 25.0, 0.5, 'tip_mastery_cutscene_wait'),
                 (_at('setting_mastery_grid_unlock_wait', self._lang), 'mastery_grid_unlock_wait', 1.0, 2.0, 0.25, 'tip_mastery_grid_unlock_wait'),
+                (_at('setting_menu_tap_wait', self._lang), 'menu_tap_wait', 0.1, 0.5, 0.05, 'tip_menu_tap_wait'),
             ])
 
         section('settings_buy_section')
