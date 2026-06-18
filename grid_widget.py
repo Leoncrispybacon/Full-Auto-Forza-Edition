@@ -128,3 +128,122 @@ class MasteryGridWidget(ctk.CTkFrame):
         self._toggle_btn.configure(text=self._header_text())
         self._dot.configure(
             text_color=self.DOT_OK if self._order else self.DOT_MISSING)
+
+
+class MasteryCarBlockWidget(ctk.CTkFrame):
+    """Visual picker for the contiguous block of garage cars to unlock in
+    STANDALONE mastery. The My Cars grid fills column-major, TOP→BOTTOM. The
+    user marks the FIRST car's row (column 0) and the LAST car's row (final
+    column), plus how many FULL columns sit between. Total cars =
+    (ROWS - first_row + 1) + middle*ROWS + last_row. Reports (first_row,
+    middle_cols, last_row) via on_change. Minimum 2 columns (first + last)."""
+
+    ROWS = 3
+
+    def __init__(self, parent, first_row: int = 1, middle_cols: int = 0,
+                 last_row: int = 3, on_change=None, lang: str = "en", **kwargs):
+        super().__init__(parent, **kwargs)
+        self._lang = lang
+        self._on_change = on_change or (lambda *a: None)
+        self._first_row = max(1, min(self.ROWS, int(first_row)))
+        self._last_row  = max(1, min(self.ROWS, int(last_row)))
+        self._middle    = max(0, int(middle_cols))
+        self._first_btns = {}
+        self._last_btns  = {}
+        self._build()
+
+    def _col_picker(self, parent, label_key, btns, handler):
+        col = ctk.CTkFrame(parent, fg_color="transparent")
+        ctk.CTkLabel(col, text=_at(label_key, self._lang),
+                     font=("Arial", 11)).pack()
+        for r in range(1, self.ROWS + 1):
+            b = ctk.CTkButton(
+                col, text="", width=44, height=38, corner_radius=8,
+                font=("Arial", 14, "bold"),
+                command=lambda rr=r: handler(rr),
+                fg_color=theme.token("surface"),
+                hover_color=theme.token("surface_alt"),
+                border_width=1, border_color=theme.token("border"))
+            b.pack(pady=3)
+            btns[r] = b
+        ctk.CTkLabel(col, text="↓", font=("Arial", 13),
+                     text_color=("gray50", "gray55")).pack()
+        return col
+
+    def _build(self):
+        ctk.CTkLabel(self, text=_at("carblock_title", self._lang), anchor="w",
+                     font=("Arial", 13, "bold"),
+                     text_color=theme.token("text")).pack(fill="x", padx=12,
+                                                          pady=(10, 2))
+        ctk.CTkLabel(self, text=_at("carblock_hint", self._lang), anchor="w",
+                     justify="left", wraplength=460, font=("Arial", 11),
+                     text_color=("gray50", "gray55")).pack(fill="x", padx=12,
+                                                           pady=(0, 8))
+        row = ctk.CTkFrame(self, fg_color="transparent")
+        row.pack(padx=12, pady=2)
+
+        self._col_picker(row, "carblock_first", self._first_btns,
+                         self._set_first).pack(side="left", padx=(0, 16))
+
+        mid = ctk.CTkFrame(row, fg_color="transparent")
+        mid.pack(side="left", padx=16)
+        ctk.CTkLabel(mid, text=_at("carblock_middle", self._lang),
+                     font=("Arial", 11)).pack()
+        self._mid_var = ctk.StringVar(value=str(self._middle))
+        ctk.CTkEntry(mid, textvariable=self._mid_var, width=56,
+                     justify="center").pack(pady=8)
+        self._mid_var.trace_add("write", lambda *a: self._on_mid())
+
+        self._col_picker(row, "carblock_last", self._last_btns,
+                         self._set_last).pack(side="left", padx=(16, 0))
+
+        self._total_lbl = ctk.CTkLabel(self, text="", font=("Arial", 12, "bold"),
+                                       text_color=theme.token("text"))
+        self._total_lbl.pack(pady=(8, 12))
+        self._refresh()
+
+    def total(self) -> int:
+        return ((self.ROWS - self._first_row + 1)
+                + self._middle * self.ROWS + self._last_row)
+
+    def _set_first(self, r):
+        self._first_row = r
+        self._emit()
+
+    def _set_last(self, r):
+        self._last_row = r
+        self._emit()
+
+    def _on_mid(self):
+        v = self._mid_var.get().strip()
+        try:
+            self._middle = max(0, int(v)) if v else 0
+        except ValueError:
+            return                       # ignore partial / invalid input
+        self._emit()
+
+    def _emit(self):
+        self._on_change(self._first_row, self._middle, self._last_row)
+        self._refresh()
+
+    def _refresh(self):
+        # First column: rows at/below first_row are in the block (fills down).
+        for r, b in self._first_btns.items():
+            self._paint(b, sel=(r == self._first_row), inblk=(r >= self._first_row))
+        # Last column: rows at/above last_row are in the block (fills from top).
+        for r, b in self._last_btns.items():
+            self._paint(b, sel=(r == self._last_row), inblk=(r <= self._last_row))
+        self._total_lbl.configure(
+            text=_at("carblock_total", self._lang, n=self.total()))
+
+    @staticmethod
+    def _paint(b, sel, inblk):
+        if sel:
+            b.configure(text="●", fg_color=theme.token("accent"),
+                        text_color=theme.token("accent_text"))
+        elif inblk:
+            b.configure(text="·", fg_color=theme.token("surface_alt"),
+                        text_color=theme.token("text_muted"))
+        else:
+            b.configure(text="", fg_color=theme.token("surface"),
+                        text_color=theme.token("text_muted"))

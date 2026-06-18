@@ -17,7 +17,7 @@ from config import (load, save, resolve_template_lang,
                     get_wheelspin_templates, get_buy_templates,
                     get_full_auto_templates,
                     get_mastery_grid_file, get_full_auto_grid_file)
-from grid_widget import MasteryGridWidget
+from grid_widget import MasteryGridWidget, MasteryCarBlockWidget
 from log_widget import LogWidget
 from setup_panel import SetupPanel
 from updater import check_async, RELEASES_PAGE
@@ -101,6 +101,15 @@ FULL_AUTO_TEMPLATE_KEYS = [
         ("return_home",    "fa_tpl_return_home"),
         ("cars_tab",       "fa_tpl_cars_tab"),
         ("recently_added", "fa_tpl_recently_added"),
+    ]),
+    # Sell reuses recently_added + cars_tab from the mastery set above; my_cars
+    # is the only sell-specific capture (re-enter the grid after riding).
+    ("fa_cat_sell", [
+        ("grind_brand",     "fa_tpl_grind_brand"),
+        ("grind_car",       "fa_tpl_grind_car"),
+        ("my_cars",         "fa_tpl_my_cars"),
+        ("my_cars_header",  "fa_tpl_my_cars_header"),
+        ("anna",            "fa_tpl_anna"),
     ]),
 ]
 
@@ -641,7 +650,11 @@ class MainWindow(ctk.CTk):
         save(self._cfg)
 
     def _build_race_tab(self) -> ctk.CTkFrame:
-        frame = ctk.CTkScrollableFrame(self._main_content, fg_color="transparent")
+        # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
+        # has nothing to repaint over old child positions while scrolling, so
+        # widgets ghost/smear. "surface" is what sits behind it anyway, so the
+        # look is unchanged — just solid enough to clear cleanly on scroll.
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
 
         # Description
         ctk.CTkLabel(frame, text=_at("race_description", self._lang),
@@ -699,7 +712,11 @@ class MainWindow(ctk.CTk):
         return frame
 
     def _build_mastery_tab(self) -> ctk.CTkFrame:
-        frame = ctk.CTkScrollableFrame(self._main_content, fg_color="transparent")
+        # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
+        # has nothing to repaint over old child positions while scrolling, so
+        # widgets ghost/smear. "surface" is what sits behind it anyway, so the
+        # look is unchanged — just solid enough to clear cleanly on scroll.
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
 
         # Description
         ctk.CTkLabel(frame, text=_at("mastery_description", self._lang),
@@ -711,39 +728,18 @@ class MainWindow(ctk.CTk):
         self._mastery_setup = self._make_mastery_setup(frame)
         self._mastery_setup.pack(fill="x", padx=8, pady=(4, 8))
 
-        # Car count row
-        count_row = ctk.CTkFrame(frame, fg_color="transparent")
-        count_row.pack(fill="x", padx=12, pady=(4, 0))
-        ctk.CTkLabel(count_row, text=_at("mastery_count_label", self._lang),
-                     font=("Arial", 12)).pack(side="left")
-        self._mastery_count_var = ctk.StringVar(value="0")
-        ctk.CTkEntry(count_row, textvariable=self._mastery_count_var,
-                     width=70, justify="center").pack(side="left", padx=8)
-        ctk.CTkLabel(count_row, text=_at("delete_count_hint", self._lang),
-                     font=("Arial", 11),
-                     text_color=self._t("text_muted")).pack(side="left")
-
-        # Start row selector
-        start_row_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        start_row_frame.pack(fill="x", padx=12, pady=(8, 0))
-        ctk.CTkLabel(start_row_frame,
-                     text=_at("mastery_start_row_label", self._lang),
-                     font=theme.LABEL_FONT).pack(side="left")
-        saved_start_row = str(self._cfg.get("mastery_start_loop", 1))
-        self._mastery_start_row_var = ctk.StringVar(value=saved_start_row)
-        ctk.CTkSegmentedButton(
-            start_row_frame,
-            values=["1", "2", "3"],
-            variable=self._mastery_start_row_var,
-            command=self._on_mastery_start_row_change,
-            width=120,
-            height=32,
-            **theme.segbtn_kwargs(self._cfg),
-        ).pack(side="left", padx=theme.PAD_INLINE)
-        ctk.CTkLabel(start_row_frame,
-                     text=_at("mastery_start_row_hint", self._lang),
-                     font=("Arial", 11),
-                     text_color=self._t("text_muted")).pack(side="left")
+        # Garage block selector — which contiguous run of cars to unlock
+        # (replaces the old count + start-row inputs; see MasteryCarBlockWidget).
+        self._mastery_block = MasteryCarBlockWidget(
+            frame,
+            first_row=self._cfg.get("mastery_block_first_row", 1),
+            middle_cols=self._cfg.get("mastery_block_middle_cols", 0),
+            last_row=self._cfg.get("mastery_block_last_row", 3),
+            on_change=self._on_mastery_block_change, lang=self._lang,
+            fg_color=self._t("surface_alt"),
+            border_width=1, border_color=self._t("border"),
+            corner_radius=self._t("corner"))
+        self._mastery_block.pack(fill="x", padx=8, pady=(4, 8))
 
         # Run controls
         self._build_run_controls(frame, mode="mastery")
@@ -798,7 +794,11 @@ class MainWindow(ctk.CTk):
             slider.pack(side="left", fill="x", expand=True, padx=4)
 
     def _build_full_auto_tab(self) -> ctk.CTkFrame:
-        frame = ctk.CTkScrollableFrame(self._main_content, fg_color="transparent")
+        # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
+        # has nothing to repaint over old child positions while scrolling, so
+        # widgets ghost/smear. "surface" is what sits behind it anyway, so the
+        # look is unchanged — just solid enough to clear cleanly on scroll.
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
 
         # Description
         ctk.CTkLabel(frame, text=_at("full_auto_description", self._lang),
@@ -835,22 +835,24 @@ class MainWindow(ctk.CTk):
             "buy":     _at("full_auto_start_buy", self._lang),
             "mastery": _at("full_auto_start_mastery", self._lang),
             "sell":    _at("full_auto_start_sell", self._lang),
+            "spin":    _at("full_auto_start_spin", self._lang),
         }
+        start_keys = self._fa_start_keys()
         cur_start = self._cfg.get("full_auto_start_from", "race")
-        if cur_start not in self._fa_start_labels:
+        if cur_start not in start_keys:
             cur_start = "race"
         self._fa_start_var = ctk.StringVar(value=self._fa_start_labels[cur_start])
-        ctk.CTkOptionMenu(
+        self._fa_start_menu = ctk.CTkOptionMenu(
             start_row,
             variable=self._fa_start_var,
-            values=[self._fa_start_labels[k]
-                    for k in ("race", "buy", "mastery", "sell")],
+            values=[self._fa_start_labels[k] for k in start_keys],
             command=self._on_fa_start_change,
             width=200, height=30, corner_radius=theme.token("corner_sm"),
             fg_color=theme.token("surface"), text_color=theme.token("text"),
             button_color=theme.token("accent"),
             button_hover_color=theme.token("accent_hover"),
-        ).pack(side="left", padx=theme.PAD_INLINE)
+        )
+        self._fa_start_menu.pack(side="left", padx=theme.PAD_INLINE)
 
         # Branch toggle: spin wheels each cycle, or straight back to racing
         branch_row = ctk.CTkFrame(frame, fg_color="transparent")
@@ -889,8 +891,14 @@ class MainWindow(ctk.CTk):
             corner_radius=self._t("corner"))
         self._full_auto_grid.pack(fill="x", padx=8, pady=(0, 8))
 
+        # Pre-flight checklist — gates Start until every requirement is ticked.
+        self._build_fa_checklist(frame)
+
         # Run controls
         self._build_run_controls(frame, mode="full_auto")
+        # Start begins disabled unless the (persisted) checklist is already
+        # fully satisfied.
+        self._update_fa_start_enabled()
 
         # Log
         self._full_auto_log = LogWidget(frame,
@@ -904,18 +912,99 @@ class MainWindow(ctk.CTk):
         self._full_auto_log.pack(fill="both", expand=True, padx=8, pady=(4, 8))
         return frame
 
+    def _fa_start_keys(self):
+        """Start-cycle-from options. 'spin' (begin at the wheelspin step) is only
+        offered in wheelspin branch mode."""
+        keys = ["race", "buy", "mastery", "sell"]
+        if self._cfg.get("full_auto_branch_mode", "racing") == "wheelspin":
+            keys.append("spin")
+        return keys
+
+    def _refresh_fa_start_options(self):
+        """Rebuild the start-from dropdown for the current branch; if the chosen
+        start is no longer available (e.g. 'spin' after leaving wheelspin), reset
+        it to race."""
+        if not hasattr(self, "_fa_start_menu"):
+            return
+        keys = self._fa_start_keys()
+        self._fa_start_menu.configure(
+            values=[self._fa_start_labels[k] for k in keys])
+        if self._cfg.get("full_auto_start_from", "race") not in keys:
+            self._cfg["full_auto_start_from"] = "race"
+            save(self._cfg)
+            self._fa_start_var.set(self._fa_start_labels["race"])
+
     def _on_fa_branch_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_fa_branch_labels", {}).items()}
         self._cfg["full_auto_branch_mode"] = rev.get(val, "racing")
         save(self._cfg)
+        self._refresh_fa_start_options()
 
     def _on_fa_start_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_fa_start_labels", {}).items()}
         self._cfg["full_auto_start_from"] = rev.get(val, "race")
         save(self._cfg)
 
+    # ── Full Auto pre-flight checklist ────────────────────────
+    # The chain makes destructive, garage-state-dependent assumptions, so Start
+    # is gated until every box is ticked. (key, label_string, persist):
+    #   map → per-session state, reset each launch.
+    #   favorite → one-time garage state, persisted via fa_check_favorite_ok.
+    # (The old "driving the grind car" item was dropped — the sell step now
+    # auto-drives the grind car via Filter→Favorites→brand→car each cycle.)
+    _FA_CHECKLIST = [
+        ("map",      "fa_check_map",      False),
+        ("favorite", "fa_check_favorite", True),
+    ]
+
+    def _build_fa_checklist(self, parent):
+        card = ctk.CTkFrame(parent, fg_color=self._t("surface_alt"),
+                            border_width=1, border_color=self._t("border"),
+                            corner_radius=self._t("corner"))
+        card.pack(fill="x", padx=12, pady=(4, 4))
+        ctk.CTkLabel(card, text=_at("fa_check_title", self._lang),
+                     anchor="w", font=theme.LABEL_FONT,
+                     text_color=self._t("text")).pack(fill="x", padx=12,
+                                                       pady=(10, 2))
+        self._fa_check_vars = {}
+        for key, lbl_key, persist in self._FA_CHECKLIST:
+            init = bool(self._cfg.get(f"fa_check_{key}_ok", False)) if persist else False
+            var = ctk.BooleanVar(value=init)
+            self._fa_check_vars[key] = (var, persist)
+            ctk.CTkCheckBox(
+                card, text=_at(lbl_key, self._lang), variable=var,
+                onvalue=True, offvalue=False, font=("Arial", 12),
+                command=lambda k=key: self._on_fa_check(k),
+            ).pack(fill="x", anchor="w", padx=16, pady=4)
+        ctk.CTkLabel(card, text="", height=2).pack()
+
+    def _on_fa_check(self, key):
+        var, persist = self._fa_check_vars[key]
+        if persist:
+            self._cfg[f"fa_check_{key}_ok"] = bool(var.get())
+            save(self._cfg)
+        self._update_fa_start_enabled()
+
+    def _fa_checklist_ok(self) -> bool:
+        vars_ = getattr(self, "_fa_check_vars", None)
+        if not vars_:
+            return True   # checklist not built yet — don't block
+        return all(v.get() for v, _ in vars_.values())
+
+    def _update_fa_start_enabled(self):
+        # Respect an active run (Start stays disabled while running).
+        if self._auto_thread and self._auto_thread.is_alive():
+            return
+        if hasattr(self, "_full_auto_start_btn"):
+            self._full_auto_start_btn.configure(
+                state="normal" if self._fa_checklist_ok() else "disabled")
+
     def _build_buy_tab(self) -> ctk.CTkFrame:
-        frame = ctk.CTkScrollableFrame(self._main_content, fg_color="transparent")
+        # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
+        # has nothing to repaint over old child positions while scrolling, so
+        # widgets ghost/smear. "surface" is what sits behind it anyway, so the
+        # look is unchanged — just solid enough to clear cleanly on scroll.
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
 
         # Description
         desc = ctk.CTkFrame(frame, fg_color="transparent")
@@ -989,7 +1078,11 @@ class MainWindow(ctk.CTk):
         return frame
 
     def _build_spin_tab(self) -> ctk.CTkFrame:
-        frame = ctk.CTkScrollableFrame(self._main_content, fg_color="transparent")
+        # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
+        # has nothing to repaint over old child positions while scrolling, so
+        # widgets ghost/smear. "surface" is what sits behind it anyway, so the
+        # look is unchanged — just solid enough to clear cleanly on scroll.
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
 
         # Description — includes the explicit unattended-Sell warning.
         ctk.CTkLabel(frame, text=_at("spin_description", self._lang),
@@ -1142,6 +1235,7 @@ class MainWindow(ctk.CTk):
             capture_key=self._capture_key,
             main_cfg=self._cfg,
             tpl_lang=self._tpl_lang,
+            allow_roi=True,   # per-row "Detection area" override (Full Auto only)
             fg_color=self._t("surface_alt"),
             border_width=1, border_color=self._t("border"),
             corner_radius=self._t("corner"),
@@ -1430,13 +1524,15 @@ class MainWindow(ctk.CTk):
                     _t.sleep(1)
                 if self._stop_event.is_set(): return
                 log_cb(_at('startup_running', lang))
-                try:
-                    max_cars = int(self._mastery_count_var.get())
-                except ValueError:
-                    max_cars = 0
+                # Derive the car count + start row from the garage-block picker.
+                ROWS = 3
+                fr = max(1, min(ROWS, int(cfg.get("mastery_block_first_row", 1))))
+                lr = max(1, min(ROWS, int(cfg.get("mastery_block_last_row", 3))))
+                mc = max(0, int(cfg.get("mastery_block_middle_cols", 0)))
+                max_cars = (ROWS - fr + 1) + mc * ROWS + lr
                 mastery_run(cfg, self._stop_event,
                             self._mastery_log.log, self._set_status,
-                            max_cars=max_cars,
+                            max_cars=max_cars, start_loop=fr,
                             warn_cb=self._mastery_log.log_warning,
                             section_cb=self._mastery_log.log_section)
             except Exception as e:
@@ -1699,6 +1795,12 @@ class MainWindow(ctk.CTk):
     def _start_full_auto(self):
         if self._auto_thread and self._auto_thread.is_alive():
             return
+        # F9 can reach here even when the Start button is disabled — refuse and
+        # tell the user which preconditions are unmet.
+        if not self._fa_checklist_ok():
+            self._set_status(_at("status_fa_checklist", self._lang))
+            self._full_auto_log.log(_at("log_fa_checklist_block", self._lang))
+            return
         self._stop_event.clear()
         self._set_status(_at("status_starting_full_auto", self._lang))
         self._full_auto_start_btn.configure(state="disabled")
@@ -1786,8 +1888,9 @@ class MainWindow(ctk.CTk):
             self._delete_stop_btn.configure(state="disabled")
             self._spin_start_btn.configure(state="normal")
             self._spin_stop_btn.configure(state="disabled")
-            self._full_auto_start_btn.configure(state="normal")
             self._full_auto_stop_btn.configure(state="disabled")
+            # Re-enable Start only if the checklist is still satisfied.
+            self._update_fa_start_enabled()
 
     # ── Helpers ───────────────────────────────────────────────
 
@@ -2241,7 +2344,7 @@ class MainWindow(ctk.CTk):
             border_color=self._t("border"), text_color=self._t("text"),
             hover_color=self._t("surface_alt")).pack(side="left")
 
-        body = ctk.CTkScrollableFrame(self._support_frame, fg_color="transparent")
+        body = ctk.CTkScrollableFrame(self._support_frame, fg_color=self._t("surface"))
         body.pack(fill="both", expand=True, padx=12, pady=8)
 
         ctk.CTkLabel(body, text=_at("support_btn", self._lang),
@@ -2314,7 +2417,7 @@ class MainWindow(ctk.CTk):
             border_color=self._t("border"), text_color=self._t("text"),
             hover_color=self._t("surface_alt")).pack(side="left")
 
-        body = ctk.CTkScrollableFrame(self._report_help_frame, fg_color="transparent")
+        body = ctk.CTkScrollableFrame(self._report_help_frame, fg_color=self._t("surface"))
         body.pack(fill="both", expand=True, padx=16, pady=8)
 
         ctk.CTkLabel(body, text=_at("report_help_title", self._lang),
@@ -2377,7 +2480,7 @@ class MainWindow(ctk.CTk):
             font=('Segoe UI', 14, 'bold')
         ).pack(side='left', padx=12)
 
-        scroll = ctk.CTkScrollableFrame(self._settings_frame, fg_color='transparent')
+        scroll = ctk.CTkScrollableFrame(self._settings_frame, fg_color=self._t("surface"))
         scroll.pack(fill='both', expand=True, padx=12, pady=8)
 
         def section(label_key):
@@ -2532,20 +2635,23 @@ class MainWindow(ctk.CTk):
         except Exception:
             self._cfg['monitor_index'] = 1
         save(self._cfg)
-        for panel in [getattr(self, '_race_setup', None),
-                      getattr(self, '_mastery_setup', None)]:
-            if panel:
+        # Push the new monitor index to EVERY setup panel so template/ROI
+        # captures use the freshly-selected monitor without a relaunch — not
+        # just race/mastery (buy, spin and full_auto were being left stale).
+        for attr in ('_race_setup', '_mastery_setup', '_buy_setup',
+                     '_spin_setup', '_full_auto_setup'):
+            panel = getattr(self, attr, None)
+            if panel is not None and hasattr(panel, '_monitor_index'):
                 panel._monitor_index = self._cfg['monitor_index']
 
     def _on_setting_change(self, key: str, var):
         self._cfg[key] = round(var.get(), 4)
         save(self._cfg)
 
-    def _on_mastery_start_row_change(self, val: str):
-        try:
-            self._cfg["mastery_start_loop"] = int(val)
-        except ValueError:
-            self._cfg["mastery_start_loop"] = 1
+    def _on_mastery_block_change(self, first_row, middle_cols, last_row):
+        self._cfg["mastery_block_first_row"]  = int(first_row)
+        self._cfg["mastery_block_middle_cols"] = int(middle_cols)
+        self._cfg["mastery_block_last_row"]   = int(last_row)
         save(self._cfg)
 
     def _make_mastery_setup(self, parent) -> MasteryGridWidget:

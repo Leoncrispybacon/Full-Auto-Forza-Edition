@@ -30,7 +30,7 @@ _VK_MAP = {
     'esc': 0x1B, 'escape': 0x1B,
     'space': 0x20,
     'backspace': 0x08, 'back': 0x08,
-    'x': 0x58,
+    'x': 0x58, 'y': 0x59,
     'w': 0x57, 'a': 0x41, 's': 0x53, 'd': 0x44,
     'up': 0x26, 'down': 0x28, 'left': 0x25, 'right': 0x27,
 }
@@ -48,6 +48,34 @@ _EXTENDED_VKS = frozenset({0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
 # sparse enough not to interfere with menu input (a tighter 0.15s tick fired
 # WM_ACTIVATE/SETFOCUS bursts that dropped keystrokes during menu navigation).
 _KEEPALIVE_INTERVAL = 0.5
+
+# When True, a longer-lived session (Full Auto) owns the per-app mute for the
+# whole run, so per-step GameIO.mute()/unmute() are no-ops (prevents the game
+# un-muting for a moment between chained functions). Set via set_mute_held().
+_MUTE_HELD = False
+
+
+def set_mute_held(held: bool):
+    """Engage/release session-owned mute. While held, GameIO.mute()/unmute() do
+    nothing — the caller is responsible for muting once and unmuting at the end."""
+    global _MUTE_HELD
+    _MUTE_HELD = bool(held)
+
+
+# Session-cached letterbox crop. While active, the FIRST GameIO to run
+# _detect_letterbox detects the crop and caches it here; every later GameIO
+# reuses it instead of re-detecting on its own (arbitrary) start screen. The
+# window doesn't resize mid-run, so one detection is valid for the whole session.
+_UNSET = object()
+_SESSION_CROP_ACTIVE = False
+_SESSION_CROP = _UNSET          # _UNSET (not yet detected) | None (no crop) | (x,y,w,h)
+
+
+def set_session_crop(active: bool):
+    """Enable/disable the session-cached letterbox crop, resetting the cache."""
+    global _SESSION_CROP_ACTIVE, _SESSION_CROP
+    _SESSION_CROP_ACTIVE = bool(active)
+    _SESSION_CROP = _UNSET
 
 
 class _KEYBDINPUT(ctypes.Structure):
@@ -171,25 +199,42 @@ class GameIO:
                 f = f[cy:cy + ch, cx:cx + cw]
         return f
 
+    def _apply_crop(self, rect):
+        """Apply a (x,y,w,h) content rect: store it + shrink width/height to the
+        content size (used for template scaling). No-op on a falsy/degenerate rect."""
+        if not rect:
+            return False
+        cx, cy, cw, ch = rect
+        if cw <= 0 or ch <= 0:
+            return False
+        self._crop = rect
+        self._crop_x, self._crop_y = cx, cy
+        self.width, self.height = cw, ch
+        return True
+
     def _detect_letterbox(self):
         """Detect black pillarbox/letterbox bars ONCE at start; store the crop
-        and shrink width/height to the content size (used for template scaling
-        at run start). Bars are black on every screen, so any non-black startup
-        frame works. No bars / capture failure → no crop (legacy behaviour)."""
+        and shrink width/height to the content size (used for template scaling).
+        Bars are black on every screen, so any non-black startup frame works.
+        No bars / capture failure → no crop (legacy behaviour).
+
+        Session cache: when a session (Full Auto) holds the crop, the FIRST
+        GameIO detects + caches it and every later GameIO REUSES that result —
+        the window doesn't resize mid-run, so one detection is valid throughout,
+        and we avoid re-detecting on an arbitrary per-step screen."""
+        global _SESSION_CROP
+        if _SESSION_CROP_ACTIVE and _SESSION_CROP is not _UNSET:
+            self._apply_crop(_SESSION_CROP)          # reuse cached result (rect or None)
+            return
         try:
             raw = self._grab_raw()
         except Exception:
             raw = None
         rect = capture.detect_content_rect(raw) if raw is not None else None
-        if not rect:
-            return
-        cx, cy, cw, ch = rect
-        if cw <= 0 or ch <= 0:
-            return
-        self._crop = rect
-        self._crop_x, self._crop_y = cx, cy
-        self.width, self.height = cw, ch
-        self._log(_at("log_bg_letterbox", self._lang, w=cw, h=ch))
+        if _SESSION_CROP_ACTIVE:
+            _SESSION_CROP = rect                     # cache for the rest of the session
+        if self._apply_crop(rect):
+            self._log(_at("log_bg_letterbox", self._lang, w=self.width, h=self.height))
 
     # ── Keys ─────────────────────────────────────────────────
     def press(self, key, post_wait=0.0, scancode=False):
@@ -281,6 +326,11 @@ class GameIO:
         self._ka_stop.set()
 
     def mute(self, cfg):
+        # When an outer session holds the mute (e.g. Full Auto mutes once for the
+        # whole run), per-step GameIOs must NOT mute/unmute — otherwise the game
+        # briefly un-mutes between steps. The session owns mute/unmute itself.
+        if _MUTE_HELD:
+            return False
         if cfg.get("mute_game", False) and self.hwnd:
             pid = capture.get_window_pid(self.hwnd)
             if pid and capture.set_process_muted(pid, True):
@@ -290,6 +340,8 @@ class GameIO:
         return False
 
     def unmute(self):
+        if _MUTE_HELD:
+            return                      # session owns the mute — don't release it
         if self._muted_pid:
             capture.set_process_muted(self._muted_pid, False)
             self._muted_pid = None

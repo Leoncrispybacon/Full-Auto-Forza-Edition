@@ -701,18 +701,24 @@ def grab_window(hwnd) -> np.ndarray:
             user32.ReleaseDC(hwnd, hdc)
 
 
-def detect_content_rect(frame, dark_thresh: float = 12.0,
+def detect_content_rect(frame, dark_thresh: float = 8.0,
+                        uniform_thresh: float = 8.0,
                         min_bar_frac: float = 0.012,
                         max_bar_frac: float = 0.45):
     """Find the game's content rectangle inside a CLIENT-area frame that may be
     letterboxed / pillarboxed with black bars (window aspect != game render
-    aspect). Scans inward from each edge for contiguous near-black rows/columns;
-    a bar pair is only cropped when BOTH opposite sides are dark AND roughly
-    symmetric, so a scene that's merely dark on one edge is never over-cropped.
-    Returns (x, y, w, h) of the content, or None to crop nothing.
+    aspect). Returns (x, y, w, h) of the content, or None to crop nothing.
 
-    Detect-once-at-start usage: bars are drawn outside the 3D render and are
-    black on every screen, so any non-black frame yields the same crop."""
+    A bar is cropped only when an edge slab is (1) DARK — contiguous near-black
+    rows/columns, (2) FLAT — low std across the slab, and (3) its opposite side
+    is dark+flat and roughly SYMMETRIC. The flatness test is the key guard
+    against dark *menus* (e.g. My Cars): real letterbox bars are uniform black
+    (std ~0), whereas a dark UI screen has texture — vignette gradients, ghosted
+    card outlines, telemetry/control-hint text — so its edge std is high and it
+    is rejected. (Darkness + symmetry alone would mistake a dark menu for bars.)
+
+    Detect-once-at-start usage: real bars are drawn outside the 3D render and are
+    uniform black on every screen, so any non-black frame yields the same crop."""
     if frame is None or getattr(frame, "size", 0) == 0:
         return None
     h, w = frame.shape[:2]
@@ -735,6 +741,18 @@ def detect_content_rect(frame, dark_thresh: float = 12.0,
                 break
         return n
 
+    def _flat(slab):
+        # a real bar is uniform black; textured dark UI is not
+        return slab.size > 0 and float(slab.std()) <= uniform_thresh
+
+    # Candidate runs per edge, each invalidated if the slab isn't flat black.
+    L, R = _run(col_mean), _run(col_mean[::-1])
+    T, B = _run(row_mean), _run(row_mean[::-1])
+    if L and not _flat(gray[:, :L]):          L = 0
+    if R and not _flat(gray[:, w - R:]):      R = 0
+    if T and not _flat(gray[:T, :]):          T = 0
+    if B and not _flat(gray[h - B:, :]):      B = 0
+
     def _pair(a, b, span):
         lo = int(span * min_bar_frac)
         hi = int(span * max_bar_frac)
@@ -747,8 +765,8 @@ def detect_content_rect(frame, dark_thresh: float = 12.0,
             return 0, 0
         return a, b
 
-    left, right = _pair(_run(col_mean), _run(col_mean[::-1]), w)
-    top, bottom = _pair(_run(row_mean), _run(row_mean[::-1]), h)
+    left, right = _pair(L, R, w)
+    top, bottom = _pair(T, B, h)
     if not (left or right or top or bottom):
         return None
     cw, ch = w - left - right, h - top - bottom
@@ -800,6 +818,31 @@ def save_template(folder: str, key: str, crop: np.ndarray,
     if box is not None:
         bx, by, bw, bh = box
         meta["box"] = [int(bx), int(by), int(bw), int(bh)]
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f)
+
+
+def save_roi(folder: str, key: str, box, screen_w: int, screen_h: int):
+    """Save a custom detection ROI for a template (overrides the geometry box at
+    detect time — see ScreenDetector.set_template_roi). Stored as fractions
+    [x, y, w, h] of the capture frame, MERGED into the template's JSON sidecar so
+    the template image and geometry box are preserved. box = (x,y,w,h) in
+    capture-frame px."""
+    os.makedirs(folder, exist_ok=True)
+    meta_path = os.path.join(folder, f"{key}.json")
+    meta = {}
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+        except Exception:
+            meta = {}
+    meta.setdefault("screen_width", int(screen_w))
+    meta.setdefault("screen_height", int(screen_h))
+    x, y, w, h = box
+    sw, sh = max(1, int(screen_w)), max(1, int(screen_h))
+    meta["roi"] = [round(x / sw, 5), round(y / sh, 5),
+                   round(w / sw, 5), round(h / sh, 5)]
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f)
 

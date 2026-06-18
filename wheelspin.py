@@ -43,6 +43,11 @@ MH_TAB_WINDOW     = 8.0   # max time to find the My Horizon tab (menu-start entr
 # re-matched menu) let it handle 5+ in a real bug report. Reaching the cap
 # means something misfired; the per-detection confidence log helps diagnose it.
 MAX_DUP_CHAIN    = 3
+# Polling interval for the detection loops (skip/collect/duplicate/tile waits).
+# Higher = fewer detections/sec = less CPU contention with the game (each detect
+# briefly uses multiple cores). 0.3s is the test value; the brief "Skip" prompt
+# is the tightest window, so if skip starts getting missed, lower this.
+_DETECT_IV = 0.3
 
 MH_TAB_KEY   = "my_horizon_tab"       # top-nav tab, clicked to start from main menu
 SUPER_KEY    = "super_wheelspin"      # left-column tile, clicked to start a run
@@ -180,7 +185,7 @@ def run(cfg: dict, stop_event: threading.Event,
                     return r
             except Exception:
                 pass
-            time.sleep(0.15)
+            time.sleep(_DETECT_IV)
         return None
 
     def _detect_tile_or_tab(window_s):
@@ -205,7 +210,7 @@ def run(cfg: dict, stop_event: threading.Event,
                     return ('tab', br)
             except Exception:
                 pass
-            time.sleep(0.15)
+            time.sleep(_DETECT_IV)
         return (None, None)
 
     def _wait_either(key_a, tpl_a, key_b, tpl_b):
@@ -227,7 +232,7 @@ def run(cfg: dict, stop_event: threading.Event,
                     return ('b', rb)
             except Exception:
                 pass
-            time.sleep(0.10)
+            time.sleep(_DETECT_IV)
         return (None, None)
 
     def _wait_dup_or_next(collect_cleared):
@@ -274,7 +279,7 @@ def run(cfg: dict, stop_event: threading.Event,
                     return ('cleared', None)
             except Exception:
                 pass
-            time.sleep(0.10)
+            time.sleep(_DETECT_IV)
         return (None, None)
 
     def _wait_dup_or_menu():
@@ -298,7 +303,7 @@ def run(cfg: dict, stop_event: threading.Event,
                     return ('menu', mr)
             except Exception:
                 pass
-            time.sleep(0.10)
+            time.sleep(_DETECT_IV)
         return (None, None)
 
     def _wait_stage(key, tpl, waiting_msg, label):
@@ -316,7 +321,7 @@ def run(cfg: dict, stop_event: threading.Event,
         res = detector.wait_for(
             frame_cb=lambda: io.grab(),
             key=key, template=tpl, threshold=_thr(key),
-            stop_cb=stop, interval=0.2, on_warn=_warn)
+            stop_cb=stop, interval=_DETECT_IV, on_warn=_warn)
         if res.matched:
             # Detailed diagnostic line: what was detected, confidence, source,
             # and how long the wait took (the elapsed time exposes detection

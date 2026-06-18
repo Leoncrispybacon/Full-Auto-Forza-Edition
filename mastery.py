@@ -107,29 +107,35 @@ def _mouse_click(x, y, mon_left=0, mon_top=0, post_wait=0.8):
     time.sleep(post_wait)
 
 
-def _nav_keys_for_loop(loop: int) -> list:
-    """
-    Infinite snake navigation.
-    Loop 1: [] (start at row1 col1)
-    Loop 2: [S]  Loop 3: [S]  (finish col1 going down)
-    Loop 4: [D]  (move to col2 at row3)
-    Loop 5: [W]  Loop 6: [W]  (finish col2 going up)
-    Loop 7: [D]  (move to col3 at row1)
-    ... and so on indefinitely
-    """
-    if loop == 1:
-        return []
-    # Build the repeating unit: [move1, move2, D]
-    # Col going down: S, S, D
-    # Col going up:   W, W, D
-    # idx is 0-based position after the first car
-    idx = loop - 2
-    unit = idx % 3        # 0=first move, 1=second move, 2=D to next col
-    col  = idx // 3       # which column transition we're in
-    going_down = (col % 2 == 0)
-    if unit == 2:
-        return ['d']
-    return ['s'] if going_down else ['w']
+# My Cars garage grid: rows per column. The garage fills COLUMN-MAJOR,
+# TOP→BOTTOM (col 1 rows 1,2,3; col 2 rows 1,2,3; …), confirmed in-game. We
+# walk a contiguous block of cars in that same top→bottom order — NOT a
+# boustrophedon snake: with a partial first/last column, alternating direction
+# would enter a partial column from the wrong end and hit non-target cars.
+_GARAGE_ROWS = 3
+
+
+def _cell_at(first_row: int, index: int):
+    """(row, col) of the index-th car (0-based) in a top→bottom column-major
+    fill that starts at `first_row` (1-based) of column 0. Columns after the
+    first always start at row 1."""
+    first_col_count = _GARAGE_ROWS - first_row + 1
+    if index < first_col_count:
+        return (first_row + index, 0)
+    rem = index - first_col_count
+    return (1 + rem % _GARAGE_ROWS, 1 + rem // _GARAGE_ROWS)
+
+
+def _moves_between(prev, cur) -> list:
+    """WASD moves from prev (row,col) to cur for the top→bottom traversal:
+    down within a column (S), or — crossing to the next column — Right then
+    Up back to the top row (the user-confirmed inter-column move: from the
+    bottom of a column, D then W×2 to the top of the next)."""
+    pr, pc = prev
+    r, c = cur
+    if c == pc:
+        return ['s'] * (r - pr)                      # down within the column
+    return ['d'] * (c - pc) + ['w'] * (pr - r)       # right, then up to the top
 
 
 
@@ -156,11 +162,21 @@ _TAP_WAIT               = 0.25   # matches grid move rate; 0.1 dropped taps on s
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
-        grid_file: str = None):
+        grid_file: str = None, end_at_mycars: bool = False,
+        start_loop: int = None):
     # warn_cb is accepted for call-site compatibility but unused — this flow
     # never detects, so there's no "not detected" warning to raise.
     # grid_file: which mastery-tree path spec to use. None → the Mastery tab's
     # own spec; Full Auto passes its separate spec.
+    # end_at_mycars: chained-into-sell mode. On the FINAL car, stop right after
+    # entering My Cars (step 10) and SKIP step 11's X-sort — the Full Auto sell
+    # step starts by riding the non-target car, so the sort would only reposition
+    # the cursor and is redundant before the sell re-sort. Standalone = False.
+    # start_loop: which garage row the FIRST car is on (1-3). None → use the
+    # standalone mastery_start_loop setting. Full Auto passes 1 because its
+    # positioning nav always lands on the newest car at the top-left (row 1),
+    # so the standalone setting must NOT leak in (it would offset the snake and
+    # trigger the column-transition D one car early).
     section       = section_cb or log_cb
     lang          = cfg.get("lang", "en")
     monitor_index = cfg.get("monitor_index", 1)
@@ -169,7 +185,9 @@ def run(cfg: dict, stop_event: threading.Event,
     import config as _cfg_mod
     _fresh = _cfg_mod.load()
     post_kw    = _POST_KEY_WAIT          # fixed (menu-step transitions)
-    start_loop = max(1, min(3, int(_fresh.get("mastery_start_loop", 1))))
+    if start_loop is None:
+        start_loop = _fresh.get("mastery_start_loop", 1)
+    start_loop = max(1, min(3, int(start_loop)))
     # Step waits — fixed constants (see top of section), except the cutscene
     # wait which is user-raisable (default 11, floor 11) via Settings.
     cut_wait    = max(_KEYS_CUTSCENE_WAIT,
@@ -235,16 +253,20 @@ def run(cfg: dict, stop_event: threading.Event,
     io.mute(_fresh)
     io.start_keepalive(stop, _fresh)
 
-    loop_count = start_loop - 1
     car_num    = 0
 
     while not stop():
-        loop_count += 1
         car_num    += 1
         is_first   = (car_num == 1)
 
-        # ── 1. Navigate to next car (snake, unchanged) ────────
-        nav_keys = [] if is_first else _nav_keys_for_loop(loop_count)
+        # ── 1. Navigate to next car (top→bottom column-major) ──
+        # The first car needs no nav (we start positioned on it). Otherwise emit
+        # the moves from the previous car's grid cell to this one. start_loop is
+        # the first car's row; Full Auto forces 1 (newest car, top-left).
+        idx = car_num - 1
+        nav_keys = ([] if is_first
+                    else _moves_between(_cell_at(start_loop, idx - 1),
+                                        _cell_at(start_loop, idx)))
         section(_at("log_car", lang, n=car_num) +
                 (f" / {max_cars}" if max_cars > 0 else ""))
 
@@ -326,6 +348,14 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop(): break
         io.press('enter', post_wait=post_kw)
 
+        is_last = max_cars > 0 and car_num >= max_cars
+        # Chained-into-sell: the final car stops here in My Cars (unsorted). The
+        # sell step rides the non-target car first, then re-sorts itself, so we
+        # skip step 11 (it would only reposition the cursor) and break.
+        if is_last and end_at_mycars:
+            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            break
+
         # ── 11. X + Down ×6 + Enter → sort by Recently Added ──
         announce(_at("log_mkeys_sort", lang))
         io.press('x', post_wait=post_kw)
@@ -333,7 +363,7 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop(): break
         io.press('enter', post_wait=post_kw)
 
-        if max_cars > 0 and car_num >= max_cars:
+        if is_last:
             log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
             break
 

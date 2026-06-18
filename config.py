@@ -229,6 +229,13 @@ DEFAULTS = {
     # keyboard mastery-tree nav. Higher helps weaker hardware register the
     # unlock; default 1.25, Settings slider 1–2s.
     "mastery_grid_unlock_wait": 1.25,
+    # Standalone mastery garage block (which contiguous run of cars to unlock).
+    # The My Cars grid fills column-major TOP→BOTTOM; the block is the first
+    # car's row in column 0, N full columns between, and the last car's row in
+    # the final column. Total = (3 - first_row + 1) + middle*3 + last_row.
+    "mastery_block_first_row":  1,
+    "mastery_block_middle_cols": 0,
+    "mastery_block_last_row":   3,
     # Delay after each menu cursor tap (Up/Down arrows) shared by Mastery's
     # in-menu nav and Delete Cars. Higher helps weaker hardware register each
     # tap; default 0.25, Settings slider 0.1–0.5s.
@@ -254,6 +261,22 @@ DEFAULTS = {
     "thresh_return_home":     0.60,
     "thresh_cars_tab":        0.60,
     "thresh_recently_added":  0.60,
+    # Sell step (chained-only): My Cars option clicked after riding the
+    # non-target car (re-enters the grid before the re-sort + sell block).
+    "thresh_my_cars":         0.60,
+    # Sell step: the "My Cars" header (top-left) — confirms the grid finished
+    # loading before pressing X (pressing X mid-load drops the sort menu).
+    "thresh_my_cars_header":  0.60,
+    # Sell exit: the open-world "ANNA" prompt (bottom-left) — confirms we backed
+    # out to open-world driving so the final ESC opens the main menu.
+    "thresh_anna":            0.60,
+    # Sell re-select grind car: brand button (manufacturer jump) + car tile.
+    "thresh_grind_brand":     0.60,
+    "thresh_grind_car":       0.60,
+    # Full Auto pre-flight checklist: the "car to the right isn't new" item is a
+    # one-time garage layout, so it persists (the driving/map/credits items are
+    # per-session and reset each launch).
+    "fa_check_neighbor_ok":   False,
     # Buy / Delete settings
     "buy_post_key_wait":      0.5,
     "delete_post_key_wait":   0.5,

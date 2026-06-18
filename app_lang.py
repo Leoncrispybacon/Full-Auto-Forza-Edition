@@ -236,6 +236,10 @@ STRINGS = {
         "en":    "Sell cars",
         "zh-tw": "賣出車輛",
     },
+    "full_auto_start_spin": {
+        "en":    "Spin Wheel",
+        "zh-tw": "轉輪",
+    },
     "full_auto_branch_label": {
         "en":    "After selling:",
         "zh-tw": "賣出後：",
@@ -252,9 +256,43 @@ STRINGS = {
         "en":    "Starting Full Auto...",
         "zh-tw": "正在啟動全自動...",
     },
+    # Full Auto pre-flight checklist (Start gated until all are ticked)
+    "fa_check_title": {
+        "en":    "Before you start — confirm all of these:",
+        "zh-tw": "開始前 — 請確認以下所有項目：",
+    },
+    "fa_check_driving": {
+        "en":    "I'm driving the car I want to grind with.",
+        "zh-tw": "我正在駕駛要用來刷的車。",
+    },
+    "fa_check_map": {
+        "en":    "The map I want to AFK on is my last-played event.",
+        "zh-tw": "我要掛機的地圖是上次遊玩的賽事。",
+    },
+    "fa_check_neighbor": {
+        "en":    "Once in Garage, the car to the right of my current car is not new. (one-time setup)",
+        "zh-tw": "進入車庫後，我目前車輛右側的那輛車不是全新車。（一次性設定）",
+    },
+    "fa_check_favorite": {
+        "en":    "Only ONE Subaru 22B-STI is marked as Favorite. (one-time setup — more than one breaks grind-car selection)",
+        "zh-tw": "只有「一輛」Subaru 22B-STI 被標記為我的最愛。（一次性設定 — 超過一輛會導致練車選取失敗）",
+    },
+
+    "status_fa_checklist": {
+        "en":    "Full Auto: tick all the checklist items first.",
+        "zh-tw": "全自動：請先勾選所有檢查清單項目。",
+    },
+    "log_fa_checklist_block": {
+        "en":    "Can't start Full Auto — tick every box in the pre-flight checklist first.",
+        "zh-tw": "無法啟動全自動 — 請先勾選檢查清單中的每一項。",
+    },
     "log_fa_started": {
         "en":    "Full Auto started.",
         "zh-tw": "全自動已啟動。",
+    },
+    "log_fa_muted": {
+        "en":    "🔇 Game muted for the Full Auto session (unmutes on stop).",
+        "zh-tw": "🔇 全自動期間靜音遊戲（停止時取消靜音）。",
     },
     "log_fa_race_count_warn": {
         "en":    "  ⚠ Races per cycle is 0 (unlimited) — the cycle can't advance past racing. Set a positive number.",
@@ -280,9 +318,17 @@ STRINGS = {
         "en":    "[4/5] Sell {n} cars — NOT YET WIRED (skipped).",
         "zh-tw": "[4/5] 賣出 {n} 輛車 — 尚未接入（略過）。",
     },
+    "log_fa_step_sell": {
+        "en":    "[4/5] Sell {n} cars…",
+        "zh-tw": "[4/5] 賣出 {n} 輛車…",
+    },
     "log_fa_step_spin_todo": {
         "en":    "[5/5] Wheelspin branch — NOT YET WIRED (skipped).",
         "zh-tw": "[5/5] 轉輪分支 — 尚未接入（略過）。",
+    },
+    "log_fa_step_spin": {
+        "en":    "[5/5] Wheelspin ×{n}…",
+        "zh-tw": "[5/5] 轉輪 ×{n}…",
     },
     "log_fa_step_mastery": {
         "en":    "[3/5] Mastery {n} cars…",
@@ -325,10 +371,87 @@ STRINGS = {
         "en":    "  Mastery nav templates not captured — skipping mastery step.",
         "zh-tw": "  熟練導航模板尚未擷取 — 略過熟練步驟。",
     },
+    # Full Auto — sell step (ride non-target → re-sort → walk to Nth car → sell)
+    "log_fa_sell_begin": {
+        "en":    "  Sell: preparing to sell {n} cars…",
+        "zh-tw": "  賣車：準備賣出 {n} 輛車…",
+    },
+    "log_fa_sell_ride": {
+        "en":    "  → ride a non-target car (Right → Enter → Enter) so it's excluded from the sale",
+        "zh-tw": "  → 騎乘一輛非目標車（Right → Enter → Enter），使其排除於賣出之外",
+    },
+    "log_fa_sell_find_car": {
+        "en":    "  → re-select grind car: Y → Favorites → Backspace → brand → car (excludes it from the sale + drives it next race)",
+        "zh-tw": "  → 重新選擇練車：Y → 我的最愛 → Backspace → 品牌 → 車輛（排除於賣出之外，並作為下一場比賽用車）",
+    },
+    "log_fa_sell_wait_grid": {
+        "en":    "  → waiting for the My Cars grid to load (header)…",
+        "zh-tw": "  → 等待我的車輛列表載入（標題）…",
+    },
+    "log_fa_sell_sort": {
+        "en":    "  → X → Recently Added → Backspace → Enter (jump to newest car)",
+        "zh-tw": "  → X → 最近新增 → Backspace → Enter（跳至最新車輛）",
+    },
+    "log_fa_sell_position": {
+        "en":    "  → position on car #{n}: Right ×{r}, Down ×{d}",
+        "zh-tw": "  → 定位至第 {n} 輛車：Right ×{r}，Down ×{d}",
+    },
+    "log_fa_sell_macro": {
+        "en":    "  → selling {n} cars (Enter → Down×4 → Enter → Down → Enter each)…",
+        "zh-tw": "  → 賣出 {n} 輛車（每輛 Enter → Down×4 → Enter → Down → Enter）…",
+    },
+    "log_fa_sell_car": {
+        "en":    "    ✓ sold {i}/{n}",
+        "zh-tw": "    ✓ 已賣 {i}/{n}",
+    },
+    "log_fa_sell_exit": {
+        "en":    "  → exiting to main menu: ESC → home → ESC → open world → ESC → main",
+        "zh-tw": "  → 返回主選單：ESC → 住宅 → ESC → 開放世界 → ESC → 主選單",
+    },
+    "log_fa_sell_wait_world": {
+        "en":    "  → waiting for open-world driving (ANNA prompt)…",
+        "zh-tw": "  → 等待開放世界駕駛（ANNA 提示）…",
+    },
+    "log_fa_sell_at_menu": {
+        "en":    "  ✓ cars sold, back at the main menu.",
+        "zh-tw": "  ✓ 已賣出車輛，返回主選單。",
+    },
+    "log_fa_sell_fail": {
+        "en":    "  ✗ {label} not found in {secs}s — aborting sell.",
+        "zh-tw": "  ✗ {secs}s 內找不到 {label} — 中止賣車。",
+    },
+    "log_fa_sell_skip": {
+        "en":    "  Sell templates not captured — skipping sell step.",
+        "zh-tw": "  賣車模板尚未擷取 — 略過賣車步驟。",
+    },
     # Full Auto template setup — categories + labels
     "fa_cat_mastery": {
         "en":    "Mastery (main menu → My Cars)",
         "zh-tw": "熟練（主選單 → 車庫）",
+    },
+    "fa_cat_sell": {
+        "en":    "Sell (My Cars → sell block)",
+        "zh-tw": "賣車（車庫 → 賣出區塊）",
+    },
+    "fa_tpl_my_cars": {
+        "en":    "My Cars (after riding)",
+        "zh-tw": "我的車輛（騎乘後）",
+    },
+    "fa_tpl_my_cars_header": {
+        "en":    "My Cars header (top-left)",
+        "zh-tw": "我的車輛 標題（左上角）",
+    },
+    "fa_tpl_anna": {
+        "en":    "ANNA prompt (open world, bottom-left)",
+        "zh-tw": "ANNA 提示（開放世界，左下角）",
+    },
+    "fa_tpl_grind_brand": {
+        "en":    "Grind car brand (Manufacturer menu)",
+        "zh-tw": "練車品牌（製造商選單）",
+    },
+    "fa_tpl_grind_car": {
+        "en":    "Grind car tile (brand list)",
+        "zh-tw": "練車車輛（品牌列表）",
     },
     "fa_tpl_return_home": {
         "en":    "Return Home tile",
@@ -886,6 +1009,18 @@ STRINGS = {
         "en":    "  Template '{key}' saved.",
         "zh-tw": "  樣本 '{key}' 已儲存。",
     },
+    "set_roi_instruction": {
+        "en":    "Set DETECTION AREA for {label}: drag the region the template should be searched in (saves no image)",
+        "zh-tw": "為 {label} 設定偵測範圍：框選樣本要被搜尋的區域（不會儲存影像）",
+    },
+    "roi_saved": {
+        "en":    "  Detection area for '{key}' saved.",
+        "zh-tw": "  '{key}' 的偵測範圍已儲存。",
+    },
+    "btn_set_roi_tip": {
+        "en":    "Set detection area",
+        "zh-tw": "設定偵測範圍",
+    },
     "nodes_saved": {
         "en":    "  Node positions saved.",
         "zh-tw": "  節點位置已儲存。",
@@ -1288,6 +1423,31 @@ STRINGS = {
     "grid_clear": {
         "en":    "Clear",
         "zh-tw": "清除",
+    },
+    # Standalone mastery garage-block picker
+    "carblock_title": {
+        "en":    "Cars to unlock — garage block",
+        "zh-tw": "要解鎖的車輛 — 車庫區塊",
+    },
+    "carblock_hint": {
+        "en":    "The garage fills top→bottom by column. Click where your FIRST car sits (left) and your LAST car (right), and enter how many FULL columns are in between.",
+        "zh-tw": "車庫依欄由上而下排列。點選第一輛車的位置（左）與最後一輛車（右），並輸入中間有幾個「整欄」。",
+    },
+    "carblock_first": {
+        "en":    "First car",
+        "zh-tw": "第一輛車",
+    },
+    "carblock_middle": {
+        "en":    "Full columns\nbetween",
+        "zh-tw": "中間\n整欄數",
+    },
+    "carblock_last": {
+        "en":    "Last car",
+        "zh-tw": "最後一輛車",
+    },
+    "carblock_total": {
+        "en":    "Total: {n} cars",
+        "zh-tw": "共 {n} 輛車",
     },
     "log_loop": {
         "en":    "Loop",

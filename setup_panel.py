@@ -25,7 +25,8 @@ class TemplateRow(ctk.CTkFrame):
     DOT_MISSING = "#ef4444"  # red
 
     def __init__(self, parent, label: str, folder_fn, key: str,
-                 on_recapture=None, main_cfg=None, lang='en', **kwargs):
+                 on_recapture=None, on_set_roi=None, main_cfg=None, lang='en',
+                 **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.folder_fn = folder_fn
         self.key       = key
@@ -52,6 +53,19 @@ class TemplateRow(ctk.CTkFrame):
                 text_color=('gray40', 'gray70'),
                 font=("Segoe UI", 14))
             self._recapture_btn.pack(side='right', padx=theme.PAD_TIGHT)
+
+        # Optional "Detection area" button — set a custom search ROI separate
+        # from the template's capture box (Full Auto only). The capture label
+        # explains it on click.
+        if on_set_roi:
+            self._roi_btn = ctk.CTkButton(
+                top, text='⊡', width=28,
+                command=on_set_roi,
+                fg_color='transparent',
+                hover_color=('gray80', 'gray30'),
+                text_color=('gray40', 'gray70'),
+                font=("Segoe UI", 14))
+            self._roi_btn.pack(side='right', padx=theme.PAD_TIGHT)
 
         # ── Bottom row: threshold slider ───────────────────
         thresh_row = ctk.CTkFrame(self, fg_color='transparent')
@@ -136,11 +150,12 @@ class SetupPanel(ctk.CTkFrame):
                  nodes_file=None, log_cb=None, status_cb=None,
                  lang='en', capture_key='caps lock',
                  res_cfg_key='race_resolution', mode='race',
-                 main_cfg=None, tpl_lang='cht',
+                 main_cfg=None, tpl_lang='cht', allow_roi=False,
                  **kwargs):
         super().__init__(parent, **kwargs)
         self._res_cfg_key = res_cfg_key
         self._mode        = mode
+        self._allow_roi   = allow_roi   # show per-row "Detection area" button
         self._tpl_lang    = tpl_lang   # game-menu template language (cht/en)
         self._main_cfg    = main_cfg   # reference to main window cfg dict
         # Load saved resolution
@@ -254,6 +269,8 @@ class SetupPanel(ctk.CTkFrame):
         def _add_row(key, label):
             row = TemplateRow(c, label, lambda: self.folder, key,
                               on_recapture=lambda k=key: self._recapture_one(k),
+                              on_set_roi=((lambda k=key: self._set_roi_one(k))
+                                          if self._allow_roi else None),
                               main_cfg=self._main_cfg,
                               lang=self._lang)
             row.pack(fill="x", pady=1)
@@ -398,6 +415,53 @@ class SetupPanel(ctk.CTkFrame):
         self._cap_btn.configure(state="disabled")
         self._stop_btn.configure(state="normal")
         self._advance_session()
+
+    def _set_roi_one(self, key):
+        """Capture a custom DETECTION AREA (search ROI) for one template — the
+        rectangle is saved (as fractions) into the template's JSON and overrides
+        its capture-box geometry at detect time. Saves no image."""
+        if self._collapsed:
+            self._toggle()
+        if self._session:
+            self._session.stop()
+            self._session = None
+        label = next((lb for k, lb in self._flat_defs if k == key), key)
+        self._cap_label.configure(
+            text=_at("set_roi_instruction", self._lang, label=label) + " — " +
+                 _at("shortcut_capture", self._lang, key=self._capture_key.upper()))
+        self.status_cb(f"Waiting for {self._capture_key.upper()} — "
+                       f"detection area: {label}")
+        sess = CaptureSession(
+            monitor_index=self._monitor_index,
+            window_title=f"Select detection area — {label}",
+            callback=lambda crop, w, h, bx, by, bw, bh, k=key:
+                self._on_roi_captured(k, w, h, (bx, by, bw, bh)),
+            on_cancel=self._on_capture_cancel,
+            capture_key=self._capture_key,
+            template_key=None,            # no example image for an area select
+            examples_dir=None,
+        )
+        self._session = sess
+        self._cap_btn.configure(state="disabled")
+        self._stop_btn.configure(state="normal")
+        sess.start()
+
+    def _on_roi_captured(self, key, screen_w, screen_h, box):
+        from capture import save_roi
+        save_roi(self.folder, key, box, screen_w, screen_h)
+        self.after(0, lambda: self._post_roi(key))
+
+    def _post_roi(self, key):
+        if self._session is not None:
+            self._session.stop()
+            self._session = None
+        self.log_cb(_at("roi_saved", self._lang, key=key))
+        self._cap_label.configure(text="")
+        self._cap_btn.configure(
+            state="normal" if self._is_custom() else "disabled")
+        self._stop_btn.configure(state="disabled")
+        if key in self._rows:
+            self._rows[key].refresh()
 
     def _start_session(self):
         """Start listening for Caps Lock captures, cycling through templates."""

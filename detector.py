@@ -16,6 +16,21 @@ import time
 import cv2
 import numpy as np
 
+# Cap OpenCV's internal parallelism.  By default cv2.matchTemplate fans out
+# across EVERY logical core, so each detection briefly saturates the whole CPU.
+# That's not just high average load — it momentarily steals the very cores the
+# game's render thread needs, which is what causes the in-game stutter users see
+# while a script polls (worst during wheelspin's ~20 detect/sec loops). ROI-only
+# matching is only a few ms, so a 1–2 thread cap costs no real latency while
+# leaving the rest of the cores free for the game.  Configurable per run via
+# `detector_cv_threads` (0 = OpenCV default / all cores).  Set a safe default at
+# import time; ScreenDetector re-applies the config value when constructed.
+_DEFAULT_CV_THREADS = 2
+try:
+    cv2.setNumThreads(_DEFAULT_CV_THREADS)
+except Exception:
+    pass
+
 
 Rect = tuple[float, float, float, float]
 Point = tuple[int, int]
@@ -92,6 +107,12 @@ DEFAULT_ROIS: dict[str, Rect] = {
     "return_home":          (0.20, 0.10, 0.55, 0.60),  # "Return Home" tile, My Horizon
     "cars_tab":             (0.00, 0.00, 1.00, 0.15),  # top-nav CARS tab (home menu)
     "recently_added":       (0.20, 0.05, 0.60, 0.30),  # "Recently Added" sort header/option
+    # ── Full Auto: sell re-select grind car (Filter → brand jump → car) ──
+    # These elements MOVE (the Manufacturer menu grows/shrinks with the player's
+    # favourited brands; the car's row varies), so they use a LARGE confined ROI
+    # — NOT a tight geometry box (full_auto skips set_template_geometry for them).
+    "grind_brand":          (0.05, 0.05, 0.90, 0.60),  # brand button in Jump-to-Manufacturer menu
+    "grind_car":            (0.20, 0.15, 0.80, 0.80),  # car tile in the brand list (visible 3 rows)
 }
 
 
@@ -150,6 +171,12 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     "cars_tab": ("cars", "car", "車輛", "汽車", "车辆"),
     "recently_added": ("recently added", "recently", "recent", "added",
                        "最近新增", "最近", "新增"),
+    # The brand is fixed (Subaru — the name is "Subaru" in Chinese too) so it
+    # has a reliable text hint; the car tile varies in framing per capture so it
+    # stays pixel-only. (full_auto custom mode disables OCR anyway; these matter
+    # only if OCR is on.)
+    "grind_brand": ("subaru",),
+    "grind_car": (),
 }
 
 # All template images capture text UI elements. Edge matching on text is
@@ -326,6 +353,14 @@ class ScreenDetector:
     def __init__(self, cfg: dict | None = None, debug_dir: str | None = None):
         self.cfg = cfg or {}
         self.debug_dir = debug_dir
+        # Re-assert the OpenCV thread cap from config (0 = let OpenCV use all
+        # cores).  Keeps detection from flooding every core and starving the
+        # game — see _DEFAULT_CV_THREADS above.
+        try:
+            cv2.setNumThreads(int(self.cfg.get("detector_cv_threads",
+                                               _DEFAULT_CV_THREADS)))
+        except Exception:
+            pass
         self._ocr = OptionalOCR()
         self._history: dict[str, list[float]] = {}
         self.scales = self.cfg.get(
@@ -394,6 +429,12 @@ class ScreenDetector:
         self._geom_variance: float = float(
             self.cfg.get("detector_geom_variance", 0.05))
         self._geom: dict[str, dict] = {}
+        # Per-template custom detection ROI (ratio tuple), set via
+        # set_template_roi() from a template's saved "roi" field. Highest
+        # priority — overrides both the geometry box and DEFAULT_ROIS. Used when
+        # the search area must differ from where the template was captured
+        # (e.g. an element that moves within a menu).
+        self._custom_rois: dict[str, tuple] = {}
         # ROI-only matching (default ON): every tracked element is fixed-position
         # and covered by its (geometry-/DEFAULT_) ROI, so the full-screen
         # fallback matchTemplate — the single most expensive per-check op (~680ms
@@ -499,6 +540,19 @@ class ScreenDetector:
             self._template_cache[cache_key] = cached
         return cached
 
+    def set_template_roi(self, key: str, roi):
+        """Register a custom detection ROI (x, y, w, h as fractions of the frame)
+        for a template — overrides the geometry box and DEFAULT_ROIS in detect().
+        Used directly (no aspect remap): it's captured on the user's own frame, so
+        it's already correct for their aspect. No-op on malformed input."""
+        try:
+            x, y, w, h = (float(v) for v in roi)
+        except (TypeError, ValueError):
+            return
+        if w <= 0 or h <= 0:
+            return
+        self._custom_rois[key] = (x, y, w, h)
+
     def set_template_geometry(self, key: str, box, cap_w: int, cap_h: int):
         """Register a template's capture box (x, y, w, h on a cap_w×cap_h
         screen) so detect() uses an anchor-aware, resolution-adaptive ROI for
@@ -562,8 +616,13 @@ class ScreenDetector:
         # capture box) when available; else the hand-tuned DEFAULT_ROIS. The
         # geometry ROI already accounts for aspect ratio, so it bypasses the
         # 16:9 _roi_for_frame remap.
-        roi = self._geom_roi(key, frame.shape[1], frame.shape[0]) \
-            if self._geom_roi_on else None
+        # Priority: custom ROI (user-drawn, used as-is) > geometry box >
+        # DEFAULT_ROIS. The custom ROI bypasses the 16:9 _roi_for_frame remap
+        # for the same reason geometry does — it was captured on this frame.
+        roi = self._custom_rois.get(key)
+        if roi is None:
+            roi = self._geom_roi(key, frame.shape[1], frame.shape[0]) \
+                if self._geom_roi_on else None
         if roi is None:
             roi = self._roi_for_frame(
                 key, DEFAULT_ROIS.get(key), frame.shape[1], frame.shape[0])
