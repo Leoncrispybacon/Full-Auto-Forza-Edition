@@ -72,6 +72,7 @@ SPIN_TEMPLATE_KEYS = [
     ("normal_wheelspin",    "spin_tpl_normal"),
     ("wheelspin_skip",      "spin_tpl_skip"),
     ("wheelspin_collect",   "spin_tpl_collect"),
+    ("wheelspin_collect_final", "spin_tpl_collect_final"),
     ("wheelspin_duplicate", "spin_tpl_duplicate"),
 ]
 # NOTE: wheelspin_skip is a BEST-EFFORT fast-forward — wheelspin.py loads it only
@@ -107,6 +108,7 @@ FULL_AUTO_TEMPLATE_KEYS = [
     ("fa_cat_sell", [
         ("grind_brand",     "fa_tpl_grind_brand"),
         ("grind_car",       "fa_tpl_grind_car"),
+        ("select_action",   "fa_tpl_select_action"),
         ("my_cars",         "fa_tpl_my_cars"),
         ("my_cars_header",  "fa_tpl_my_cars_header"),
         ("anna",            "fa_tpl_anna"),
@@ -948,13 +950,18 @@ class MainWindow(ctk.CTk):
     # ── Full Auto pre-flight checklist ────────────────────────
     # The chain makes destructive, garage-state-dependent assumptions, so Start
     # is gated until every box is ticked. (key, label_string, persist):
-    #   map → per-session state, reset each launch.
-    #   favorite → one-time garage state, persisted via fa_check_favorite_ok.
-    # (The old "driving the grind car" item was dropped — the sell step now
-    # auto-drives the grind car via Filter→Favorites→brand→car each cycle.)
+    #   map     → per-session state, reset each launch.
+    #   driving → per-session: the FIRST cycle never sell-drives the grind car
+    #             (the sell step that auto-drives it runs AFTER the first race),
+    #             so the user must already be driving it at the start.
+    #   favorite/stock_paint → one-time garage state, persisted via
+    #             fa_check_<key>_ok. stock_paint: a custom livery changes the
+    #             car tile's pixels and breaks grind_car template matching.
     _FA_CHECKLIST = [
-        ("map",      "fa_check_map",      False),
-        ("favorite", "fa_check_favorite", True),
+        ("map",         "fa_check_map",         False),
+        ("driving",     "fa_check_driving",     False),
+        ("favorite",    "fa_check_favorite",    True),
+        ("stock_paint", "fa_check_stock_paint", True),
     ]
 
     def _build_fa_checklist(self, parent):
@@ -1046,7 +1053,10 @@ class MainWindow(ctk.CTk):
         return frame
 
     def _build_delete_tab(self) -> ctk.CTkFrame:
-        frame = ctk.CTkFrame(self._main_content, fg_color="transparent")
+        # Scrollable + solid bg (the garage-block picker makes the tab taller;
+        # solid surface avoids CTkScrollableFrame scroll-ghosting).
+        frame = ctk.CTkScrollableFrame(self._main_content,
+                                       fg_color=self._t("surface"))
 
         desc = ctk.CTkFrame(frame, fg_color="transparent")
         desc.pack(fill="x", padx=12, pady=(12, 4))
@@ -1054,17 +1064,31 @@ class MainWindow(ctk.CTk):
                      anchor="w", wraplength=480,
                      font=("Arial", 12), justify="left").pack(fill="x")
 
-        # Car count row
-        count_row = ctk.CTkFrame(frame, fg_color="transparent")
-        count_row.pack(fill="x", padx=12, pady=(8, 0))
-        ctk.CTkLabel(count_row, text=_at("delete_count_label", self._lang),
-                     font=("Arial", 12)).pack(side="left")
-        self._delete_count_var = ctk.StringVar(value="0")
-        ctk.CTkEntry(count_row, textvariable=self._delete_count_var,
-                     width=70, justify="center").pack(side="left", padx=8)
-        ctk.CTkLabel(count_row, text=_at("delete_count_hint", self._lang),
-                     font=("Arial", 11),
-                     text_color=self._t("text_muted")).pack(side="left")
+        # Car count via the garage-block picker (same widget as mastery). The
+        # delete loop is UNCHANGED — this just derives the count visually, and
+        # makes "all cars between the first and last get deleted" explicit.
+        self._delete_block = MasteryCarBlockWidget(
+            frame,
+            first_row=self._cfg.get("delete_block_first_row", 1),
+            middle_cols=self._cfg.get("delete_block_middle_cols", 0),
+            last_row=self._cfg.get("delete_block_last_row", 3),
+            on_change=self._on_delete_block_change, lang=self._lang,
+            title_key="delete_block_title", hint_key="delete_block_hint",
+            fg_color=self._t("surface_alt"),
+            border_width=1, border_color=self._t("border"),
+            corner_radius=self._t("corner"))
+        self._delete_block.pack(fill="x", padx=8, pady=(4, 8))
+
+        # Destructive-action confirmation. Per-session (NOT persisted) — the user
+        # re-confirms each launch before the blind sell macro can run. Gates Start.
+        confirm = ctk.CTkFrame(frame, fg_color="transparent")
+        confirm.pack(fill="x", padx=12, pady=(0, 4))
+        self._delete_confirm_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            confirm, text=_at("delete_confirm", self._lang),
+            variable=self._delete_confirm_var, onvalue=True, offvalue=False,
+            font=("Arial", 12), command=self._on_delete_confirm,
+        ).pack(fill="x", anchor="w")
 
         self._build_run_controls(frame, mode="delete")
 
@@ -1075,7 +1099,29 @@ class MainWindow(ctk.CTk):
             border_width=1, border_color=self._t("border"),
             corner_radius=self._t("corner"))
         self._delete_log.pack(fill="both", expand=True, padx=8, pady=(4, 8))
+        self._update_delete_start_enabled()   # Start gated until confirm is ticked
         return frame
+
+    def _on_delete_block_change(self, first_row, middle_cols, last_row):
+        self._cfg["delete_block_first_row"]   = int(first_row)
+        self._cfg["delete_block_middle_cols"] = int(middle_cols)
+        self._cfg["delete_block_last_row"]    = int(last_row)
+        save(self._cfg)
+
+    def _on_delete_confirm(self):
+        self._update_delete_start_enabled()
+
+    def _delete_confirm_ok(self) -> bool:
+        var = getattr(self, "_delete_confirm_var", None)
+        return bool(var.get()) if var is not None else False
+
+    def _update_delete_start_enabled(self):
+        # Don't override the disabled state while a run is active.
+        if self._auto_thread and self._auto_thread.is_alive():
+            return
+        if hasattr(self, "_delete_start_btn"):
+            self._delete_start_btn.configure(
+                state="normal" if self._delete_confirm_ok() else "disabled")
 
     def _build_spin_tab(self) -> ctk.CTkFrame:
         # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
@@ -1525,11 +1571,10 @@ class MainWindow(ctk.CTk):
                 if self._stop_event.is_set(): return
                 log_cb(_at('startup_running', lang))
                 # Derive the car count + start row from the garage-block picker.
-                ROWS = 3
-                fr = max(1, min(ROWS, int(cfg.get("mastery_block_first_row", 1))))
-                lr = max(1, min(ROWS, int(cfg.get("mastery_block_last_row", 3))))
+                fr = max(1, min(3, int(cfg.get("mastery_block_first_row", 1))))
+                lr = max(1, min(3, int(cfg.get("mastery_block_last_row", 3))))
                 mc = max(0, int(cfg.get("mastery_block_middle_cols", 0)))
-                max_cars = (ROWS - fr + 1) + mc * ROWS + lr
+                max_cars = MasteryCarBlockWidget.count(fr, mc, lr)
                 mastery_run(cfg, self._stop_event,
                             self._mastery_log.log, self._set_status,
                             max_cars=max_cars, start_loop=fr,
@@ -1595,6 +1640,12 @@ class MainWindow(ctk.CTk):
     def _start_delete(self):
         if self._auto_thread and self._auto_thread.is_alive():
             return
+        # Destructive — block if the confirmation isn't ticked (also covers the
+        # F9 hotkey path, which bypasses the disabled Start button).
+        if not self._delete_confirm_ok():
+            self._set_status(_at("status_delete_confirm", self._lang))
+            self._delete_log.log(_at("log_delete_confirm_block", self._lang))
+            return
         self._stop_event.clear()
         self._set_status(_at("status_starting_delete", self._lang))
         self._delete_start_btn.configure(state="disabled")
@@ -1615,10 +1666,12 @@ class MainWindow(ctk.CTk):
                 if self._stop_event.is_set(): return
                 import config as _cfg_mod
                 from delete_cars import run as delete_run
-                try:
-                    max_cars = int(self._delete_count_var.get())
-                except ValueError:
-                    max_cars = 0
+                # Derive the car count from the garage-block picker (same model
+                # as mastery). The delete loop itself is unchanged.
+                fr = max(1, min(3, int(self._cfg.get("delete_block_first_row", 1))))
+                lr = max(1, min(3, int(self._cfg.get("delete_block_last_row", 3))))
+                mc = max(0, int(self._cfg.get("delete_block_middle_cols", 0)))
+                max_cars = MasteryCarBlockWidget.count(fr, mc, lr)
                 delete_run(
                     cfg=_cfg_mod.load(),
                     stop_event=self._stop_event,
@@ -1884,8 +1937,8 @@ class MainWindow(ctk.CTk):
             self._mastery_stop_btn.configure(state="disabled")
             self._buy_start_btn.configure(state="normal")
             self._buy_stop_btn.configure(state="disabled")
-            self._delete_start_btn.configure(state="normal")
             self._delete_stop_btn.configure(state="disabled")
+            self._update_delete_start_enabled()   # respect the confirm gate
             self._spin_start_btn.configure(state="normal")
             self._spin_stop_btn.configure(state="disabled")
             self._full_auto_stop_btn.configure(state="disabled")
@@ -2045,6 +2098,12 @@ class MainWindow(ctk.CTk):
     def _on_mute_toggle(self):
         """Persist the 'mute game while running' setting (applied at run start)."""
         self._cfg['mute_game'] = bool(self._mute_var.get())
+        save(self._cfg)
+
+    def _on_ocr_toggle(self):
+        """Persist OCR on/off (applied at run start). Off = lighter, pixel-only
+        detection that won't spike CPU / stutter the game."""
+        self._cfg['detector_enable_ocr'] = bool(self._ocr_var.get())
         save(self._cfg)
 
     def _on_overlay_move(self, x, y):
@@ -2584,6 +2643,20 @@ class MainWindow(ctk.CTk):
             value=bool(self._cfg.get('mute_game', False)))
         ctk.CTkSwitch(_mute_row, text='', variable=self._mute_var,
                       command=self._on_mute_toggle).pack(side='left', padx=8)
+
+        # OCR detection toggle — onnxruntime OCR is CPU-heavy and can stutter
+        # the game; turn off for pixel-only (lighter) detection.
+        _ocr_row = ctk.CTkFrame(scroll, fg_color='transparent')
+        _ocr_row.pack(fill='x', padx=12, pady=4)
+        ctk.CTkLabel(_ocr_row, text=_at('setting_ocr', self._lang),
+                     width=160, anchor='w').pack(side='left')
+        self._ocr_var = ctk.BooleanVar(
+            value=bool(self._cfg.get('detector_enable_ocr', False)))
+        ctk.CTkSwitch(_ocr_row, text='', variable=self._ocr_var,
+                      command=self._on_ocr_toggle).pack(side='left', padx=8)
+        ctk.CTkLabel(_ocr_row, text=_at('setting_ocr_hint', self._lang),
+                     font=("Arial", 11),
+                     text_color=self._t("text_muted")).pack(side='left')
 
         # ── Shortcuts ─────────────────────────────────────
         section('settings_shortcuts_section')

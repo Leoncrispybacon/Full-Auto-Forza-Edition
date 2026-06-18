@@ -7,6 +7,21 @@ import sys
 import os
 import traceback
 
+# Cap native thread pools BEFORE cv2 / numpy / onnxruntime load — each defaults
+# to ALL cores, which pegs CPU and lags the game during detection/OCR. Env must
+# be set before those libs import (the pools read it once at load). This is the
+# lever cv2.setNumThreads alone missed: an OpenMP-built OpenCV and onnxruntime
+# both honor these, not setNumThreads. setdefault so a real env override wins.
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+           "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ.setdefault(_v, "2")
+# The bigger win, and resolution-independent: stop idle worker threads from
+# BUSY-SPINNING between detections. OpenMP defaults to active-wait (Intel OpenMP
+# KMP_BLOCKTIME=200ms spins after every parallel region), which pegs cores even
+# when each detection's actual work is tiny — exactly what 1080p users hit.
+os.environ.setdefault("OMP_WAIT_POLICY", "PASSIVE")  # idle OpenMP threads sleep
+os.environ.setdefault("KMP_BLOCKTIME", "0")          # Intel OpenMP: no post-region spin
+
 def _except_hook(exc_type, exc_value, exc_tb):
     import tkinter.messagebox as mb
     msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))

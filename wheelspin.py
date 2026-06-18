@@ -55,7 +55,10 @@ NORMAL_KEY   = "normal_wheelspin"     # the normal Wheelspin tile (1 prize); cho
                                       # via wheelspin_type. Only the START tile
                                       # differs from super — the rest is identical.
 SKIP_KEY     = "wheelspin_skip"       # reveal "Skip" prompt — Enter fast-forwards
-COLLECT_KEY  = "wheelspin_collect"    # prize/result — Enter collects
+COLLECT_KEY  = "wheelspin_collect"    # prize/result — Enter collects (+ spins again)
+FINAL_KEY    = "wheelspin_collect_final"  # last-spin single "Collect Prize" (no spins
+                                      # left): Enter collects and leaves, no restart.
+                                      # Best-effort, watched only on the final spin.
 TEMPLATE_KEY = "wheelspin_duplicate"  # the 3-option duplicate-reward menu
 # Skip is BEST-EFFORT: loaded only if the template exists; a missing/missed skip
 # falls back to waiting for the collect prompt (no desync, just no speed-up).
@@ -85,14 +88,10 @@ def run(cfg: dict, stop_event: threading.Event,
     post_kw  = _fresh.get("wheelspin_post_key_wait", 0.5)
     dup_mode = _fresh.get("wheelspin_dup_mode", "garage")
     wtype    = _fresh.get("wheelspin_type", "super")   # "super" | "normal"
-    res      = _fresh.get("wheelspin_resolution", "custom")
     # Which tile starts the run: Super Wheelspin (3 prizes) or normal Wheelspin
     # (1 prize). Only this start tile differs — collect/duplicate flow is the same.
     TILE_KEY = NORMAL_KEY if wtype == "normal" else SUPER_KEY
     tpl_lang = _cfg_mod.resolve_template_lang(_fresh)
-    # Detection mode follows the template type (preset → default/OCR-confirm,
-    # custom → pixel-only), same rule as race/mastery. See ScreenDetector.
-    _fresh['detector_ocr_primary'] = (res != 'custom')
 
     def _thr(key):
         return _fresh.get(f"thresh_{key}", 0.60)
@@ -100,15 +99,11 @@ def run(cfg: dict, stop_event: threading.Event,
     io = GameIO(_fresh, log_cb)
     current_w, current_h = io.width, io.height
     mon_left, mon_top = io.cap_left, io.cap_top
-    folder   = get_wheelspin_templates(res, tpl_lang)
-    # Single-reference fallback for preset resolutions. Custom uses the user's
-    # own capture.
-    ref_folder = None
-    prefer_ref = False
-    if res != 'custom':
-        ref_folder = get_wheelspin_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
-        prefer_ref = _fresh.get('template_prefer_reference', True)
-    log_cb(f"  Templates: {tpl_lang} / {res}")
+    # Single built-in template set (REFERENCE_RES), auto-scaled to the monitor.
+    folder   = get_wheelspin_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
+    ref_folder = folder
+    prefer_ref = _fresh.get('template_prefer_reference', True)
+    log_cb(f"  Templates: {tpl_lang} / built-in")
     detector = ScreenDetector(_fresh)
 
     def _load(key):
@@ -142,6 +137,12 @@ def run(cfg: dict, stop_event: threading.Event,
     except FileNotFoundError:
         skip_tpl = None
         log_cb(_at("log_spin_skip_off", lang))
+    # Final-spin "Collect Prize" prompt (account out of spins). Best-effort:
+    # absent → the last spin falls back to the Esc-collect, exactly as before.
+    try:
+        final_tpl = _load(FINAL_KEY)
+    except FileNotFoundError:
+        final_tpl = None
     # My Horizon tab is best-effort too: present → the run can START from the
     # main menu (click the tab → My Horizon menu); absent → assume we're already
     # on the My Horizon menu and go straight to the Super Wheelspin tile.
@@ -230,6 +231,35 @@ def run(cfg: dict, stop_event: threading.Event,
                                      stable=False)
                 if rb.matched:
                     return ('b', rb)
+            except Exception:
+                pass
+            time.sleep(_DETECT_IV)
+        return (None, None)
+
+    def _wait_last_collect():
+        """Final-spin collect wait: returns ('skip'|'collect'|'final', result),
+        whichever shows first, or (None, None) if stopped. 'final' is the single
+        'Collect Prize' prompt shown when the account is out of spins (Enter
+        collects and leaves, no restart); 'collect' is the normal prompt (Esc
+        fallback). Skip is checked first (it appears first, during the reveal);
+        final before normal so the out-of-spins prompt wins if both could match."""
+        while not stop():
+            try:
+                frame = io.grab()
+                if skip_tpl is not None:
+                    r = detector.detect(frame, SKIP_KEY, skip_tpl,
+                                        _thr(SKIP_KEY), stable=False)
+                    if r.matched:
+                        return ('skip', r)
+                if final_tpl is not None:
+                    r = detector.detect(frame, FINAL_KEY, final_tpl,
+                                        _thr(FINAL_KEY), stable=False)
+                    if r.matched:
+                        return ('final', r)
+                r = detector.detect(frame, COLLECT_KEY, collect_tpl,
+                                    _thr(COLLECT_KEY), stable=False)
+                if r.matched:
+                    return ('collect', r)
             except Exception:
                 pass
             time.sleep(_DETECT_IV)
@@ -419,44 +449,83 @@ def run(cfg: dict, stop_event: threading.Event,
         # A missed/flaky skip therefore only costs the reveal time — it can never
         # press the wrong prompt or desync.
         if stop(): break
-        if skip_tpl is not None:
+        if is_last and final_tpl is not None:
+            # Final spin WITH the out-of-spins template captured: the game shows
+            # a single "Collect Prize" (no "Spin Again"), so Enter collects and
+            # leaves — no restart. Watch skip / normal-collect / final-collect
+            # together: the reveal's skip still appears first, so fast-forward it
+            # and re-wait. Enter only on the FINAL prompt; the normal prompt keeps
+            # the Esc-collect fallback (e.g. more game spins than the FAFE count).
             _t0 = time.time()
-            announce(_at("log_spin_wait_skip", lang))
-            which, sr = _wait_either(SKIP_KEY, skip_tpl, COLLECT_KEY, collect_tpl)
-            if which is None:
+            announce(_at("log_spin_wait_collect", lang))
+            collected = False
+            while not stop():
+                which, r = _wait_last_collect()
+                if which is None:
+                    break
+                _el = f"{time.time() - _t0:.1f}"
+                if which == 'skip':
+                    log_cb(_at("log_spin_detected", lang,
+                               label=_at("spin_tpl_skip", lang),
+                               conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                    announce(_at("log_spin_skip", lang))
+                    press('enter', post_wait=0.0)      # fast-forward reveal
+                    continue
+                if which == 'final':
+                    log_cb(_at("log_spin_detected", lang,
+                               label=_at("spin_tpl_collect_final", lang),
+                               conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                    announce(_at("log_spin_end_enter", lang))
+                    press('enter', post_wait=0.0)      # collect + leave (no restart)
+                else:                                  # 'collect' = normal prompt
+                    log_cb(_at("log_spin_detected", lang,
+                               label=_at("spin_tpl_collect", lang),
+                               conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                    announce(_at("log_spin_end_esc", lang))
+                    press('escape', post_wait=0.0)     # collect all 3 + exit
+                collected = True
                 break
-            _el = f"{time.time() - _t0:.1f}"
-            if which == 'a':                       # Skip prompt
-                log_cb(_at("log_spin_detected", lang,
-                           label=_at("spin_tpl_skip", lang),
-                           conf=f"{sr.score:.0%}, {sr.source}", secs=_el))
-                announce(_at("log_spin_skip", lang))
-                press('enter', post_wait=0.0)      # fast-forward → collect prompt
-                if stop(): break
-                # No _wait_gone(skip) here: the next wait is for the COLLECT
-                # prompt, not skip, so a lingering "Skip" can't cause a re-press.
-                # The collect prompt is often already up under the fading skip
-                # prompt, so waiting for skip to vanish first is pure dead time —
-                # go straight to detecting collect (caught the instant it shows).
+            if not collected:
+                break                                  # stopped
+        else:
+            if skip_tpl is not None:
+                _t0 = time.time()
+                announce(_at("log_spin_wait_skip", lang))
+                which, sr = _wait_either(SKIP_KEY, skip_tpl, COLLECT_KEY, collect_tpl)
+                if which is None:
+                    break
+                _el = f"{time.time() - _t0:.1f}"
+                if which == 'a':                       # Skip prompt
+                    log_cb(_at("log_spin_detected", lang,
+                               label=_at("spin_tpl_skip", lang),
+                               conf=f"{sr.score:.0%}, {sr.source}", secs=_el))
+                    announce(_at("log_spin_skip", lang))
+                    press('enter', post_wait=0.0)      # fast-forward → collect prompt
+                    if stop(): break
+                    # No _wait_gone(skip) here: the next wait is for the COLLECT
+                    # prompt, not skip, so a lingering "Skip" can't cause a re-press.
+                    # The collect prompt is often already up under the fading skip
+                    # prompt, so waiting for skip to vanish first is pure dead time —
+                    # go straight to detecting collect (caught the instant it shows).
+                    if not _wait_stage(COLLECT_KEY, collect_tpl,
+                                       _at("log_spin_wait_collect", lang),
+                                       _at("spin_tpl_collect", lang)):
+                        break
+                else:                                  # 'b' = collect already up
+                    log_cb(_at("log_spin_detected", lang,
+                               label=_at("spin_tpl_collect", lang),
+                               conf=f"{sr.score:.0%}, {sr.source}", secs=_el))
+            else:
                 if not _wait_stage(COLLECT_KEY, collect_tpl,
                                    _at("log_spin_wait_collect", lang),
                                    _at("spin_tpl_collect", lang)):
                     break
-            else:                                  # 'b' = collect already up
-                log_cb(_at("log_spin_detected", lang,
-                           label=_at("spin_tpl_collect", lang),
-                           conf=f"{sr.score:.0%}, {sr.source}", secs=_el))
-        else:
-            if not _wait_stage(COLLECT_KEY, collect_tpl,
-                               _at("log_spin_wait_collect", lang),
-                               _at("spin_tpl_collect", lang)):
-                break
-        if is_last:
-            announce(_at("log_spin_end_esc", lang))
-            press('escape', post_wait=0.0)         # collect all 3 + exit to menu
-        else:
-            announce(_at("log_spin_collect", lang))
-            press('enter', post_wait=0.0)          # collect-clear gated below
+            if is_last:
+                announce(_at("log_spin_end_esc", lang))
+                press('escape', post_wait=0.0)         # collect all 3 + exit to menu
+            else:
+                announce(_at("log_spin_collect", lang))
+                press('enter', post_wait=0.0)          # collect-clear gated below
         if stop(): break
 
         # ── 2. Resolve duplicates — duplicate-or-collect-clear merged wait ──

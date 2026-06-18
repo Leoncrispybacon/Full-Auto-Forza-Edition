@@ -153,14 +153,14 @@ class SetupPanel(ctk.CTkFrame):
                  main_cfg=None, tpl_lang='cht', allow_roi=False,
                  **kwargs):
         super().__init__(parent, **kwargs)
-        self._res_cfg_key = res_cfg_key
         self._mode        = mode
         self._allow_roi   = allow_roi   # show per-row "Detection area" button
         self._tpl_lang    = tpl_lang   # game-menu template language (cht/en)
         self._main_cfg    = main_cfg   # reference to main window cfg dict
-        # Load saved resolution
-        _saved_cfg = config.load()
-        self._resolution  = _saved_cfg.get(res_cfg_key, 'custom')
+        # Single built-in (auto-scaled) template set — the user-capture "custom"
+        # mode was removed. res_cfg_key is accepted for caller compatibility but
+        # unused. Captures go into the built-in set.
+        self._resolution  = config.REFERENCE_RES
         # Set folder based on resolution
         self.folder      = self._get_folder()
         self.nodes_file  = self._get_nodes_file()
@@ -207,7 +207,8 @@ class SetupPanel(ctk.CTkFrame):
         return get_nodes_file(self._resolution, self._tpl_lang)
 
     def _is_custom(self) -> bool:
-        return self._resolution == 'custom'
+        # Single built-in set now; capture/retake is always available for it.
+        return True
 
     def _build_header(self):
         hdr = ctk.CTkFrame(self, fg_color="transparent")
@@ -234,34 +235,7 @@ class SetupPanel(ctk.CTkFrame):
         c = self._content
         c.pack(fill="x", padx=16, pady=4)
 
-        # Resolution selector
-        res_frame = ctk.CTkFrame(c, fg_color='transparent')
-        res_frame.pack(fill='x', pady=(4, 8))
-        ctk.CTkLabel(res_frame,
-                     text=_at('label_resolution', self._lang)).pack(side='left')
-        # Two choices only: Built-in (the single REFERENCE_RES set, auto-scaled
-        # to the detected monitor) or Custom (the user's own capture). The old
-        # 1080p/1440p/2160p picks are gone — Stage 1 makes one reference set
-        # serve every resolution, so the number was meaningless. Built-in maps
-        # to REFERENCE_RES; any legacy stored preset (1080p/1440p/2160p) still
-        # displays as Built-in and behaves identically.
-        _res_options = {
-            config.REFERENCE_RES: _at('res_builtin', self._lang),
-            'custom':             _at('res_custom',  self._lang),
-        }
-        _init_label = (_res_options['custom'] if self._resolution == 'custom'
-                       else _res_options[config.REFERENCE_RES])
-        self._res_var = ctk.StringVar(value=_init_label)
-        ctk.CTkOptionMenu(
-            res_frame,
-            variable=self._res_var,
-            values=list(_res_options.values()),
-            command=lambda v, opts=_res_options: self._on_resolution_change(v, opts),
-            width=240, height=30, corner_radius=theme.token("corner_sm"),
-            # Distinct body so it doesn't blend into the surface_alt setup card.
-            fg_color=theme.token("surface"), text_color=theme.token("text"),
-            button_color=theme.token("accent"),
-            button_hover_color=theme.token("accent_hover")).pack(side='left', padx=8)
+        # (Resolution selector removed — single built-in auto-scaled set.)
 
         # Template rows (none in mastery keys mode — nodes are the only capture).
         # Categorized defs render a bold sub-header per section; flat defs keep
@@ -338,27 +312,6 @@ class SetupPanel(ctk.CTkFrame):
             c, text="", anchor="w",
             font=("Arial", 11), text_color="gray")
         self._cap_label.pack(fill="x", pady=(2, 4))
-
-    def _on_resolution_change(self, val: str, opts: dict):
-        # Map display value back to key
-        rev = {v: k for k, v in opts.items()}
-        self._resolution = rev.get(val, 'custom')
-        # Update main window cfg dict (single source of truth)
-        if self._main_cfg is not None:
-            self._main_cfg[self._res_cfg_key] = self._resolution
-            config.save(self._main_cfg)
-        else:
-            # Fallback: save directly
-            cfg = config.load()
-            cfg[self._res_cfg_key] = self._resolution
-            config.save(cfg)
-        # Update folder and nodes file
-        self.folder     = self._get_folder()
-        self.nodes_file = self._get_nodes_file()
-        # Show/hide capture controls based on mode
-        self._update_capture_visibility()
-        # Refresh dots
-        self.refresh_all()
 
     def _update_capture_visibility(self):
         """Bulk capture only in custom mode; individual ↺ buttons always visible."""

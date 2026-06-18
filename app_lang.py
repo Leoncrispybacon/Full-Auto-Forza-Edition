@@ -277,6 +277,10 @@ STRINGS = {
         "en":    "Only ONE Subaru 22B-STI is marked as Favorite. (one-time setup — more than one breaks grind-car selection)",
         "zh-tw": "只有「一輛」Subaru 22B-STI 被標記為我的最愛。（一次性設定 — 超過一輛會導致練車選取失敗）",
     },
+    "fa_check_stock_paint": {
+        "en":    "The car I'm using to AFK is a 22B-STI with a stock paint job. (one-time setup — a custom livery breaks grind-car detection)",
+        "zh-tw": "我用來掛機的車是「原廠塗裝」的 22B-STI。（一次性設定 — 自訂塗裝會導致練車偵測失敗）",
+    },
 
     "status_fa_checklist": {
         "en":    "Full Auto: tick all the checklist items first.",
@@ -285,6 +289,14 @@ STRINGS = {
     "log_fa_checklist_block": {
         "en":    "Can't start Full Auto — tick every box in the pre-flight checklist first.",
         "zh-tw": "無法啟動全自動 — 請先勾選檢查清單中的每一項。",
+    },
+    "status_delete_confirm": {
+        "en":    "Delete Cars: tick the confirmation box first.",
+        "zh-tw": "刪除車輛：請先勾選確認框。",
+    },
+    "log_delete_confirm_block": {
+        "en":    "Can't start — tick the box confirming all cars between the first and last will be deleted.",
+        "zh-tw": "無法啟動 — 請先勾選確認框，確認第一輛與最後一輛之間的所有車輛都會被刪除。",
     },
     "log_fa_started": {
         "en":    "Full Auto started.",
@@ -388,6 +400,14 @@ STRINGS = {
         "en":    "  → waiting for the My Cars grid to load (header)…",
         "zh-tw": "  → 等待我的車輛列表載入（標題）…",
     },
+    "log_fa_sell_get_in": {
+        "en":    "  → Select An Action menu detected — Get In Car (Enter)",
+        "zh-tw": "  → 偵測到「選擇動作」選單 — 進入車輛（Enter）",
+    },
+    "log_fa_sell_car_retry": {
+        "en":    "  ! Select An Action didn't open — re-clicking grind car (retry #{n})",
+        "zh-tw": "  ! 「選擇動作」未開啟 — 重新點擊練車（重試 #{n}）",
+    },
     "log_fa_sell_sort": {
         "en":    "  → X → Recently Added → Backspace → Enter (jump to newest car)",
         "zh-tw": "  → X → 最近新增 → Backspace → Enter（跳至最新車輛）",
@@ -409,8 +429,8 @@ STRINGS = {
         "zh-tw": "  → 返回主選單：ESC → 住宅 → ESC → 開放世界 → ESC → 主選單",
     },
     "log_fa_sell_wait_world": {
-        "en":    "  → waiting for open-world driving (ANNA prompt)…",
-        "zh-tw": "  → 等待開放世界駕駛（ANNA 提示）…",
+        "en":    "  → waiting for open world (home icon)…",
+        "zh-tw": "  → 等待開放世界（住宅圖示）…",
     },
     "log_fa_sell_at_menu": {
         "en":    "  ✓ cars sold, back at the main menu.",
@@ -442,8 +462,8 @@ STRINGS = {
         "zh-tw": "我的車輛 標題（左上角）",
     },
     "fa_tpl_anna": {
-        "en":    "ANNA prompt (open world, bottom-left)",
-        "zh-tw": "ANNA 提示（開放世界，左下角）",
+        "en":    "Home icon (appears when leaving the home menu)",
+        "zh-tw": "住宅圖示（離開住宅選單時出現）",
     },
     "fa_tpl_grind_brand": {
         "en":    "Grind car brand (Manufacturer menu)",
@@ -452,6 +472,10 @@ STRINGS = {
     "fa_tpl_grind_car": {
         "en":    "Grind car tile (brand list)",
         "zh-tw": "練車車輛（品牌列表）",
+    },
+    "fa_tpl_select_action": {
+        "en":    "\"Select An Action\" menu (after clicking the car)",
+        "zh-tw": "「選擇動作」選單（點擊車輛後）",
     },
     "fa_tpl_return_home": {
         "en":    "Return Home tile",
@@ -570,6 +594,10 @@ STRINGS = {
         "en":    "Collect prompt (bottom-left)",
         "zh-tw": "領取提示（左下角）",
     },
+    "spin_tpl_collect_final": {
+        "en":    "Final-spin Collect Prize prompt (no spins left)",
+        "zh-tw": "最後一轉的領取獎勵提示（已無轉盤）",
+    },
     "spin_tpl_duplicate": {
         "en":    "Duplicate-reward menu",
         "zh-tw": "重複獎勵選單",
@@ -657,6 +685,10 @@ STRINGS = {
     "log_spin_end_esc": {
         "en":    "  → final spin — collect: Esc (takes all 3 prizes, then exits to the menu)",
         "zh-tw": "  → 最後一轉 — 領取：Esc（領取全部 3 個獎勵後返回選單）",
+    },
+    "log_spin_end_enter": {
+        "en":    "  → final spin (out of spins) — Collect Prize: Enter (collects and leaves)",
+        "zh-tw": "  → 最後一轉（已無轉盤）— 領取獎勵：Enter（領取後離開）",
     },
     "log_spin_detected": {
         "en":    "  ✓ {label} detected ({conf}) — {secs}s",
@@ -880,6 +912,14 @@ STRINGS = {
         "en":    "Mute game while running:",
         "zh-tw": "執行時將遊戲靜音：",
     },
+    "setting_ocr": {
+        "en":    "OCR text detection:",
+        "zh-tw": "OCR 文字偵測：",
+    },
+    "setting_ocr_hint": {
+        "en":    "off = lighter on CPU (fixes game stutter)",
+        "zh-tw": "關閉 = 較省 CPU（修正遊戲卡頓）",
+    },
     "overlay_indicator": {
         "en":    "Overlay",
         "zh-tw": "浮層",
@@ -936,18 +976,6 @@ STRINGS = {
     "label_threshold": {
         "en":    "Minimum required similarity:",
         "zh-tw": "最低所需相似度：",
-    },
-    "label_resolution": {
-        "en":    "Template set:",
-        "zh-tw": "樣本組：",
-    },
-    "res_builtin": {
-        "en":    "Built-in (auto-scaled)",
-        "zh-tw": "內建（自動縮放）",
-    },
-    "res_custom": {
-        "en":    "Custom (Capture your own)",
-        "zh-tw": "自定義（自行擷取）",
     },
     "label_monitor": {
         "en":    "Game monitor:",
@@ -1119,17 +1147,13 @@ STRINGS = {
         "en":    "Generating bug report — capturing screenshot & log...",
         "zh-tw": "正在產生錯誤回報 — 擷取截圖與日誌中…",
     },
-    "report_specs": {
-        "en":    "Collecting system info (DxDiag, may take ~30s)...",
-        "zh-tw": "正在收集系統資訊（DxDiag，約需 30 秒）…",
-    },
     "report_saved": {
         "en":    "✅ Bug report complete — saved to: {path}",
         "zh-tw": "✅ 錯誤回報已完成 — 儲存於：{path}",
     },
     "report_privacy": {
-        "en":    "Note: this bundle includes your settings and system info (DxDiag — includes your Windows username & hardware). Fine to share for support; review before posting publicly.",
-        "zh-tw": "注意：此回報包含你的設定與系統資訊（DxDiag，含 Windows 使用者名稱與硬體）。提供給支援沒問題，公開分享前請先檢視。",
+        "en":    "Note: this bundle includes your settings and basic system info. Fine to share for support; review before posting publicly.",
+        "zh-tw": "注意：此回報包含你的設定與基本系統資訊。提供給支援沒問題，公開分享前請先檢視。",
     },
     "report_help_btn": {
         "en":    "Report a Bug",
@@ -1430,8 +1454,8 @@ STRINGS = {
         "zh-tw": "要解鎖的車輛 — 車庫區塊",
     },
     "carblock_hint": {
-        "en":    "The garage fills top→bottom by column. Click where your FIRST car sits (left) and your LAST car (right), and enter how many FULL columns are in between.",
-        "zh-tw": "車庫依欄由上而下排列。點選第一輛車的位置（左）與最後一輛車（右），並輸入中間有幾個「整欄」。",
+        "en":    "The garage fills top→bottom by column. Click your FIRST car's row (left) and your LAST car's row (right), and enter how many FULL columns sit between them (0 = the last car is in the very next column).",
+        "zh-tw": "車庫依欄由上而下排列。點選第一輛車的列（左）與最後一輛車的列（右），並輸入兩者之間有幾個「整欄」（0 = 最後一輛車就在下一欄）。",
     },
     "carblock_first": {
         "en":    "First car",
@@ -1448,6 +1472,18 @@ STRINGS = {
     "carblock_total": {
         "en":    "Total: {n} cars",
         "zh-tw": "共 {n} 輛車",
+    },
+    "delete_block_title": {
+        "en":    "Cars to delete — garage block",
+        "zh-tw": "要刪除的車輛 — 車庫區塊",
+    },
+    "delete_block_hint": {
+        "en":    "The garage fills top→bottom by column. Click your FIRST car's row (left) and your LAST car's row (right), and enter how many FULL columns sit between them (0 = the last car is in the very next column). Every car in this block is deleted.",
+        "zh-tw": "車庫依欄由上而下排列。點選第一輛車的列（左）與最後一輛車的列（右），並輸入兩者之間有幾個「整欄」（0 = 最後一輛車就在下一欄）。此區塊內的所有車輛都會被刪除。",
+    },
+    "delete_confirm": {
+        "en":    "I understand all cars in between the first and last car will be deleted.",
+        "zh-tw": "我了解第一輛車與最後一輛車之間的所有車輛都會被刪除。",
     },
     "log_loop": {
         "en":    "Loop",

@@ -22,7 +22,10 @@ else:
 CONFIG_FILE       = os.path.join(BASE_DIR, "config.json")
 TEMPLATES_DIR     = os.path.join(BASE_DIR, "templates")
 
-RESOLUTION_SETS = ["built-in", "custom"]
+# Only the single built-in (auto-scaled) set now — the user-capture "custom"
+# mode was removed (built-in is reliable enough). Kept as a list for the
+# dir-creation loop below.
+RESOLUTION_SETS = ["built-in"]
 
 # The bundled template set lives in the "built-in" folder. It's authored once at
 # the highest resolution (4K) and DOWNSCALED at load time to the detected
@@ -63,40 +66,40 @@ def _lang_dir(lang: str) -> str:
                         lang if lang in TEMPLATE_LANGS else DEFAULT_TEMPLATE_LANG)
 
 
-def get_race_templates(res: str = "custom",
+def get_race_templates(res: str = REFERENCE_RES,
                        lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     path = os.path.join(_lang_dir(lang), "race", res)
     os.makedirs(path, exist_ok=True)
     return path
 
 
-def get_mastery_templates(res: str = "custom",
+def get_mastery_templates(res: str = REFERENCE_RES,
                           lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     path = os.path.join(_lang_dir(lang), "mastery_full", res)
     os.makedirs(path, exist_ok=True)
     return path
 
 
-def get_nodes_file(res: str = "custom",
+def get_nodes_file(res: str = REFERENCE_RES,
                    lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     return os.path.join(get_mastery_templates(res, lang), "mastery_nodes.json")
 
 
-def get_wheelspin_templates(res: str = "custom",
+def get_wheelspin_templates(res: str = REFERENCE_RES,
                             lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     path = os.path.join(_lang_dir(lang), "wheelspin", res)
     os.makedirs(path, exist_ok=True)
     return path
 
 
-def get_buy_templates(res: str = "custom",
+def get_buy_templates(res: str = REFERENCE_RES,
                       lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     path = os.path.join(_lang_dir(lang), "buy", res)
     os.makedirs(path, exist_ok=True)
     return path
 
 
-def get_full_auto_templates(res: str = "custom",
+def get_full_auto_templates(res: str = REFERENCE_RES,
                             lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     """Templates used ONLY by the Full Auto chained orchestrator's transition
     navigation (e.g. the mastery positioning nav). Reusable per-function nav
@@ -195,8 +198,16 @@ DEFAULTS = {
     "report_key":        "f12",
     "overlay_key":       "f10",
     "monitor_index":     _get_primary_monitor_index(),
-    "race_resolution":    "built-in",
-    "mastery_resolution": "built-in",
+    # Detection debug: when true, every detection saves an annotated snapshot
+    # (ROI searched + best-match cross + score/threshold/source/matched) to a
+    # `debug/` folder next to the exe — one image per template key, overwritten
+    # live. For diagnosing why a step mis-detected. Off for normal use.
+    "debug_detection":   False,
+    # OCR confirmation during detection. Default OFF: the onnxruntime inference
+    # is CPU-heavy and stutters the game (esp. on 1080p / lower-core machines),
+    # and pixel matching at native res is reliable on its own. Turn ON for more
+    # robust matching on atypical hardware (HDR/heavy-AA/non-native scaling).
+    "detector_enable_ocr": False,
     # Game-menu language for templates: "auto" (follow app UI lang) / cht / en
     "template_lang":      "auto",
     # Race settings
@@ -236,6 +247,11 @@ DEFAULTS = {
     "mastery_block_first_row":  1,
     "mastery_block_middle_cols": 0,
     "mastery_block_last_row":   3,
+    # Delete Cars uses the same garage-block picker to count cars to delete
+    # (the loop is unchanged; this is just a clearer way to set the count).
+    "delete_block_first_row":   1,
+    "delete_block_middle_cols": 0,
+    "delete_block_last_row":    3,
     # Delay after each menu cursor tap (Up/Down arrows) shared by Mastery's
     # in-menu nav and Delete Cars. Higher helps weaker hardware register each
     # tap; default 0.25, Settings slider 0.1–0.5s.
@@ -255,9 +271,7 @@ DEFAULTS = {
     # Full Auto chain-only navigation templates (grouped by category in the
     # Setup panel). Currently the mastery positioning nav: main menu → My
     # Horizon → Return Home → CARS → My Cars → sort Recently Added → newest car.
-    # custom-only (no bundled set). my_horizon_tab is reused from the wheelspin
-    # set, so it isn't listed here.
-    "full_auto_resolution":   "custom",
+    # my_horizon_tab is reused from the wheelspin set, so it isn't listed here.
     "thresh_return_home":     0.60,
     "thresh_cars_tab":        0.60,
     "thresh_recently_added":  0.60,
@@ -267,9 +281,12 @@ DEFAULTS = {
     # Sell step: the "My Cars" header (top-left) — confirms the grid finished
     # loading before pressing X (pressing X mid-load drops the sort menu).
     "thresh_my_cars_header":  0.60,
-    # Sell exit: the open-world "ANNA" prompt (bottom-left) — confirms we backed
-    # out to open-world driving so the final ESC opens the main menu.
+    # Sell exit: the home icon shown when leaving the home menu — confirms we
+    # backed out to the open world so the final ESC opens the main menu.
     "thresh_anna":            0.60,
+    # Sell re-select grind car: the "Select An Action" menu that opens after
+    # clicking the car tile — gates the "Get In Car" Enter (was a blind press).
+    "thresh_select_action":   0.60,
     # Sell re-select grind car: brand button (manufacturer jump) + car tile.
     "thresh_grind_brand":     0.60,
     "thresh_grind_car":       0.60,
@@ -281,24 +298,21 @@ DEFAULTS = {
     "buy_post_key_wait":      0.5,
     "delete_post_key_wait":   0.5,
     # Buy menu-navigation (optional — start/end the buy run on the main menu;
-    # skipped if these templates aren't captured). Defaults to built-in for a
-    # consistent template set across functions (capture your own into it).
-    "buy_resolution":             "built-in",
+    # skipped if these templates aren't captured).
     "thresh_collection_log":      0.60,
     "thresh_discover_japan":      0.60,
     "thresh_car_collection":      0.60,
     "thresh_subaru":              0.60,
     "thresh_buy_target_car":      0.60,
-    # Auto Spin Wheel settings. Defaults to built-in for a consistent template
-    # set across functions (capture your own into it). dup_mode is "garage"
-    # (safe) | "sell" (sells duplicates UNATTENDED — warned in the UI).
-    "wheelspin_resolution":      "built-in",
+    # Auto Spin Wheel settings. dup_mode is "garage" (safe) | "sell" (sells
+    # duplicates UNATTENDED — warned in the UI).
     "thresh_wheelspin_duplicate": 0.60,
     "thresh_super_wheelspin":     0.60,
     "thresh_normal_wheelspin":    0.60,
     "thresh_my_horizon_tab":      0.60,
     "thresh_wheelspin_skip":      0.60,
     "thresh_wheelspin_collect":   0.60,
+    "thresh_wheelspin_collect_final": 0.60,
     "wheelspin_post_key_wait":   0.5,
     "wheelspin_dup_mode":        "garage",
     # Which wheel to spin: "super" (Super Wheelspin, 3 prizes) | "normal"
@@ -375,16 +389,6 @@ def load() -> dict:
         if data.get("template_lang") == "chs":
             data["template_lang"] = "auto"
             added = True
-        # The resolution model collapsed to Built-in / Custom: the per-pixel
-        # preset folders (1080p/1440p/2160p) were renamed/removed in favour of
-        # one auto-scaled "built-in" set. Migrate any stored preset value so it
-        # points at the built-in set (and the Setup picker shows Built-in).
-        for _rk in ("race_resolution", "mastery_resolution",
-                    "wheelspin_resolution", "buy_resolution",
-                    "full_auto_resolution"):
-            if data.get(_rk) in ("1080p", "1440p", "2160p"):
-                data[_rk] = REFERENCE_RES
-                added = True
         # Validate monitor index against available monitors (runtime-only;
         # doesn't itself trigger a rewrite).
         try:

@@ -290,6 +290,13 @@ class GameIO:
         """Left-click at FRAME-LOCAL (fx, fy) (i.e. MatchResult.location). In
         window-capture mode the frame IS the client area, so we post client
         coords directly (independent of the window's screen position)."""
+        # Record the click (in detection-frame coords) for the debug overlay /
+        # F12 report — fx,fy match the frame the detector draws on. Best-effort.
+        try:
+            import detector as _det
+            _det.record_click(int(fx), int(fy))
+        except Exception:
+            pass
         # fx,fy are in the (possibly cropped) frame; add the crop origin back to
         # land on the real client pixel.
         cx, cy = self._crop_x, self._crop_y

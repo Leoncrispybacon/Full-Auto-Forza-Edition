@@ -1,15 +1,14 @@
 # ============================================================
 #  report.py — One-press bug-report bundle.
 #  Triggered by a hotkey (default F12). Produces a folder + zip
-#  containing a game screenshot, the session logs + environment,
-#  and a DxDiag system dump — ready to drop into Discord.
+#  containing a game screenshot and the session logs + environment,
+#  ready to drop into Discord.
 # ============================================================
 
 import os
 import json
 import zipfile
 import platform
-import subprocess
 import datetime
 
 import cv2
@@ -18,8 +17,6 @@ import config
 from version import VERSION
 from capture import grab_frame
 from app_lang import t as _at
-
-_CREATE_NO_WINDOW = 0x08000000   # hide DxDiag's window while it runs
 
 
 def _write_png(path: str, frame) -> bool:
@@ -49,15 +46,26 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
     rdir = os.path.join(reports, f"FAFE_report_{ts}")
     os.makedirs(rdir, exist_ok=True)
     # Surface the whole process in the LOG (not just the status bar) so the user
-    # sees it start, knows why it pauses on DxDiag, and gets the final path.
+    # sees it start and gets the final path.
     log(_at("report_started", lang))
     status(_at("report_generating", lang))
 
-    # 1) Game screenshot (the configured monitor). mask_overlay=False so the
-    # report shows the REAL screen (incl. the overlay), not the detector's
-    # self-masked view with the overlay blanked to black.
+    # 1) Game screenshot. Prefer an ANNOTATED detection-debug frame from the
+    # most recent detection (the frame FAFE last looked at, with the ROI it
+    # searched, the best-match marker, and where the last click landed) — that's
+    # far more useful for diagnosing a mis-detection than a plain grab. Falls
+    # back to a plain monitor screenshot if no recent detection exists (idle /
+    # detector never ran). mask_overlay=False so the plain grab shows the REAL
+    # screen (incl. the overlay), not the detector's self-masked view.
     try:
-        frame = grab_frame(monitor_index, mask_overlay=False)
+        frame = None
+        try:
+            import detector
+            frame = detector.render_report_image()
+        except Exception:
+            frame = None
+        if frame is None:
+            frame = grab_frame(monitor_index, mask_overlay=False)
         _write_png(os.path.join(rdir, "screenshot.png"), frame)
     except Exception as e:
         with open(os.path.join(rdir, "screenshot_error.txt"), "w",
@@ -67,13 +75,13 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
     # 2) Session logs + environment + config snapshot
     try:
         with open(os.path.join(rdir, "log.txt"), "w", encoding="utf-8") as f:
-            f.write("# FAFE bug report — contains settings + system info "
-                    "(DxDiag incl. username/hardware). Review before sharing "
-                    "publicly.\n\n")
+            f.write("# FAFE bug report — contains your settings + basic system "
+                    "info. Review before sharing publicly.\n\n")
             f.write(f"FAFE v{VERSION}\n")
             f.write(f"Generated : {ts}\n")
             f.write(f"OS        : {platform.platform()}\n")
             f.write(f"Machine   : {platform.machine()}\n")
+            f.write(f"Processor : {platform.processor()}\n")
             f.write(f"Python    : {platform.python_version()}\n")
             f.write(f"Monitor   : index {monitor_index}\n")
             f.write("\n----- config.json -----\n")
@@ -86,23 +94,7 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
     except Exception as e:
         log(f"report: log.txt failed: {e!r}")
 
-    # 3) System info via DxDiag (slow; basic platform info as fallback)
-    log(_at("report_specs", lang))   # ~30s — log it so the pause is explained
-    status(_at("report_specs", lang))
-    dx = os.path.join(rdir, "dxdiag.txt")
-    try:
-        subprocess.run(["dxdiag", "/t", dx], timeout=120, check=False,
-                       creationflags=_CREATE_NO_WINDOW)
-        if not os.path.exists(dx):
-            raise RuntimeError("dxdiag produced no file")
-    except Exception as e:
-        with open(dx, "w", encoding="utf-8") as f:
-            f.write(f"DxDiag unavailable ({e!r}); basic info:\n\n")
-            f.write(f"OS        : {platform.platform()}\n")
-            f.write(f"Machine   : {platform.machine()}\n")
-            f.write(f"Processor : {platform.processor()}\n")
-
-    # 4) Zip the folder for easy sharing
+    # 3) Zip the folder for easy sharing
     zpath = os.path.join(reports, f"FAFE_report_{ts}.zip")
     try:
         with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as zf:

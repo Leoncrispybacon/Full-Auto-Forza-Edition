@@ -26,6 +26,7 @@ import numpy as np
 # `detector_cv_threads` (0 = OpenCV default / all cores).  Set a safe default at
 # import time; ScreenDetector re-applies the config value when constructed.
 _DEFAULT_CV_THREADS = 2
+_OCR_THREADS = 1   # onnxruntime intra-op cap; OCR is cooldown-gated so 1 is plenty
 try:
     cv2.setNumThreads(_DEFAULT_CV_THREADS)
 except Exception:
@@ -81,6 +82,7 @@ DEFAULT_ROIS: dict[str, Rect] = {
     "normal_wheelspin":     (0.00, 0.20, 0.33, 0.65),  # left-column (normal) Wheelspin tile
     "wheelspin_skip":       (0.00, 0.86, 0.40, 0.14),  # bottom-left button prompt
     "wheelspin_collect":    (0.00, 0.86, 0.40, 0.14),  # bottom-left button prompt
+    "wheelspin_collect_final": (0.00, 0.86, 0.40, 0.14),  # final-spin single "Collect Prize"
     # ── Race menu navigation (main menu → EventLab → MY HISTORY → Start) ──
     # Fallback ROIs only; user captures carry a geometry box that supplies the
     # real ROI. Generous bands here so a no-box capture still detects.
@@ -113,6 +115,13 @@ DEFAULT_ROIS: dict[str, Rect] = {
     # — NOT a tight geometry box (full_auto skips set_template_geometry for them).
     "grind_brand":          (0.05, 0.05, 0.90, 0.60),  # brand button in Jump-to-Manufacturer menu
     "grind_car":            (0.20, 0.15, 0.80, 0.80),  # car tile in the brand list (visible 3 rows)
+    "select_action":        (0.45, 0.10, 0.55, 0.55),  # "Select An Action" menu after clicking the car tile
+    # ── Full Auto: sell fallbacks. These templates normally detect via their
+    # capture box (geometry ROI); these generous bands are only a SAFETY NET if a
+    # re-capture ever lacks a box (otherwise the ROI would be None → full-frame).
+    "anna":                 (0.00, 0.82, 0.35, 0.18),  # home icon shown when leaving the home menu (fallback band)
+    "my_cars":              (0.00, 0.25, 0.35, 0.55),  # My Cars item, left menu column
+    "my_cars_header":       (0.00, 0.00, 0.40, 0.22),  # My Cars page header, top-left
 }
 
 
@@ -145,6 +154,8 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     "wheelspin_skip": ("略過", "skip", "跳過"),
     "wheelspin_collect": ("collect prize", "spin again", "collect", "prize",
                           "reward", "取得", "獎勵", "抽獎", "再次"),
+    "wheelspin_collect_final": ("collect prize", "collect", "prize",
+                                "取得獎勵", "取得", "獎勵"),
     # Race menu navigation. Hints are best-effort confirms; at native capture
     # resolution the pixel match is strong enough that OCR is usually skipped.
     "creative_hub": ("creative hub", "creative", "hub", "創意中心", "創意"),
@@ -177,6 +188,12 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     # only if OCR is on.)
     "grind_brand": ("subaru",),
     "grind_car": (),
+    "select_action": ("select an action", "select", "action", "選擇動作", "選擇", "動作"),
+    # Sell fallbacks (full_auto custom mode disables OCR, so these only matter
+    # if these keys are ever detected in a preset/OCR run).
+    "anna": (),  # home icon — no text to confirm
+    "my_cars": ("my cars", "我的車輛", "車庫", "车库"),
+    "my_cars_header": ("my cars", "我的車輛", "車庫"),
 }
 
 # All template images capture text UI elements. Edge matching on text is
@@ -231,6 +248,81 @@ def _clip_roi(frame: np.ndarray, roi: Optional[Rect]) -> tuple[np.ndarray, int, 
     rw = max(1, min(w - x, int(roi[2] * w)))
     rh = max(1, min(h - y, int(roi[3] * h)))
     return frame[y:y + rh, x:x + rw], x, y
+
+
+# ── Debug visualisation (detection snapshots + F12 report) ────────────────
+# Module-level so the marker survives across the per-run detector instance and
+# is readable from the F12 report's own thread.
+_LAST_DETECT = None    # (frame, key, roi, MatchResult, soft_threshold, time)
+_LAST_CLICK = None     # (x, y, time) in detection-frame (cropped client) coords
+_CLICK_DRAW_AGE = 15.0  # only mark a click on a snapshot if it's this recent
+
+
+def record_click(x: int, y: int) -> None:
+    """Record the most recent mouse click (in detection-frame coords) so debug
+    snapshots and the F12 report can mark where it landed. Called by gameio
+    after each click. Best-effort — never raises into the caller."""
+    global _LAST_CLICK
+    try:
+        _LAST_CLICK = (int(x), int(y), time.time())
+    except Exception:
+        pass
+
+
+def _record_detect(frame, key, roi, result, soft) -> None:
+    global _LAST_DETECT
+    _LAST_DETECT = (frame, key, roi, result, soft, time.time())
+
+
+def _draw_debug(img, key, roi, result, soft_threshold) -> None:
+    """Annotate `img` (BGR, in place) with the detection context: YELLOW ROI box
+    (searched area), GREEN/RED best-match cross (matched/miss), MAGENTA marker
+    for the last click, and a header bar of the numbers."""
+    h, w = img.shape[:2]
+    matched = bool(result.matched)
+    col = (0, 200, 0) if matched else (0, 90, 255)   # BGR green / red
+    if roi:   # ROI is fractional (x, y, w, h) — same math as _clip_roi
+        rx, ry = int(roi[0] * w), int(roi[1] * h)
+        rw, rh = int(roi[2] * w), int(roi[3] * h)
+        cv2.rectangle(img, (rx, ry), (rx + rw, ry + rh), (0, 220, 220), 3)
+    if result.location:   # frame-local centre of the best match
+        lx, ly = int(result.location[0]), int(result.location[1])
+        cv2.drawMarker(img, (lx, ly), col, cv2.MARKER_CROSS, 44, 3)
+        cv2.circle(img, (lx, ly), 16, col, 3)
+    click = _LAST_CLICK
+    if click and time.time() - click[2] <= _CLICK_DRAW_AGE:
+        cx, cy = click[0], click[1]
+        cv2.circle(img, (cx, cy), 18, (255, 0, 255), 3)       # magenta
+        cv2.line(img, (cx - 28, cy), (cx + 28, cy), (255, 0, 255), 2)
+        cv2.line(img, (cx, cy - 28), (cx, cy + 28), (255, 0, 255), 2)
+        cv2.putText(img, "click", (cx + 22, cy - 12), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (255, 0, 255), 2, cv2.LINE_AA)
+    label = (f"{key}  {result.score:.0%} (soft>={soft_threshold:.0%})  "
+             f"{result.source}  {'MATCH' if matched else 'miss'}")
+    if result.ocr_text:
+        label += f"  OCR:'{result.ocr_text[:30]}'"
+    cv2.rectangle(img, (0, 0), (w, 48), (0, 0, 0), -1)
+    cv2.putText(img, label, (12, 34), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, col, 2, cv2.LINE_AA)
+
+
+def render_report_image(max_age: float = 30.0):
+    """Annotated debug image for the F12 report, built from the most recent
+    detection (the frame FAFE last looked at + its ROI/match + last click).
+    Returns a BGR ndarray, or None if there's no recent detection (the caller
+    then falls back to a plain screenshot)."""
+    last = _LAST_DETECT
+    if not last:
+        return None
+    frame, key, roi, result, soft, t = last
+    if frame is None or getattr(frame, "size", 0) == 0 or time.time() - t > max_age:
+        return None
+    try:
+        img = frame.copy()
+        _draw_debug(img, key, roi, result, soft)
+        return img
+    except Exception:
+        return None
 
 
 def _prepare_gray(img: np.ndarray) -> np.ndarray:
@@ -309,7 +401,13 @@ class OptionalOCR:
         self._loaded = True
         try:
             from rapidocr_onnxruntime import RapidOCR
-            engine = RapidOCR()
+            # Cap onnxruntime's intra-op threads — it defaults to ALL cores and
+            # cv2.setNumThreads / OMP env don't touch its own pool. Falls back if
+            # the installed version doesn't accept the kwarg.
+            try:
+                engine = RapidOCR(intra_op_num_threads=_OCR_THREADS)
+            except TypeError:
+                engine = RapidOCR()
 
             def _read(img):
                 result, _ = engine(img)
@@ -323,7 +421,10 @@ class OptionalOCR:
             pass
         try:
             from rapidocr import RapidOCR
-            engine = RapidOCR()
+            try:
+                engine = RapidOCR(intra_op_num_threads=_OCR_THREADS)
+            except TypeError:
+                engine = RapidOCR()
 
             def _read(img):
                 result = engine(img)
@@ -353,6 +454,17 @@ class ScreenDetector:
     def __init__(self, cfg: dict | None = None, debug_dir: str | None = None):
         self.cfg = cfg or {}
         self.debug_dir = debug_dir
+        # Detection debug: save an annotated snapshot per detection (see
+        # save_debug). Default off. When on and no explicit dir was given, write
+        # to a `debug/` folder next to the exe.
+        self._debug = bool(self.cfg.get("debug_detection", False))
+        self._debug_last: dict[str, float] = {}   # key -> last save time (throttle)
+        if self._debug and not self.debug_dir:
+            try:
+                import config as _c
+                self.debug_dir = os.path.join(_c.BASE_DIR, "debug")
+            except Exception:
+                self.debug_dir = "debug"
         # Re-assert the OpenCV thread cap from config (0 = let OpenCV use all
         # cores).  Keeps detection from flooding every core and starving the
         # game — see _DEFAULT_CV_THREADS above.
@@ -453,14 +565,12 @@ class ScreenDetector:
         self._ocr_cooldown: float = float(
             self.cfg.get("detector_ocr_cooldown", 1.0))
         self._ocr_last_run: dict[str, float] = {}
-        # OCR-primary mode (Default — exposed in UI as "Default" mode):
-        # When pixel-matching scores poorly (e.g. preset templates run on a
-        # different machine than the one they were captured on), text content
-        # is what's actually invariant across hardware.  OCR is a first-class
-        # confirmation signal rather than a +0.10 bonus — finding the hint
-        # text promotes the score to _ocr_confirm_score regardless of how
-        # low the pixel match was.
-        #   _ocr_primary:         master switch (UI: Default=true, Custom=false)
+        # OCR confirmation tuning. When pixel-matching scores poorly (e.g. the
+        # built-in templates run on a different machine than they were captured
+        # on), text content is what's actually invariant across hardware. OCR is
+        # a first-class confirmation signal rather than a +0.10 bonus — finding
+        # the hint text promotes the score to _ocr_confirm_score regardless of
+        # how low the pixel match was. (Gated by detector_enable_ocr.)
         #   _ocr_skip_above:      pixel score high enough that OCR is skipped
         #                         (we trust the pixel match)
         #   _ocr_skip_below:      pixel score so low that OCR is also skipped
@@ -476,12 +586,11 @@ class ScreenDetector:
         #                         confirmation to still apply (safeguards
         #                         against the screen having changed during
         #                         the cache window)
-        # Users with custom templates that differ from defaults (different
-        # language, non-text content, etc.) should set "detector_ocr_primary"
-        # to false ("Custom" mode in the topbar) to disable OCR confirmation
-        # and rely purely on pixel template matching.
-        self._ocr_primary: bool = bool(
-            self.cfg.get("detector_ocr_primary", True))
+        # OCR runs only on text templates (those with hints) in the borderline
+        # band, and only when enabled via `detector_enable_ocr` (Settings → OCR
+        # text detection). There is a single detection path now — the old
+        # "Custom mode" (ocr_primary=false; built-in templates are reliable
+        # enough that the separate pixel-only path was dropped).
         # Pixel score at/above which we trust the pixel match and skip OCR.
         # Must be HIGH: small text templates scanned multi-scale over a large
         # ROI can hit ~0.80 TM_CCOEFF on unrelated scenes, and on hardware where
@@ -628,6 +737,12 @@ class ScreenDetector:
                 key, DEFAULT_ROIS.get(key), frame.shape[1], frame.shape[0])
         roi_result = self._detect_in_area(
             frame, key, template, threshold, roi, "roi", stable)
+        # Record the latest detection (always — cheap) so the F12 report can
+        # render an annotated snapshot even when debug snapshots are off.
+        _record_detect(frame, key, roi, roi_result,
+                       max(self._min_thresh, threshold * 0.92))
+        if self._debug:
+            self.save_debug(frame, key, roi, roi_result, threshold)
         if roi_result.matched:
             return roi_result
 
@@ -645,13 +760,9 @@ class ScreenDetector:
 
         full_result = self._detect_in_area(
             frame, key, template, threshold, None, "full", False)
-        # Default mode trusts DEFAULT_ROIS, so the full-screen fallback is
-        # discounted to keep ROI hits ranked above coincidental matches
-        # elsewhere on screen.  In Custom mode the user may have captured
-        # templates that don't appear at the default ROI position, so the
-        # full-screen result is the genuine answer — no discount.
-        if self._ocr_primary:
-            full_result.score *= 0.94
+        # We trust DEFAULT_ROIS, so the full-screen fallback is discounted to
+        # keep ROI hits ranked above coincidental matches elsewhere on screen.
+        full_result.score *= 0.94
         full_result.matched = (
             self._stable_match(f"{key}:full", full_result.score, threshold)
             if stable else full_result.score >= max(self._min_thresh, threshold * 0.92)
@@ -760,28 +871,15 @@ class ScreenDetector:
         gray_area = _prepare_gray(area)
         gray_tpl, edge_tpl = self._prepared_template(template)
 
-        # Text-heavy templates (those with OCR hints) don't benefit from edge
-        # matching — anti-aliasing makes text edges noisy — and the game UI is
-        # rendered at a fixed scale, so 3 scale variants are sufficient.
-        # This drops from 14 matchTemplate calls (7 scales × 2 channels) down
-        # to 3, giving a ~4–5× speedup for the common path.
-        #
-        # Custom mode (ocr_primary=False) opts out of the text fast path
-        # regardless of TEXT_TEMPLATES — user templates may be non-text,
-        # in a different language, or captured at a non-standard scale, so
-        # the full 7-scale + Canny edge pipeline gives the best chance of
-        # matching arbitrary content.
+        # Text templates (those with OCR hints) don't benefit from edge matching
+        # — anti-aliasing makes text edges noisy — and the game UI renders at a
+        # fixed scale, so 3 scale variants suffice. This drops from 14
+        # matchTemplate calls (7 scales × 2 channels) to 3, ~4–5× faster on the
+        # common path. Non-text templates use the full 7-scale + Canny pipeline.
+        # `_force_edges` restores edges for all templates if ever needed.
         key_is_text = key in TEXT_TEMPLATES
-        # Scale set: Default mode runs text templates on the tight 3-scale fast
-        # path; Custom mode and any non-text template use the wide range.
-        # Edge channel: only for genuinely non-text templates (text edges are
-        # noisy anti-aliasing — gray matches text more reliably). This makes
-        # Custom-mode text matching gray-only over the wide scales, ~halving
-        # its matchTemplate count vs the old gray+edge path with no accuracy
-        # cost. `_force_edges` restores edges for all templates if needed.
-        default_text_path = self._ocr_primary and key_is_text
         use_edges = self._force_edges or not key_is_text
-        scales = self._text_scales if default_text_path else self.scales
+        scales = self._text_scales if key_is_text else self.scales
 
         gray_conf, gray_loc, gray_scale = _best_template_match(
             gray_area, gray_tpl, scales)
@@ -792,28 +890,13 @@ class ScreenDetector:
         else:
             image_score = gray_conf
 
-        # OCR gate.  Only runs in Default (OCR-primary) mode.
-        #
-        # In Default mode, for text templates with OCR hints, OCR is a
-        # first-class confirmation signal — not a +0.10 bonus.  Pixel
-        # matching gives location and a quick fast-path, but text content
-        # is what's actually invariant across different hardware/settings.
-        #   - image_score >= skip_above  → trust the pixel match, skip OCR
-        #   - else                       → run OCR (or use cached confirm)
-        #   - hint matched               → promote score to confirm_score
-        #   - hint not matched           → keep image_score as-is
-        #
-        # The OCR result is cached for _ocr_cooldown seconds so subsequent
-        # frames within the cooldown window (where OCR can't re-run) still
-        # benefit from the confirmation.  This prevents the cooldown from
-        # breaking the stability filter.  Cached confirmations only apply
-        # if image_score >= _ocr_cache_pixel_min (default 0.15) — a
-        # safeguard against the screen having changed during cooldown.
-        #
-        # In Custom mode (ocr_primary=False), OCR is disabled entirely —
-        # user templates may be non-text, in a language not covered by
-        # OCR_HINTS, or capture content where text inference would
-        # hallucinate matches.  Pixel matching alone is the signal.
+        # OCR gate (text templates with hints only; gated by detector_enable_ocr
+        # inside _ocr_bonus). OCR is a first-class confirmation signal, not a
+        # +0.10 bonus — pixel matching gives location/fast-path, but text content
+        # is what's invariant across hardware. The result is cached for
+        # _ocr_cooldown seconds so frames within the cooldown still benefit
+        # (keeps the stability filter intact); cached confirms only apply when
+        # image_score >= _ocr_cache_pixel_min (safeguard vs the screen changing).
         ocr_text = ""
         has_hints = key in OCR_HINTS
 
@@ -839,7 +922,7 @@ class ScreenDetector:
         # contradiction — OCR actually read text (`ocr_text` non-empty) that
         # doesn't contain the hint — never on a silent/failed OCR.  If no OCR
         # backend is installed the whole gate is skipped (pixel-only).
-        if (default_text_path and has_hints
+        if (key_is_text and has_hints
                 and self._ocr_skip_below <= image_score < self._ocr_skip_above
                 and self._ocr.available()):
             now = time.time()
@@ -874,7 +957,7 @@ class ScreenDetector:
 
     def _ocr_bonus(self, area: np.ndarray, key: str) -> tuple[float, str]:
         hints = OCR_HINTS.get(key)
-        if not hints or not self.cfg.get("detector_enable_ocr", True):
+        if not hints or not self.cfg.get("detector_enable_ocr", False):
             return 0.0, ""
         # Cooldown gate: skip OCR if it ran too recently for this key.
         # Prevents repeated 100–300 ms rapidocr calls when the score is stuck
@@ -902,16 +985,32 @@ class ScreenDetector:
         soft_threshold = max(self._min_thresh, threshold * 0.92)
         return all(v >= soft_threshold for v in hist)
 
-    def save_debug(self, frame: np.ndarray, key: str, result: MatchResult):
-        if not self.debug_dir:
+    def save_debug(self, frame: np.ndarray, key: str, roi: Optional[Rect],
+                   result: MatchResult, threshold: float):
+        """Save an annotated detection snapshot to debug_dir/<key>.png (overwritten
+        each call, throttled). Draws on a COPY of the captured frame (post-crop,
+        so a wrong letterbox crop is visible too):
+          - YELLOW box  = the ROI that was searched ("where it looked")
+          - GREEN/RED cross = best-match centre, green if matched else red
+          - header bar = key, score, soft-threshold, source, MATCH/miss, OCR text
+        For diagnosing why a step mis-detected. No-op unless debug_dir is set."""
+        if not self.debug_dir or frame is None or getattr(frame, "size", 0) == 0:
             return
+        now = time.time()
+        if now - self._debug_last.get(key, 0.0) < 0.2:   # throttle I/O storms
+            return
+        self._debug_last[key] = now
         try:
             os.makedirs(self.debug_dir, exist_ok=True)
-            stamp = int(time.time())
-            path = os.path.join(
-                self.debug_dir,
-                f"{stamp}_{key}_{result.source}_{result.score:.2f}.png",
-            )
-            cv2.imwrite(path, frame)
+            img = frame.copy()
+            soft = max(self._min_thresh, threshold * 0.92)
+            _draw_debug(img, key, roi, result, soft)
+            h, w = img.shape[:2]
+            if w > 1280:   # downscale for small, fast-to-write files
+                img = cv2.resize(img, (1280, int(h * 1280.0 / w)))
+            ok, buf = cv2.imencode(".png", img)
+            if ok:
+                # tofile (not imwrite) so non-ASCII / CJK paths work.
+                buf.tofile(os.path.join(self.debug_dir, f"{key}.png"))
         except Exception:
             pass

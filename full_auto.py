@@ -119,6 +119,16 @@ _GARAGE_ROWS = 3
 # After the "get in" Enter that rides the grind car (user-specified ~0.5s),
 # before re-entering My Cars. Riding an already-owned car plays NO cutscene.
 _SELL_RIDE_SETTLE = 0.5
+# Settle after clicking the grind-car tile, BEFORE the "get in" Enter. Longer
+# than the generic _NAV_SETTLE because the car detail view needs a moment to
+# come up before the Enter registers.
+_SELL_CAR_CLICK_SETTLE = 0.6
+# The grind-car click can miss the tile (esp. windowed — smaller frame → weaker
+# match → click drifts), leaving the "Select An Action" menu unopened. Re-click
+# up to this many times, re-detecting each time, confirming the menu opened
+# within _SELL_ACTION_WINDOW before pressing Enter.
+_SELL_CAR_CLICK_ATTEMPTS = 3
+_SELL_ACTION_WINDOW      = 4.0
 # Grind-car re-select elements move (Manufacturer menu size varies; car row
 # varies), so they use their large DEFAULT_ROI rather than a tight geometry box.
 _SELL_NO_GEOM = frozenset({"grind_brand", "grind_car"})
@@ -147,10 +157,6 @@ def _navigate_to_mastery_start(cfg: dict, stop_event: threading.Event,
     the mastery step. Returns True only when positioned on the newest car."""
     fresh = config.load()
     lang  = fresh.get("lang", "en")
-    res   = fresh.get("full_auto_resolution", "custom")
-    # Detection mode follows the template type (preset → OCR-confirm, custom →
-    # pixel-only), same rule as race/buy/wheelspin.
-    fresh["detector_ocr_primary"] = (res != "custom")
     tpl_lang = resolve_template_lang(fresh)
 
     def stop():
@@ -163,11 +169,10 @@ def _navigate_to_mastery_start(cfg: dict, stop_event: threading.Event,
     cw, ch = io.width, io.height
     detector = ScreenDetector(fresh)
 
-    fa_folder = get_full_auto_templates(res, tpl_lang)
-    ref_folder = prefer_ref = None
-    if res != "custom":
-        ref_folder = get_full_auto_templates(REFERENCE_RES, tpl_lang)
-        prefer_ref = fresh.get("template_prefer_reference", True)
+    # Single built-in template set (REFERENCE_RES), auto-scaled to the monitor.
+    fa_folder = get_full_auto_templates(REFERENCE_RES, tpl_lang)
+    ref_folder = fa_folder
+    prefer_ref = fresh.get("template_prefer_reference", True)
 
     def _load(folder, key, rf=None, pr=False):
         img, scale, meta = load_template(folder, key, cw, ch, grayscale=True,
@@ -339,8 +344,6 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
     when the block is sold and we're back on the main menu."""
     fresh = config.load()
     lang  = fresh.get("lang", "en")
-    res   = fresh.get("full_auto_resolution", "custom")
-    fresh["detector_ocr_primary"] = (res != "custom")
     tpl_lang = resolve_template_lang(fresh)
     # Shared menu cursor-tap delay (same setting as mastery/delete).
     tap_wait = max(0.1, min(0.5, float(fresh.get("menu_tap_wait", 0.25))))
@@ -355,11 +358,10 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
     cw, ch = io.width, io.height
     detector = ScreenDetector(fresh)
 
-    fa_folder = get_full_auto_templates(res, tpl_lang)
-    ref_folder = prefer_ref = None
-    if res != "custom":
-        ref_folder = get_full_auto_templates(REFERENCE_RES, tpl_lang)
-        prefer_ref = fresh.get("template_prefer_reference", True)
+    # Single built-in template set (REFERENCE_RES), auto-scaled to the monitor.
+    fa_folder = get_full_auto_templates(REFERENCE_RES, tpl_lang)
+    ref_folder = fa_folder
+    prefer_ref = fresh.get("template_prefer_reference", True)
 
     def _load(folder, key, rf=None, pr=False, set_geom=True):
         img, scale, meta = load_template(folder, key, cw, ch, grayscale=True,
@@ -378,8 +380,8 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
         # grind_brand/grind_car re-select the grind car; recently_added + cars_tab
         # are reused from the positioning-nav set; my_cars/my_cars_header/anna are
         # sell-only. grind_* skip geometry (large ROI — they move).
-        for key in ("grind_brand", "grind_car", "my_cars", "my_cars_header",
-                    "recently_added", "cars_tab", "anna"):
+        for key in ("grind_brand", "grind_car", "select_action", "my_cars",
+                    "my_cars_header", "recently_added", "cars_tab", "anna"):
             tpls[key] = _load(fa_folder, key, ref_folder, prefer_ref,
                               set_geom=(key not in _SELL_NO_GEOM))
     except FileNotFoundError:
@@ -409,7 +411,7 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
             time.sleep(0.15)
         return None
 
-    def _click(key, window_s, label) -> bool:
+    def _click(key, window_s, label, settle=_NAV_SETTLE) -> bool:
         t0 = time.time()
         r  = _detect(key, window_s)
         secs = f"{time.time() - t0:.1f}"
@@ -422,7 +424,7 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
         _wait(_NAV_SETTLE)
         if stop():
             return False
-        io.click(r.location[0], r.location[1], _NAV_SETTLE)
+        io.click(r.location[0], r.location[1], settle)
         return True
 
     if not io.bg and fresh.get("auto_english_ime", True):
@@ -466,9 +468,31 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
             return False
         if not _click("grind_brand", _NAV_STEP_WINDOW, _at("fa_tpl_grind_brand", lang)):
             return False
-        if not _click("grind_car", _NAV_STEP_WINDOW, _at("fa_tpl_grind_car", lang)):
+        # Clicking the car tile opens a "Select An Action" menu (Get In Car is
+        # the default-highlighted option). Gate the Enter on that menu actually
+        # being up — a blind press raced the menu and got lost. The click itself
+        # can also miss the tile (esp. windowed), so re-detect + re-click a few
+        # times until the menu appears, then Enter.
+        got_action = False
+        for attempt in range(1, _SELL_CAR_CLICK_ATTEMPTS + 1):
+            if not _click("grind_car", _NAV_STEP_WINDOW, _at("fa_tpl_grind_car", lang),
+                          settle=_SELL_CAR_CLICK_SETTLE):
+                return False
+            if _detect("select_action", _SELL_ACTION_WINDOW) is not None:
+                got_action = True
+                break
+            if stop():
+                return False
+            if attempt < _SELL_CAR_CLICK_ATTEMPTS:
+                log_cb(_at("log_fa_sell_car_retry", lang, n=attempt))
+        if not got_action:
+            if not stop():
+                log_cb(_at("log_fa_sell_fail", lang,
+                           label=_at("fa_tpl_select_action", lang),
+                           secs=f"{_SELL_ACTION_WINDOW:.0f}"))
             return False
-        io.press("enter", post_wait=_SELL_RIDE_SETTLE)   # get in → CARS tab home
+        log_cb(_at("log_fa_sell_get_in", lang))
+        io.press("enter", post_wait=_SELL_RIDE_SETTLE)   # Get In Car → CARS tab home
         if stop():
             return False
         # 2. Click My Cars → grid
@@ -533,8 +557,9 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
         if stop():
             return False
         # 6. Exit back to the MAIN menu — three ESCs, each gated on an anchor:
-        #    ESC → home menu (confirm cars_tab) → ESC → open-world driving
-        #    (confirm the ANNA prompt, bottom-left) → ESC → main menu.
+        #    ESC → home menu (confirm cars_tab) → ESC → open world
+        #    (confirm the home icon shown after leaving the home menu) →
+        #    ESC → main menu.
         #    (ESC from the home menu backs out to the open world, NOT the main
         #    menu, so the third ESC is required.)
         log_cb(_at("log_fa_sell_exit", lang))

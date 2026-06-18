@@ -177,21 +177,12 @@ def run(cfg: dict, stop_event: threading.Event,
     # Always read resolution fresh from config.json at start
     import config as _cfg_mod
     _fresh = _cfg_mod.load()
-    res      = _fresh.get('race_resolution', 'custom')
     tpl_lang = _cfg_mod.resolve_template_lang(_fresh)
-    folder   = get_race_templates(res, tpl_lang)
-    # Single-reference templates: preset resolutions fall back to (or prefer)
-    # the one REFERENCE_RES set, downscaled. Custom keeps the user's own capture.
-    ref_folder = None
-    prefer_ref = False
-    if res != 'custom':
-        ref_folder = get_race_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
-        prefer_ref = _fresh.get('template_prefer_reference', True)
-    log_cb(f"  Templates: {tpl_lang} / {res}")
-    # Detection mode follows the template type automatically (no manual toggle):
-    # preset resolutions use the robust OCR-confirm "default" detection; custom
-    # templates use the pixel-only "custom" method. See ScreenDetector.
-    _fresh['detector_ocr_primary'] = (res != 'custom')
+    # Single built-in template set (REFERENCE_RES), auto-scaled to the monitor.
+    folder   = get_race_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
+    ref_folder = folder
+    prefer_ref = _fresh.get('template_prefer_reference', True)
+    log_cb(f"  Templates: {tpl_lang} / built-in")
     # VK of the stop hotkey, for the hook-independent stop poll in stop().
     _toggle_vk = _vk_for_key(_fresh.get('toggle_key', 'f9'))
     detector = ScreenDetector(_fresh)

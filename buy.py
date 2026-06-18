@@ -84,10 +84,7 @@ def run(cfg: dict, stop_event: threading.Event,
     import config as _cfg_mod
     _fresh   = _cfg_mod.load()
     post_kw  = _fresh.get("buy_post_key_wait", 0.5)
-    res      = _fresh.get("buy_resolution", "custom")
     tpl_lang = _cfg_mod.resolve_template_lang(_fresh)
-    # Detection mode follows the template type, same rule as race/wheelspin.
-    _fresh['detector_ocr_primary'] = (res != 'custom')
 
     def _thr(key):
         return _fresh.get(f"thresh_{key}", 0.60)
@@ -95,12 +92,10 @@ def run(cfg: dict, stop_event: threading.Event,
     io = GameIO(_fresh, log_cb)
     current_w, current_h = io.width, io.height
     mon_left, mon_top = io.cap_left, io.cap_top
-    folder   = get_buy_templates(res, tpl_lang)
-    ref_folder = None
-    prefer_ref = False
-    if res != 'custom':
-        ref_folder = get_buy_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
-        prefer_ref = _fresh.get('template_prefer_reference', True)
+    # Single built-in template set (REFERENCE_RES), auto-scaled to the monitor.
+    folder   = get_buy_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
+    ref_folder = folder
+    prefer_ref = _fresh.get('template_prefer_reference', True)
     detector = ScreenDetector(_fresh)
 
     def _load(key):

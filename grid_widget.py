@@ -141,9 +141,13 @@ class MasteryCarBlockWidget(ctk.CTkFrame):
     ROWS = 3
 
     def __init__(self, parent, first_row: int = 1, middle_cols: int = 0,
-                 last_row: int = 3, on_change=None, lang: str = "en", **kwargs):
+                 last_row: int = 3, on_change=None, lang: str = "en",
+                 title_key: str = "carblock_title",
+                 hint_key: str = "carblock_hint", **kwargs):
         super().__init__(parent, **kwargs)
         self._lang = lang
+        self._title_key = title_key
+        self._hint_key = hint_key
         self._on_change = on_change or (lambda *a: None)
         self._first_row = max(1, min(self.ROWS, int(first_row)))
         self._last_row  = max(1, min(self.ROWS, int(last_row)))
@@ -171,11 +175,11 @@ class MasteryCarBlockWidget(ctk.CTkFrame):
         return col
 
     def _build(self):
-        ctk.CTkLabel(self, text=_at("carblock_title", self._lang), anchor="w",
+        ctk.CTkLabel(self, text=_at(self._title_key, self._lang), anchor="w",
                      font=("Arial", 13, "bold"),
                      text_color=theme.token("text")).pack(fill="x", padx=12,
                                                           pady=(10, 2))
-        ctk.CTkLabel(self, text=_at("carblock_hint", self._lang), anchor="w",
+        ctk.CTkLabel(self, text=_at(self._hint_key, self._lang), anchor="w",
                      justify="left", wraplength=460, font=("Arial", 11),
                      text_color=("gray50", "gray55")).pack(fill="x", padx=12,
                                                            pady=(0, 8))
@@ -202,9 +206,18 @@ class MasteryCarBlockWidget(ctk.CTkFrame):
         self._total_lbl.pack(pady=(8, 12))
         self._refresh()
 
+    @staticmethod
+    def count(first_row: int, middle: int, last_row: int) -> int:
+        """Cars in a column-major block: the FIRST car sits in the first column
+        at first_row and the column fills DOWN to the bottom; then `middle` FULL
+        columns; then the LAST column fills from the top down to last_row.
+        middle=0 → first & last are ADJACENT columns. e.g. first=col1 row3,
+        last=col2 row1, middle=0 → (3-3+1) + 0 + 1 = 2 cars."""
+        ROWS = MasteryCarBlockWidget.ROWS
+        return (ROWS - first_row + 1) + middle * ROWS + last_row
+
     def total(self) -> int:
-        return ((self.ROWS - self._first_row + 1)
-                + self._middle * self.ROWS + self._last_row)
+        return self.count(self._first_row, self._middle, self._last_row)
 
     def _set_first(self, r):
         self._first_row = r
