@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How It Works (Mechanics) | FAFE Guide</title>
+<meta name="description" content="🔍 Detection system Detection works in a few layers: (1) a fast text-appearance match at the pixel level; (2) the ROI system , which limits the search to w">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="stylesheet" href="../../../assets/site/guide.css">
+<script src="../../../assets/site/guide.js" defer></script>
+<meta property="og:title" content="How It Works (Mechanics) | FAFE Guide">
+<meta property="og:description" content="🔍 Detection system Detection works in a few layers: (1) a fast text-appearance match at the pixel level; (2) the ROI system , which limits the search to w">
+<meta property="og:type" content="article">
+<meta property="article:modified_time" content="2026-06-21">
+<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/">
+<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview.jpg">
+<meta property="og:locale" content="en_US">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How It Works (Mechanics)","description":"🔍 Detection system Detection works in a few layers: (1) a fast text-appearance match at the pixel level; (2) the ROI system , which limits the search to w","inLanguage":"en","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
+<a class="language-link" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/" hreflang="zh-Hant">繁體中文</a>
+</div></header>
+<main>
+<div class="breadcrumbs"><a href="../../">FAFE Home</a> / How It Works (Mechanics)</div>
+<div class="eyebrow">How It Works (Mechanics)</div>
+<h1>How It Works (Mechanics)</h1>
+<p class="guide-meta">Updated for FAFE v1.8.0 · Last updated June 21, 2026</p>
+<section class="tutorial-content"><div class="steps"><div class="step"><div class="step-num">🔍</div><div class="step-content"><h3>Detection system</h3><p>Detection works in a few layers: (1) a fast <strong>text-appearance match</strong> at the pixel level; (2) the <strong>ROI system</strong>, which limits the search to where the template should appear (e.g. the "Start Race" button is centre-left, so it only searches there) — this also makes detection tens of times faster; (3) optional <strong>OCR text hints</strong> — the keywords each screen should contain, which OCR reads off the screen to confirm a match. OCR is CPU-heavy and can stutter the game, so it's <strong>off by default</strong> and can be enabled in Settings (it helps most when the window is small and the pixel match struggles).<br><br>There's a single built-in template set that <strong>auto-scales to your resolution</strong>, so Race, Buy and Auto Wheelspins work out of the box. Advanced users can <strong>capture their own templates</strong> and <strong>draw a custom Detection area (ROI)</strong> for a different game language or custom screen.</p></div></div>
+<div class="step"><div class="step-num">📊</div><div class="step-content"><h3>Match value (threshold)</h3><p>Imagine being shown two images and asked how similar they are, as a %. That's the match value — except the system compares at the <strong>pixel level</strong>, so even if they look identical to your eye, the system might see only 50% similarity. The slider in Settings decides what % similarity counts as a pass. Built-in templates <strong>auto-scale to your resolution</strong>, so there's no resolution to choose.</p></div></div>
+<div class="step"><div class="step-num">🎯</div><div class="step-content"><h3>Choosing a template</h3><p>As a rule, pick a screen element that <strong>only appears on that step</strong> — e.g. the timer top-left, or "Restart" on the results screen.<br><br>Other factors: <strong>variability</strong> — avoid a translucent background that changes by location; <strong>size</strong> — a bigger region has more pixels to match (fewer false positives) but is harder to pass and slower to scan, so experiment; <strong>language</strong> — built-in templates cover <strong>Traditional Chinese and English</strong> game UI; for other languages or a custom screen, capture your own templates and draw the Detection area.</p></div></div></div></section>
+<section><h2>All guides</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>Complete farming guide</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE Home</strong><span>All guides</span></a></div></section>
+</main>
+<footer><div class="footer-inner"><a href="../../">FAFE Home</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+</body>
+</html>

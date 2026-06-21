@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troubleshooting | FAFE Guide</title>
+<meta name="description" content="? Does the game need to stay focused? No. FAFE reads the game window directly and sends input via window messages, so it works even when the game is unfocu">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/troubleshooting/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/troubleshooting/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/troubleshooting/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/troubleshooting/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="stylesheet" href="../../../assets/site/guide.css">
+<script src="../../../assets/site/guide.js" defer></script>
+<meta property="og:title" content="Troubleshooting | FAFE Guide">
+<meta property="og:description" content="? Does the game need to stay focused? No. FAFE reads the game window directly and sends input via window messages, so it works even when the game is unfocu">
+<meta property="og:type" content="article">
+<meta property="article:modified_time" content="2026-06-21">
+<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/troubleshooting/">
+<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview.jpg">
+<meta property="og:locale" content="en_US">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Troubleshooting","description":"? Does the game need to stay focused? No. FAFE reads the game window directly and sends input via window messages, so it works even when the game is unfocu","inLanguage":"en","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/troubleshooting/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
+<a class="language-link" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/troubleshooting/" hreflang="zh-Hant">繁體中文</a>
+</div></header>
+<main>
+<div class="breadcrumbs"><a href="../../">FAFE Home</a> / Part 7 — Troubleshooting</div>
+<div class="eyebrow">Part 7 — Troubleshooting</div>
+<h1>Troubleshooting</h1>
+<p class="guide-meta">Updated for FAFE v1.8.0 · Last updated June 21, 2026</p>
+<section class="tutorial-content"><div class="steps"><div class="step"><div class="step-num">?</div><div class="step-content"><h3>Does the game need to stay focused?</h3><p>No. FAFE <strong>reads the game window directly</strong> and sends input via window messages, so it works even when the game is <strong>unfocused, covered by another window, or in the background</strong> — and a keep-alive stops it auto-pausing. Use your PC for other things while it runs. (Don't <strong>minimise</strong> the game, though — a minimised window stops rendering frames.)</p></div></div>
+<div class="step"><div class="step-num">?</div><div class="step-content"><h3>Tool misses a key press or click</h3><p>Open Settings (⚙) and increase Key Wait or Click Wait. Raise them on slower PCs or when the game loads slowly.</p></div></div>
+<div class="step"><div class="step-num">?</div><div class="step-content"><h3>Does a resolution change break templates?</h3><p>No — built-in templates auto-scale to your resolution, so there's nothing to redo. If detection fails at an unusual aspect ratio, report it with <strong>F12</strong>.</p></div></div>
+<div class="step"><div class="step-num">?</div><div class="step-content"><h3>Can I use other courses?</h3><p>Any course you can <strong>finish just by holding W</strong> works. If the car careens off, crashes or loses control, turn on <strong>assisted braking in the game's difficulty settings</strong> — that usually keeps it on track. It's the game's auto-steering, not a tool problem.</p></div></div>
+<div class="step"><div class="step-num">?</div><div class="step-content"><h3>Can it unlock mastery for other cars?</h3><p>Yes — set up that car's correct unlock path in the <strong>unlock-path grid</strong>. The tool walks the grid path by keyboard, so it isn't tied to any specific car.</p></div></div>
+<div class="step"><div class="step-num">?</div><div class="step-content"><h3>Game ignores key presses or clicks (car won't move)</h3><p>If FAFE is sending input but the game doesn't respond (car won't drive, keys or clicks do nothing), <strong>run FAFE as administrator</strong> (right-click FAFE.exe → "Run as administrator"). Windows blocks a lower-privilege program from sending input to a game that's running with administrator rights.</p></div></div>
+</div></section>
+<section><h2>All guides</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>Complete farming guide</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE Home</strong><span>All guides</span></a></div></section>
+</main>
+<footer><div class="footer-inner"><a href="../../">FAFE Home</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+</body>
+</html>

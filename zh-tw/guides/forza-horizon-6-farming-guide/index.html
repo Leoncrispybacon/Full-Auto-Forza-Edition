@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地平線 6 如何用 FAFE 掛機刷錢跟技能點</title>
+<meta name="description" content="完整介紹地平線 6 如何使用 FAFE 掛機刷錢、累積技能點、從熟練度樹解鎖幸運轉盤與自動領取獎勵。">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/forza-horizon-6-farming-guide/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/forza-horizon-6-farming-guide/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="stylesheet" href="../../../assets/site/guide.css">
+<script src="../../../assets/site/guide.js" defer></script>
+<meta property="og:title" content="地平線 6 如何用 FAFE 掛機刷錢跟技能點">
+<meta property="og:description" content="FAFE 掛機競速、熟練度樹解鎖與幸運轉盤完整指南。">
+<meta property="og:type" content="article">
+<meta property="article:modified_time" content="2026-06-21">
+<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/forza-horizon-6-farming-guide/">
+<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview-zh-tw.jpg">
+<meta property="og:locale" content="zh_TW">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "地平線 6 如何用 FAFE 掛機刷錢跟技能點",
+  "description": "完整介紹如何使用 FAFE 掛機競速、累積技能點、從熟練度樹解鎖幸運轉盤並領取獎勵。",
+  "inLanguage": "zh-Hant",
+  "mainEntityOfPage": "https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/forza-horizon-6-farming-guide/",
+  "author": {"@type": "Person", "name": "Leoncrispybacon"},
+  "about": {"@type": "SoftwareApplication", "name": "Full Auto Forza Edition", "alternateName": "FAFE", "operatingSystem": "Windows"}
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+  <a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
+  <a class="language-link" href="../../../en/guides/forza-horizon-6-farming-guide/" hreflang="en">English</a>
+</div></header>
+<main>
+  <div class="breadcrumbs"><a href="../../">FAFE 首頁</a> / 掛機刷錢與技能點指南</div>
+  <div class="eyebrow">FAFE 完整指南</div>
+  <h1>地平線 6 如何用 FAFE 掛機刷錢跟技能點</h1>
+<p class="guide-meta">適用 FAFE v1.8.0 · 最後更新：2026 年 6 月 21 日</p>
+  <p class="lede">FAFE 可以自動處理累積技能點、批次購買車輛、從相容車輛的熟練度樹解鎖幸運轉盤，以及領取轉盤獎勵時的重複操作。本指南會完整說明公開免費版的各項功能與安全準備方式。</p>
+
+  <div class="notice"><strong>重要：</strong>FAFE 公開免費版提供的是各自獨立的自動化功能，每個階段由你自行開始。它不會竄改遊戲記憶體或直接增加點數；實際刷錢效率與獎勵仍由遊戲內容決定。</div>
+
+  <nav class="toc" aria-label="目錄">
+    <strong>本頁目錄</strong>
+    <ul>
+      <li><a href="#workflow">掛機刷錢流程</a></li>
+      <li><a href="#setup">首次設定</a></li>
+      <li><a href="#skill-points">掛機競速</a></li>
+      <li><a href="#buy-cars">批次自動購車</a></li>
+      <li><a href="#mastery">熟練度樹幸運轉盤</a></li>
+      <li><a href="#wheelspins">自動幸運轉盤</a></li>
+      <li><a href="#delete-cars">刪除已使用車輛</a></li>
+      <li><a href="#settings">穩定度設定</a></li>
+      <li><a href="#troubleshooting">疑難排解</a></li>
+      <li><a href="#faq">常見問題</a></li>
+      <li><a href="#download">下載 FAFE</a></li>
+    </ul>
+  </nav>
+
+  <section id="workflow">
+    <h2>FAFE 掛機刷錢流程</h2>
+    <ol>
+      <li><strong>掛機競速：</strong>重複指定的 EventLab 競速，FAFE 會處理開始、駕駛與重新開始，協助累積技能點。</li>
+      <li><strong>自動購車：</strong>手動開啟任何可購買車輛即可批次購買；從主選單開始則使用 22B-STI 自動預設路線。</li>
+      <li><strong>解鎖幸運轉盤：</strong>選擇連續的車庫區塊，依熟練度網格解鎖指定節點。</li>
+      <li><strong>自動幸運轉盤：</strong>執行一般或超級幸運轉盤、自動領取獎勵，並處理重複車輛。</li>
+      <li><strong>刪除已使用車輛：</strong>確認範圍後，清理已經處理完成的車輛。</li>
+    </ol>
+    <p>因此搜尋「地平線 6 刷錢」、「地平線 6 掛機」或「地平線 6 技能點」時，FAFE 的用途是減少遊戲內獎勵流程中的重複鍵盤與滑鼠操作，而不是修改你的點數。</p>
+  </section>
+
+  <section id="setup">
+    <h2>第一次使用前的設定</h2>
+    <ol>
+      <li>使用無邊框或視窗模式執行 Forza Horizon 6。</li>
+      <li>在 FAFE 選擇正確的遊戲螢幕。</li>
+      <li>讓 FAFE 的遊戲選單語言與 Forza 畫面語言一致。</li>
+      <li>遊戲可以被其他視窗遮住或失去焦點，但不能最小化。</li>
+      <li>若 Forza 以系統管理員身分執行，FAFE 也必須以系統管理員身分執行。</li>
+    </ol>
+    <div class="screenshot" style="max-width:631px;margin:20px auto 4px;">
+      <img src="../../../assets/site/setup-monitor-selector-zh-tw.png" width="631" height="95" loading="lazy" decoding="async" alt="FAFE 遊戲螢幕選單，選擇 Forza Horizon 6 所在的螢幕">
+      <div class="caption">選擇 Forza Horizon 6 所在的遊戲螢幕。</div>
+    </div>
+    <p>使用 <strong>F9</strong> 開始或停止。倒數時間為<strong>3 秒</strong>；啟用背景模式時，不需要切換回 Forza。正式掛機前，請先設定少量次數並觀看「活動」記錄，確認每個功能都能完成一次。</p>
+    <p><a href="../first-time-setup/">查看完整首次設定指南 →</a></p>
+  </section>
+
+  <section id="skill-points">
+    <h2>用掛機競速累積技能點</h2>
+    <p>使用<strong>全滿升級且維持原廠烤漆的 Subaru Impreza 22B-STI</strong>。開啟自動轉向、循跡控制與穩定控制；排檔依 EventLab 地圖要求選擇手排或自排；並將「抬頭顯示器與遊戲 → 技術」設為關閉。確認最近遊玩的 EventLab 是你要重複執行的競速。你可以從主選單開始，也可以自行停在「開始競速」畫面。</p>
+    <ol>
+      <li>FAFE 偵測「開始競速」並進入活動。</li>
+      <li>倒數完成後持續按住 W。</li>
+      <li>偵測結算／重新開始畫面，放開 W 並重新開始。</li>
+      <li>持續循環，直到達到設定次數或你按 F9。</li>
+    </ol>
+    <div class="screenshot" style="margin-top:20px;">
+      <img src="../../../assets/site/race-start-menu-zh-tw.webp" width="1600" height="675" loading="lazy" decoding="async" alt="Forza Horizon 6 EventLab 開始賽事畫面">
+      <div class="caption">其中一種有效起點：讓「開始賽事」保持選取，尚未正式開始比賽。</div>
+    </div>
+    <p>先在旁邊觀看一次完整循環。若選單漏接按鍵，請提高「競速按鍵後等待」；較弱的 CPU 可提高「競速偵測間隔」。</p>
+    <p><a href="../race-auto-grind/">查看完整賽事掛機指南 →</a></p>
+  </section>
+
+  <section id="buy-cars">
+    <h2>批次購買車輛</h2>
+    <p>FAFE 可以重複購買「車輛收藏」中任何可購買的車輛。自行開啟車輛收藏、選擇想購買的車，並停在可購買的車輛詳細頁面。若改從主選單開始，FAFE 則會使用內建路線前往 Subaru Impreza 22B-STI。</p>
+    <div class="screenshot" style="margin-top:20px;">
+      <img src="../../../assets/site/auto-buy-manual-start-zh-tw.webp" width="1600" height="917" loading="lazy" decoding="async" alt="Forza Horizon 6 車輛收藏詳細頁面，準備使用 FAFE 批次自動購車">
+      <div class="caption">手動起始位置：開啟目標車輛的詳細頁面，停在可直接購買的畫面。</div>
+    </div>
+    <p>第一次先設定少量購買次數，確認完成一次購買後能回到相同畫面，再執行較大的批次。</p>
+    <p><a href="../auto-buy-cars-in-batch/">查看完整批次自動購車指南 →</a></p>
+  </section>
+
+  <section id="mastery">
+    <h2>準備熟練度樹幸運轉盤解鎖</h2>
+    <p>在「我的車輛」依<strong>最近新增</strong>排序。使用 FAFE 的車庫區塊選擇器，標記一段只包含目標車輛的連續範圍。第一輛車可位於起始欄的上、中、下任一列。移動順序為每欄由上到下，再前往下一欄，不是蛇形。</p>
+    <p>從 S 起點開始，按照實際移動順序點選每一個必要節點。此功能不限於 22B-STI，適用於任何相容車輛；熟練度樹配置或目標路徑不同的車輛不要放進同一選定範圍。此功能使用 WASD 與 Enter，不依賴畫面樣本。</p>
+    <div class="screenshot" style="margin-top:20px;">
+      <img src="../../../assets/site/mastery-unlock-path-zh-tw.webp" width="1208" height="702" loading="lazy" decoding="async" alt="FAFE 熟練度樹解鎖路徑格狀圖，節點依移動順序編號">
+      <div class="caption">藍色數字就是 FAFE 使用 WASD 與 Enter 導航的節點順序。</div>
+    </div>
+    <p>若較慢的電腦漏接輸入，請提高「過場動畫等待」、「節點解鎖間隔」或「選單點按間隔」。</p>
+    <p><a href="../auto-unlock-spin-wheel-mastery-tree/">查看完整熟練度樹幸運轉盤指南 →</a></p>
+  </section>
+
+  <section id="wheelspins">
+    <h2>用幸運轉盤取得點數與獎勵</h2>
+    <p>選擇一般或超級幸運轉盤，並設定重複車輛的處理方式。FAFE 會開始轉盤、嘗試略過揭曉動畫、等待領取提示、收取獎勵，並處理最多三個重複車輛選單。</p>
+    <div class="screenshot" style="margin-top:20px;">
+      <img src="../../../assets/site/wheelspin-my-horizon-zh-tw.webp" width="1600" height="751" loading="lazy" decoding="async" alt="Forza Horizon 6 我的 HORIZON 選單，顯示超級輪盤與一般輪盤">
+      <div class="caption">在「我的 HORIZON」中選擇與 FAFE 設定相同的輪盤類型。</div>
+    </div>
+    <p>只有在你能接受無人值守出售時，才選擇<strong>出售</strong>。超級幸運轉盤會一次領取三個獎勵。</p>
+    <p><a href="../auto-wheelspin/">查看完整自動轉輪指南 →</a></p>
+  </section>
+
+  <section id="delete-cars">
+    <h2>安全刪除已處理的車輛</h2>
+    <p>完成熟練度獎勵解鎖後，「刪除已使用車輛」可以逐一刪除連續的車庫範圍。使用與熟練度功能相同的車庫區塊選擇器標記第一輛與最後一輛車，開始前務必再次確認範圍。</p>
+    <div class="screenshot" style="max-width:502px;margin:20px auto 4px;">
+      <img src="../../../assets/site/garage-block-selector-zh-tw.png" width="502" height="455" loading="lazy" decoding="async" alt="FAFE 車庫區塊選擇器，顯示第一輛車、最後一輛車與車輛總數">
+      <div class="caption">確認第一輛、最後一輛與總數；選定區塊內的每一輛車都會被刪除。</div>
+    </div>
+    <p>刪除後無法復原。第一次請使用非常小的範圍，並確保無關或珍貴車輛不在選定區塊內。</p>
+    <p><a href="../delete-used-cars/">查看完整刪除已使用車輛指南 →</a></p>
+  </section>
+
+  <section id="settings">
+    <h2>提高穩定度的設定</h2>
+    <ul>
+      <li><strong>背景模式：</strong>遊戲失去焦點或被遮住時仍可運作，但不能最小化。</li>
+      <li><strong>OCR：</strong>除非小視窗的文字比對需要協助，否則保持關閉以降低 CPU 使用率。</li>
+      <li><strong>偵測除錯快照：</strong>只在診斷問題時啟用。</li>
+      <li><strong>時間滑桿：</strong>低幀率造成漏接時，請提高對應等待時間。</li>
+      <li><strong>英文輸入法：</strong>若中文輸入法可能攔截遊戲按鍵，請保留自動切換英文輸入法。</li>
+    </ul>
+  </section>
+
+  <section id="troubleshooting">
+    <h2>疑難排解與錯誤回報</h2>
+    <ul>
+      <li><strong>按鍵完全沒有作用：</strong>檢查遊戲與 FAFE 的系統管理員權限是否一致，並確認目前輸入法。</li>
+      <li><strong>偵測一直等待：</strong>確認樣本語言與預期遊戲畫面。持續等待是刻意設計；需要復原時按 F9。</li>
+      <li><strong>黑畫面或畫面不更新：</strong>確認遊戲沒有被最小化。</li>
+      <li><strong>CPU 使用率高：</strong>關閉 OCR 與除錯快照，並提高偵測間隔。</li>
+    </ul>
+    <p>問題發生時請停留在原本的失敗畫面並按 <strong>F12</strong>。FAFE 會建立包含標註偵測截圖與記錄的 zip，方便貼到 Discord 錯誤回報區。</p>
+  </section>
+
+  <section id="faq">
+    <h2>常見問題</h2>
+    <h3>FAFE 會直接增加遊戲點數嗎？</h3>
+    <p>不會。FAFE 只會模擬鍵盤與滑鼠輸入，協助執行遊戲內競速、熟練度與幸運轉盤流程，不會修改記憶體或點數餘額。</p>
+    <h3>掛機時還能使用電腦嗎？</h3>
+    <p>背景模式可以讀取並控制被遮住或失去焦點的遊戲視窗。遊戲不能最小化，因為最小化後無法持續產生可偵測的畫面。</p>
+    <h3>使用自動化完全沒有風險嗎？</h3>
+    <p>任何自動化工具都無法保證帳號零風險。請自行評估，並在離開電腦前先測試每個功能。</p>
+  </section>
+
+  <section id="download">
+    <h2>下載 FAFE</h2>
+    <p><a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE.zip">直接下載最新 Windows 版 FAFE</a>，或返回 <a href="../../">FAFE 首頁</a>查看畫面與功能介紹。</p>
+  </section>
+</main>
+<footer><div class="footer-inner"><a href="../../">FAFE 首頁</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,85 @@
+* { box-sizing: border-box; }
+:root { color-scheme: dark; }
+body {
+  margin: 0;
+  background: #0f0f0f;
+  color: #e2e8f0;
+  font-family: "Segoe UI", "Microsoft JhengHei UI", sans-serif;
+  line-height: 1.75;
+}
+a { color: #60a5fa; }
+.site-header {
+  border-bottom: 1px solid #1e293b;
+  background: #0b1220;
+}
+.header-inner, main, .footer-inner {
+  width: min(920px, calc(100% - 40px));
+  margin: 0 auto;
+}
+.header-inner {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.brand { display: flex; align-items: center; gap: 11px; color: #f8fafc; text-decoration: none; font-weight: 750; }
+.brand img { width: 38px; height: 38px; border-radius: 9px; }
+.language-link { text-decoration: none; padding: 7px 11px; border: 1px solid #334155; border-radius: 7px; }
+main { padding: 52px 0 72px; }
+.breadcrumbs { font-size: .86rem; color: #64748b; margin-bottom: 28px; }
+.breadcrumbs a { color: #94a3b8; text-decoration: none; }
+.eyebrow { color: #60a5fa; font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+h1 { margin: 8px 0 14px; color: #f8fafc; font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.15; }
+.lede { color: #94a3b8; font-size: 1.13rem; max-width: 760px; }
+.notice, section {
+  margin-top: 32px;
+  padding: 26px;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  background: #111827;
+}
+.notice { border-color: #1e3a5f; background: #0c1a2e; }
+h2 { margin: 0 0 12px; color: #f1f5f9; font-size: 1.45rem; }
+h3 { color: #e2e8f0; }
+p:last-child, ul:last-child, ol:last-child { margin-bottom: 0; }
+li + li { margin-top: 8px; }
+code { padding: 2px 6px; border-radius: 5px; background: #1e293b; color: #bfdbfe; }
+.steps { display: flex; flex-direction: column; gap: 20px; }
+.step { display: flex; gap: 18px; align-items: flex-start; }
+.step-num { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 999px; background: #1e3a5f; color: #60a5fa; font-weight: 750; }
+.step-content { min-width: 0; flex: 1; }
+.step-content h3 { margin: 2px 0 5px; font-size: 1.02rem; }
+.step-content p { margin: 0; color: #94a3b8; }
+.screenshot { margin-top: 20px; overflow: hidden; border: 1px solid #334155; border-radius: 10px; }
+.screenshot img { display: block; width: 100%; height: auto; cursor: zoom-in; }
+.screenshot img:focus-visible { outline: 3px solid #60a5fa; outline-offset: -3px; }
+.caption { padding: 9px 14px; background: #0b1220; color: #94a3b8; font-size: .84rem; text-align: center; }
+.guide-meta { margin: 0 0 22px; color: #64748b; font-size: .86rem; }
+.toc { margin-top: 26px; padding: 22px 24px; border: 1px solid #1e3a5f; border-radius: 12px; background: #0c1a2e; }
+.toc strong { display: block; margin-bottom: 10px; color: #f1f5f9; }
+.toc ul { margin: 0; padding-left: 20px; columns: 2; column-gap: 30px; }
+.toc li { break-inside: avoid; margin: 4px 0; }
+.guide-pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+.guide-pagination a { display: block; padding: 18px; border: 1px solid #334155; border-radius: 10px; color: inherit; text-decoration: none; }
+.guide-pagination a:hover { border-color: #3b82f6; }
+.guide-pagination a:last-child { text-align: right; }
+.guide-pagination span { display: block; color: #64748b; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+.guide-pagination strong { display: block; color: #f1f5f9; }
+.guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.guide-card { padding: 18px; border: 1px solid #334155; border-radius: 10px; color: inherit; text-decoration: none; }
+.guide-card:hover { border-color: #3b82f6; }
+.guide-card strong { display: block; color: #f1f5f9; }
+.guide-card span { color: #94a3b8; font-size: .92rem; }
+footer { border-top: 1px solid #1e293b; color: #64748b; }
+.footer-inner { padding: 24px 0; font-size: .86rem; }
+@media (max-width: 640px) {
+  .header-inner, main, .footer-inner { width: min(100% - 28px, 920px); }
+  .header-inner { min-height: 60px; }
+  main { padding-top: 36px; }
+  section, .notice { padding: 20px; }
+  .guide-grid { grid-template-columns: 1fr; }
+  .toc ul { columns: 1; }
+  .guide-pagination { grid-template-columns: 1fr; }
+  .guide-pagination a:last-child { text-align: left; }
+}

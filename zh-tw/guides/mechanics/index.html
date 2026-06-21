@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機制說明（進階） | FAFE 指南</title>
+<meta name="description" content="🔍 偵測系統 偵測分成幾個層次：(1) 快速的 文字外觀比對 （像素層級）；(2) ROI 系統 ，依樣本應出現的位置限定搜尋範圍（例如「開始比賽」按鈕在左中，就只搜那一塊），這也讓偵測快上數十倍；(3) 選用的 OCR 文字提示 ——系統預先記錄該畫面應出現的關鍵字，OCR 讀取畫面文字加以確認。OCR ">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="stylesheet" href="../../../assets/site/guide.css">
+<script src="../../../assets/site/guide.js" defer></script>
+<meta property="og:title" content="機制說明（進階） | FAFE 指南">
+<meta property="og:description" content="🔍 偵測系統 偵測分成幾個層次：(1) 快速的 文字外觀比對 （像素層級）；(2) ROI 系統 ，依樣本應出現的位置限定搜尋範圍（例如「開始比賽」按鈕在左中，就只搜那一塊），這也讓偵測快上數十倍；(3) 選用的 OCR 文字提示 ——系統預先記錄該畫面應出現的關鍵字，OCR 讀取畫面文字加以確認。OCR ">
+<meta property="og:type" content="article">
+<meta property="article:modified_time" content="2026-06-21">
+<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/">
+<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview-zh-tw.jpg">
+<meta property="og:locale" content="zh_TW">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"機制說明（進階）","description":"🔍 偵測系統 偵測分成幾個層次：(1) 快速的 文字外觀比對 （像素層級）；(2) ROI 系統 ，依樣本應出現的位置限定搜尋範圍（例如「開始比賽」按鈕在左中，就只搜那一塊），這也讓偵測快上數十倍；(3) 選用的 OCR 文字提示 ——系統預先記錄該畫面應出現的關鍵字，OCR 讀取畫面文字加以確認。OCR ","inLanguage":"zh-Hant","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
+<a class="language-link" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/" hreflang="en">English</a>
+</div></header>
+<main>
+<div class="breadcrumbs"><a href="../../">FAFE 首頁</a> / 機制說明（進階）</div>
+<div class="eyebrow">機制說明（進階）</div>
+<h1>機制說明（進階）</h1>
+<p class="guide-meta">適用 FAFE v1.8.0 · 最後更新：2026 年 6 月 21 日</p>
+<section class="tutorial-content"><div class="steps active"><div class="step"><div class="step-num">🔍</div><div class="step-content"><h3>偵測系統</h3><p>偵測分成幾個層次：(1) 快速的<strong>文字外觀比對</strong>（像素層級）；(2) <strong>ROI 系統</strong>，依樣本應出現的位置限定搜尋範圍（例如「開始比賽」按鈕在左中，就只搜那一塊），這也讓偵測快上數十倍；(3) 選用的 <strong>OCR 文字提示</strong>——系統預先記錄該畫面應出現的關鍵字，OCR 讀取畫面文字加以確認。OCR 很吃 CPU、可能造成遊戲卡頓，因此<strong>預設關閉</strong>，可在「設定」中開啟（畫面很小、像素比對較吃力時開啟特別有幫助）。<br><br>內建樣本只有一組，會<strong>自動依你的解析度縮放</strong>，競速、購買、自動轉輪皆開箱即用。進階用戶可<strong>自行擷取樣本</strong>並<strong>手動框選偵測範圍（Detection area）</strong>，以符合不同遊戲語言或自訂畫面。</p></div></div>
+<div class="step"><div class="step-num">📊</div><div class="step-content"><h3>相容值（Threshold）</h3><p>想像同時拿兩張圖給你看，要你判斷相似幾 %——這就是相容值，只是系統是在<strong>像素層級</strong>比對。所以即使肉眼看起來一模一樣，對系統來說可能只有 50% 相似。設定中的滑桿就是讓你決定「相似到幾 % 才算通過」；內建樣本會<strong>自動依解析度縮放</strong>，因此無需手動選擇解析度。</p></div></div>
+<div class="step"><div class="step-num">🎯</div><div class="step-content"><h3>樣本的選擇</h3><p>原則上，樣本要挑<strong>該步驟才會出現</strong>的畫面元素，例如左上角的時間、結算畫面的「重新開始」等。<br><br>其他考量：<strong>可變性</strong>——背景不要是半透明的，以免在不同地點造成背景不同；<strong>大小</strong>——範圍越大像素越多、誤判越少，但通過機率較低、偵測也較慢，可自行實驗；<strong>語言</strong>——內建樣本支援<strong>繁體中文與英文</strong>遊戲介面；其他語言或自訂畫面，請自行擷取樣本並框選偵測範圍。</p></div></div></div></section>
+<section><h2>所有指南</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>掛機刷錢與技能點指南</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE 首頁</strong><span>所有指南</span></a></div></section>
+</main>
+<footer><div class="footer-inner"><a href="../../">FAFE 首頁</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+</body>
+</html>
