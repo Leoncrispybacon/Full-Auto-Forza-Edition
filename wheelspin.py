@@ -24,6 +24,7 @@ import time
 import threading
 
 import config
+import navutil
 from config import get_wheelspin_templates
 from app_lang import t as _at
 from capture import (grab_frame, load_template, get_monitor_dims,
@@ -43,6 +44,15 @@ MH_TAB_WINDOW     = 8.0   # max time to find the My Horizon tab (menu-start entr
 # re-matched menu) let it handle 5+ in a real bug report. Reaching the cap
 # means something misfired; the per-detection confidence log helps diagnose it.
 MAX_DUP_CHAIN    = 3
+# Skip is only watched for the first few seconds of each spin's collect-wait (it
+# appears during the reveal); after that only collect/final are polled, so a
+# missing Skip prompt never pins detection on it forever. collect/final wait
+# indefinitely (F9 recovers a screen that genuinely can't be detected).
+SKIP_WATCH_S     = 5.0
+# After collect/final is pressed, watch for the duplicate menu for this long;
+# each duplicate handled REFRESHES the window, and the window expiring with no
+# (further) duplicate means none are left. Bounded so the dup phase can't hang.
+DUP_WINDOW_S     = 5.0
 # Polling interval for the detection loops (skip/collect/duplicate/tile waits).
 # Higher = fewer detections/sec = less CPU contention with the game (each detect
 # briefly uses multiple cores). 0.3s is the test value; the brief "Skip" prompt
@@ -87,6 +97,7 @@ def run(cfg: dict, stop_event: threading.Event,
     _fresh   = _cfg_mod.load()
     post_kw  = _fresh.get("wheelspin_post_key_wait", 0.5)
     dup_mode = _fresh.get("wheelspin_dup_mode", "garage")
+    keep_fe  = _fresh.get("wheelspin_keep_fe", True)  # sell mode: route FE → garage
     wtype    = _fresh.get("wheelspin_type", "super")   # "super" | "normal"
     # Which tile starts the run: Super Wheelspin (3 prizes) or normal Wheelspin
     # (1 prize). Only this start tile differs — collect/duplicate flow is the same.
@@ -115,6 +126,10 @@ def run(cfg: dict, stop_event: threading.Event,
             detector.set_template_geometry(
                 key, box, meta.get("screen_width", current_w),
                 meta.get("screen_height", current_h))
+        if meta.get("roi"):                           # user-drawn ROI overrides
+            detector.set_template_roi(key, meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
         log_cb(_at("log_template_loaded", lang, key=key, scale=f"{scale:.2f}"))
         return img
 
@@ -214,152 +229,40 @@ def run(cfg: dict, stop_event: threading.Event,
             time.sleep(_DETECT_IV)
         return (None, None)
 
-    def _wait_either(key_a, tpl_a, key_b, tpl_b):
-        """Wait until EITHER template is on screen; return ('a'|'b', result), or
-        (None, None) if stopped. Used after a duplicate is handled: the next
-        screen is either the NEXT duplicate menu (a) or the next spin's collect
-        prompt (b). Indefinite (F9/Stop recovers). One grab serves both checks;
-        `a` is checked first as the tiebreak."""
+    def _wait_collect(skip_deadline):
+        """Wait until a spin's collect prompt shows; return
+        ('skip'|'collect'|'final', result), or (None, None) if stopped.
+          • 'skip'    — the brief reveal "Skip" prompt (Enter fast-forwards).
+                        Only watched while now < skip_deadline (it appears only
+                        during the reveal), so it's never polled indefinitely.
+          • 'collect' — the normal "…and Spin Again" prompt (its OCR hints
+                        require the spin-again text). Checked BEFORE 'final'.
+          • 'final'   — the single "Collect Prize" prompt (account out of spins),
+                        a text subset of collect — so it only wins when collect's
+                        spin-again distinguisher is absent (genuinely out of spins).
+        collect/final are watched indefinitely (F9/Stop recovers a screen that
+        genuinely can't be detected). One grab serves all checks."""
         while not stop():
             try:
                 frame = io.grab()
-                ra = detector.detect(frame, key_a, tpl_a, _thr(key_a),
-                                     stable=False)
-                if ra.matched:
-                    return ('a', ra)
-                rb = detector.detect(frame, key_b, tpl_b, _thr(key_b),
-                                     stable=False)
-                if rb.matched:
-                    return ('b', rb)
-            except Exception:
-                pass
-            time.sleep(_DETECT_IV)
-        return (None, None)
-
-    def _wait_last_collect():
-        """Final-spin collect wait: returns ('skip'|'collect'|'final', result),
-        whichever shows first, or (None, None) if stopped. 'final' is the single
-        'Collect Prize' prompt shown when the account is out of spins (Enter
-        collects and leaves, no restart); 'collect' is the normal prompt (Esc
-        fallback). Skip is checked first (it appears first, during the reveal);
-        final before normal so the out-of-spins prompt wins if both could match."""
-        while not stop():
-            try:
-                frame = io.grab()
-                if skip_tpl is not None:
+                if skip_tpl is not None and time.time() < skip_deadline:
                     r = detector.detect(frame, SKIP_KEY, skip_tpl,
                                         _thr(SKIP_KEY), stable=False)
                     if r.matched:
                         return ('skip', r)
+                r = detector.detect(frame, COLLECT_KEY, collect_tpl,
+                                    _thr(COLLECT_KEY), stable=False)
+                if r.matched:
+                    return ('collect', r)
                 if final_tpl is not None:
                     r = detector.detect(frame, FINAL_KEY, final_tpl,
                                         _thr(FINAL_KEY), stable=False)
                     if r.matched:
                         return ('final', r)
-                r = detector.detect(frame, COLLECT_KEY, collect_tpl,
-                                    _thr(COLLECT_KEY), stable=False)
-                if r.matched:
-                    return ('collect', r)
             except Exception:
                 pass
             time.sleep(_DETECT_IV)
         return (None, None)
-
-    def _wait_dup_or_next(collect_cleared):
-        """Wait until a duplicate menu OR the next spin appears; return
-        ('dup', result), ('next', result), ('cleared', None), or (None, None) if
-        stopped. Used after a collect press. The "next spin" is detected by its
-        SKIP prompt (when skip is enabled) OR its collect prompt — watching skip
-        too means we break the instant the next spin starts, so its skip window
-        isn't waited past.
-
-        The just-pressed collect prompt LINGERS during the collecting animation
-        and can overlap the first duplicate menu. dup is checked first, so a
-        duplicate that pops up mid-animation wins. Crucially, a collect/skip
-        prompt is only treated as 'next' once the lingering same-spin collect has
-        gone absent at least once (`collect_cleared`): until then its ABSENCE is
-        reported as 'cleared' (the caller sets the flag) and its presence is
-        ignored, so the lingering prompt can't short-circuit the duplicate loop.
-        Indefinite; one grab serves all checks."""
-        while not stop():
-            try:
-                frame = io.grab()
-                dr = detector.detect(frame, TEMPLATE_KEY, dup_tpl,
-                                     _thr(TEMPLATE_KEY), stable=False)
-                if dr.matched:
-                    return ('dup', dr)
-                prompt_up = False
-                if skip_tpl is not None:
-                    skr = detector.detect(frame, SKIP_KEY, skip_tpl,
-                                          _thr(SKIP_KEY), stable=False)
-                    if skr.matched:
-                        if collect_cleared:
-                            return ('next', skr)
-                        prompt_up = True
-                cr = detector.detect(frame, COLLECT_KEY, collect_tpl,
-                                     _thr(COLLECT_KEY), stable=False)
-                if cr.matched:
-                    if collect_cleared:
-                        return ('next', cr)
-                    prompt_up = True
-                # Before the lingering same-spin collect prompt has cleared once,
-                # its ABSENCE (no collect/skip prompt up) is the 'cleared' signal,
-                # never 'next'.
-                if not collect_cleared and not prompt_up:
-                    return ('cleared', None)
-            except Exception:
-                pass
-            time.sleep(_DETECT_IV)
-        return (None, None)
-
-    def _wait_dup_or_menu():
-        """Last-loop variant of _wait_dup_or_next. After the FINAL spin's Esc-
-        collect, duplicate menus still appear, but no next spin follows — we
-        return to the My Horizon menu instead. So watch for a duplicate menu OR
-        the Super Wheelspin tile (= back on the My Horizon menu). Returns
-        ('dup'|'menu', result), or (None, None) if stopped. dup is checked first
-        as the tiebreak so a duplicate dialog overlaying the tile counts as a
-        duplicate, never a premature 'menu'."""
-        while not stop():
-            try:
-                frame = io.grab()
-                dr = detector.detect(frame, TEMPLATE_KEY, dup_tpl,
-                                     _thr(TEMPLATE_KEY), stable=False)
-                if dr.matched:
-                    return ('dup', dr)
-                mr = detector.detect(frame, TILE_KEY, tile_tpl,
-                                     _thr(TILE_KEY), stable=False)
-                if mr.matched:
-                    return ('menu', mr)
-            except Exception:
-                pass
-            time.sleep(_DETECT_IV)
-        return (None, None)
-
-    def _wait_stage(key, tpl, waiting_msg, label):
-        """Wait until a spin STAGE that always occurs is on screen (the
-        skip-able spin, the prize/collect screen), then return True. Gated on
-        detection — the script acts only when the screen is actually present,
-        never on a blind timer (fixes mis-timed presses). Waits indefinitely
-        (F9/Stop recovers); an over-3s wait logs a one-time hint. Returns
-        False if stopped."""
-        announce(waiting_msg)
-        def _warn(best):
-            log_cb(_at("log_spin_stage_slow", lang) +
-                   f" ({best.source}: {best.score:.0%})")
-        t0 = time.time()
-        res = detector.wait_for(
-            frame_cb=lambda: io.grab(),
-            key=key, template=tpl, threshold=_thr(key),
-            stop_cb=stop, interval=_DETECT_IV, on_warn=_warn)
-        if res.matched:
-            # Detailed diagnostic line: what was detected, confidence, source,
-            # and how long the wait took (the elapsed time exposes detection
-            # latency / how long the on-screen stage took to appear).
-            log_cb(_at("log_spin_detected", lang, label=label,
-                       conf=f"{res.score:.0%}, {res.source}",
-                       secs=f"{time.time() - t0:.1f}"))
-        return res.matched
 
     if max_loops > 0:
         log_cb(_at("log_spin_started_count", lang, n=max_loops))
@@ -397,7 +300,17 @@ def run(cfg: dict, stop_event: threading.Event,
                        label=_at("spin_tpl_my_horizon", lang),
                        conf=f"{r_first.score:.0%}, {r_first.source}",
                        secs=f"{time.time() - _t_mh:.1f}"))
-            io.click(r_first.location[0], r_first.location[1], post_kw)  # → My Horizon menu
+            # → My Horizon menu (failsafe: re-click the tab if the wheel tile
+            #   doesn't show, i.e. the click was dropped). If it never advances,
+            #   the entry tile detect below aborts as before.
+            navutil.click_until_advanced(
+                io.grab, detector,
+                lambda loc: io.click(loc[0], loc[1], post_kw),
+                (MH_TAB_KEY, mh_tab_tpl, _thr(MH_TAB_KEY)),
+                (TILE_KEY, tile_tpl, _thr(TILE_KEY)),
+                stop,
+                log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
+                       label=_at("spin_tpl_my_horizon", lang), n=n)))
         elif which_first == 'tile':
             log_cb(_at("log_spin_on_my_horizon", lang, label=tile_label))
 
@@ -434,179 +347,139 @@ def run(cfg: dict, stop_event: threading.Event,
         # hit this; they stop via F9.
         is_last = max_loops > 0 and loop_count >= max_loops
 
-        # ── 1. (Best-effort skip) then collect ────────────────
+        # ── 1. Collect phase ──────────────────────────────────
         # The spin ALWAYS auto-starts — FAFE never presses to spin (spin #1 was
-        # the Super Wheelspin click, every later spin the previous collect's
-        # "…and Spin Again"). A Super Wheelspin has 3 wheels and ONE Enter
-        # collects all three at once, so collect is pressed exactly ONCE per spin.
-        #
-        # Best-effort skip: the brief "Skip" prompt appears at the START of the
-        # reveal and the "Collect Prize and Spin Again" prompt at the END, so
-        # they're never on screen together. We wait for whichever shows first:
-        #   • skip first  → Enter (fast-forward; lands on the collect prompt) →
-        #                   wait for the collect prompt
-        #   • collect first (skip missed / no skip template) → just collect
-        # A missed/flaky skip therefore only costs the reveal time — it can never
-        # press the wrong prompt or desync.
+        # the tile click, every later spin the previous collect's "…and Spin
+        # Again"). A Super Wheelspin has 3 wheels and ONE Enter collects all
+        # three at once, so collect is pressed exactly ONCE per spin. We wait for
+        # the collect prompt, fast-forwarding the reveal via the brief "Skip"
+        # prompt if it shows within SKIP_WATCH_S:
+        #   • skip   → Enter (fast-forward), then stop watching skip this spin
+        #   • collect ("…and Spin Again") → Enter (or Esc on the counted-last
+        #             spin, which collects all + exits instead of auto-spinning)
+        #   • final  ("Collect Prize", no spin-again) → the ACCOUNT is out of
+        #             Wheelspins (can happen BEFORE the target — the "32/33"
+        #             report): Enter to collect + leave, end the run after dups.
+        # collect/final wait indefinitely (F9 recovers); skip is time-boxed so a
+        # missing Skip prompt can't pin detection on it forever.
         if stop(): break
-        if is_last and final_tpl is not None:
-            # Final spin WITH the out-of-spins template captured: the game shows
-            # a single "Collect Prize" (no "Spin Again"), so Enter collects and
-            # leaves — no restart. Watch skip / normal-collect / final-collect
-            # together: the reveal's skip still appears first, so fast-forward it
-            # and re-wait. Enter only on the FINAL prompt; the normal prompt keeps
-            # the Esc-collect fallback (e.g. more game spins than the FAFE count).
-            _t0 = time.time()
-            announce(_at("log_spin_wait_collect", lang))
-            collected = False
-            while not stop():
-                which, r = _wait_last_collect()
-                if which is None:
-                    break
-                _el = f"{time.time() - _t0:.1f}"
-                if which == 'skip':
-                    log_cb(_at("log_spin_detected", lang,
-                               label=_at("spin_tpl_skip", lang),
-                               conf=f"{r.score:.0%}, {r.source}", secs=_el))
-                    announce(_at("log_spin_skip", lang))
-                    press('enter', post_wait=0.0)      # fast-forward reveal
-                    continue
-                if which == 'final':
-                    log_cb(_at("log_spin_detected", lang,
-                               label=_at("spin_tpl_collect_final", lang),
-                               conf=f"{r.score:.0%}, {r.source}", secs=_el))
-                    announce(_at("log_spin_end_enter", lang))
-                    press('enter', post_wait=0.0)      # collect + leave (no restart)
-                else:                                  # 'collect' = normal prompt
-                    log_cb(_at("log_spin_detected", lang,
-                               label=_at("spin_tpl_collect", lang),
-                               conf=f"{r.score:.0%}, {r.source}", secs=_el))
-                    announce(_at("log_spin_end_esc", lang))
-                    press('escape', post_wait=0.0)     # collect all 3 + exit
-                collected = True
+        ran_out = False
+        _t0 = time.time()
+        announce(_at("log_spin_wait_collect", lang))
+        skip_deadline = (_t0 + SKIP_WATCH_S) if skip_tpl is not None else 0.0
+        collected = False
+        while not stop():
+            which, r = _wait_collect(skip_deadline)
+            if which is None:
                 break
-            if not collected:
-                break                                  # stopped
-        else:
-            if skip_tpl is not None:
-                _t0 = time.time()
-                announce(_at("log_spin_wait_skip", lang))
-                which, sr = _wait_either(SKIP_KEY, skip_tpl, COLLECT_KEY, collect_tpl)
-                if which is None:
-                    break
-                _el = f"{time.time() - _t0:.1f}"
-                if which == 'a':                       # Skip prompt
-                    log_cb(_at("log_spin_detected", lang,
-                               label=_at("spin_tpl_skip", lang),
-                               conf=f"{sr.score:.0%}, {sr.source}", secs=_el))
-                    announce(_at("log_spin_skip", lang))
-                    press('enter', post_wait=0.0)      # fast-forward → collect prompt
-                    if stop(): break
-                    # No _wait_gone(skip) here: the next wait is for the COLLECT
-                    # prompt, not skip, so a lingering "Skip" can't cause a re-press.
-                    # The collect prompt is often already up under the fading skip
-                    # prompt, so waiting for skip to vanish first is pure dead time —
-                    # go straight to detecting collect (caught the instant it shows).
-                    if not _wait_stage(COLLECT_KEY, collect_tpl,
-                                       _at("log_spin_wait_collect", lang),
-                                       _at("spin_tpl_collect", lang)):
-                        break
-                else:                                  # 'b' = collect already up
-                    log_cb(_at("log_spin_detected", lang,
-                               label=_at("spin_tpl_collect", lang),
-                               conf=f"{sr.score:.0%}, {sr.source}", secs=_el))
-            else:
-                if not _wait_stage(COLLECT_KEY, collect_tpl,
-                                   _at("log_spin_wait_collect", lang),
-                                   _at("spin_tpl_collect", lang)):
-                    break
-            if is_last:
+            _el = f"{time.time() - _t0:.1f}"
+            if which == 'skip':
+                skip_deadline = 0.0                    # don't fast-forward again this spin
+                log_cb(_at("log_spin_detected", lang,
+                           label=_at("spin_tpl_skip", lang),
+                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                announce(_at("log_spin_skip", lang))
+                press('enter', post_wait=0.0)          # fast-forward reveal
+                continue
+            if which == 'final':
+                # Account out of spins. ran_out only when EARLIER than the target
+                # (is_last already ends the run on its own).
+                ran_out = not is_last
+                log_cb(_at("log_spin_detected", lang,
+                           label=_at("spin_tpl_collect_final", lang),
+                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                announce(_at("log_spin_end_enter", lang))
+                press('enter', post_wait=0.0)          # collect + leave (no restart)
+            elif is_last:                              # normal prompt on counted-last
+                log_cb(_at("log_spin_detected", lang,
+                           label=_at("spin_tpl_collect", lang),
+                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
                 announce(_at("log_spin_end_esc", lang))
                 press('escape', post_wait=0.0)         # collect all 3 + exit to menu
-            else:
+            else:                                      # normal prompt, more to go
+                log_cb(_at("log_spin_detected", lang,
+                           label=_at("spin_tpl_collect", lang),
+                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
                 announce(_at("log_spin_collect", lang))
-                press('enter', post_wait=0.0)          # collect-clear gated below
+                press('enter', post_wait=0.0)
+            collected = True
+            break
+        if not collected:
+            break                                      # stopped
         if stop(): break
 
-        # ── 2. Resolve duplicates — duplicate-or-collect-clear merged wait ──
-        # After collect, 0–3 duplicate menus appear in sequence (one per
-        # duplicate car). The just-pressed collect prompt LINGERS on screen
-        # during the ~5s collecting animation, and a duplicate menu can pop up
-        # WHILE it's still showing. So we no longer blind-wait for the collect
-        # prompt to clear before looking for duplicates (that delayed catching a
-        # mid-animation duplicate by ~2s — the reported lag). Each wait now
-        # watches for the duplicate menu AND the collect-clear at once; dup wins
-        # ties, so a duplicate that appears during the animation is caught the
-        # instant it shows.
+        # ── 2. Duplicate phase (ONLY after collect/final was pressed) ──────
+        # 0–3 duplicate menus appear in sequence after collecting (one per
+        # duplicate car). Watch for the duplicate menu for DUP_WINDOW_S; each
+        # duplicate handled REFRESHES the window, so a chain of dups keeps it
+        # open, and the window elapsing with no (further) duplicate means none
+        # are left. Bounded — it can't hang the spin (the old indefinite dup/
+        # next/menu wait DID hang, on a screen where nothing matched).
         #
-        # The lingering SAME-spin collect prompt must not be mistaken for the
-        # NEXT spin (which would short-circuit the loop and skip every duplicate).
-        # So a collect/skip prompt is only treated as 'next' once the lingering
-        # prompt has gone absent at least once (`collect_cleared`); until then its
-        # absence is the 'cleared' signal, not 'next'.
-        #
-        # Duplicate handling itself is detect-after-settle: handle a duplicate,
-        # then the confirming key's post-wait (0.5s, > the ~0.23s the menu takes
-        # to advance) settles before the next check, so the menu has MOVED ON and
-        # the one just handled can't be re-counted. (NOT rising-edge: the "Car
-        # Already Owned" header stays detected continuously from one duplicate
-        # into the next, so edge-counting would never see dup #2.)
-        collect_cleared = False
+        # Detect-after-settle: handle a duplicate, then the confirming key's
+        # post-wait (> the ~0.23s the menu takes to advance) settles before the
+        # next poll, so the menu has MOVED ON and the one just handled can't be
+        # re-counted (the "Car Already Owned" header lingers continuously across
+        # dups, so rising-edge counting would never see dup #2). The just-pressed
+        # collect prompt also lingers, but we watch ONLY the duplicate menu here,
+        # so it's simply ignored.
+        announce(_at("log_spin_wait_dup", lang))
         chain = 0
-        while not stop():
-            announce(_at("log_spin_wait_dup", lang))
-            _t_dup = time.time()
-            # Last spin ended with Esc → no next spin; the "done" signal is the
-            # My Horizon menu (wheel tile) reappearing — the lingering collect
-            # prompt can't false-match the tile, so the last-spin wait needs no
-            # collect-clear gate. Otherwise gate on collect_cleared.
-            if is_last:
-                which, r = _wait_dup_or_menu()
-            else:
-                which, r = _wait_dup_or_next(collect_cleared)
-            _el = f"{time.time() - _t_dup:.1f}"
-            if which == 'cleared':
-                # The lingering same-spin collect prompt vanished with no
-                # duplicate — a collect/skip prompt now genuinely means the next
-                # spin. This wait IS the collecting animation; its elapsed time
-                # exposes any post-collect lag.
-                collect_cleared = True
-                log_cb(_at("log_spin_collect_cleared", lang, secs=_el))
-                continue
-            if which != 'dup':
-                # 'next'  = next spin's skip/collect prompt (top-of-loop presses it)
-                # 'menu'  = back on the My Horizon menu (last spin done)
-                # None    = stopped
-                if which == 'next':
-                    log_cb(_at("log_spin_no_dup", lang, secs=_el))
-                elif which == 'menu':
-                    log_cb(_at("log_spin_back_menu", lang, secs=_el))
+        _t_dup = time.time()
+        dup_deadline = _t_dup + DUP_WINDOW_S
+        while not stop() and chain < MAX_DUP_CHAIN:
+            if time.time() >= dup_deadline:           # window elapsed → none left
+                log_cb(_at("log_spin_no_dup", lang,
+                           secs=f"{time.time() - _t_dup:.1f}"))
                 break
+            try:
+                frame = io.grab()
+                dr = detector.detect(frame, TEMPLATE_KEY, dup_tpl,
+                                     _thr(TEMPLATE_KEY), stable=False)
+            except Exception:
+                dr = None
+            if dr is None or not dr.matched:
+                time.sleep(_DETECT_IV)
+                continue
             log_cb(_at("log_spin_detected", lang,
                        label=_at("spin_tpl_duplicate", lang),
-                       conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                       conf=f"{dr.score:.0%}, {dr.source}",
+                       secs=f"{time.time() - _t_dup:.1f}"))
             chain += 1
-            if dup_mode == "sell":
-                # Sell = 3rd option: Down ×2 → Enter. The Enter's post-key wait
-                # is the settle that lets the menu advance before the next check.
+            # In sell mode (with keep_fe on), route Forza Edition cars (name ends
+            # in "FE") to Add to garage instead of selling. Errs toward KEEP: only
+            # a confident non-FE name sells (no name read → keep). Same `frame` the
+            # dup was detected on — no extra grab.
+            fe_keep = False
+            nm = ""
+            if dup_mode == "sell" and keep_fe:
+                verdict, nm = detector.duplicate_is_fe(frame)
+                fe_keep = verdict is not False     # True/None → keep
+            if dup_mode != "sell" or fe_keep:
+                # Garage = top option: Enter (+ its post-key settle).
+                if fe_keep:
+                    announce(_at("log_spin_dup_keep_fe", lang, n=chain,
+                                 name=(nm or "FE")))
+                else:
+                    announce(_at("log_spin_dup_garage", lang, n=chain))
+                press('enter')
+            else:
+                # Sell = 3rd option: Down ×2 → Enter (Enter's post-wait settles).
                 announce(_at("log_spin_dup_sell", lang, n=chain))
                 press('down')
                 if stop(): break
                 press('down')
                 if stop(): break
                 press('enter')
-            else:
-                # Garage = top option: Enter (+ its post-key settle).
-                announce(_at("log_spin_dup_garage", lang, n=chain))
-                press('enter')
-            if stop(): break
-            if chain >= MAX_DUP_CHAIN:
-                break
+            dup_deadline = time.time() + DUP_WINDOW_S  # refresh window after handling
         if stop(): break
 
-        # ── 3. Count limit ────────────────────────────────────
-        # is_last already drove the Esc-collect + return-to-menu above, so we
-        # end here on the My Horizon menu (the chaining hand-off point).
+        # ── 3. End / next spin ────────────────────────────────
+        # ran_out / is_last collected + left above; otherwise the next spin auto-
+        # starts and the top-of-loop collect-wait picks it up.
+        if ran_out:
+            log_cb(_at("log_spin_ran_out", lang, n=loop_count))
+            break
         if is_last:
             log_cb(_at("log_spin_limit_reached", lang, n=max_loops))
             break

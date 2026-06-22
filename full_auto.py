@@ -26,7 +26,7 @@ import time
 import threading
 
 import config
-from config import (get_full_auto_templates, get_full_auto_grid_file,
+from config import (get_full_auto_templates,
                     resolve_template_lang, REFERENCE_RES)
 from app_lang import t as _at
 from capture import (load_template, force_english_ime,
@@ -86,6 +86,20 @@ def _make_quiet_log(real_log, lang):
 # Buy / master / sell count: 999 max mastery points ÷ 30 per Subaru 22B = 33.
 CAR_COUNT = 33
 
+# Hard-coded mastery unlock paths for Full Auto's PRE-DETERMINED grind cars (the
+# cars never change, so there's no reason to make the user capture these). Each
+# is an ordered list of 4x4 mastery-tree cells (row, col) walked top-down with
+# WASD+Enter. They share the first five cells and differ only in the final node:
+#   22B-STi      → (0,0) = the Super Wheelspin node     (Wheelspin grind)
+#   Viper GTS ACR→ (0,2) = the 150,000-credit node      (Money grind)
+_GRID_22B    = [(3, 0), (3, 1), (2, 1), (1, 1), (0, 1), (0, 0)]
+_GRID_GTSACR = [(3, 0), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2)]
+
+# Money grind (Dodge Viper GTS ACR) buy nav tuning — the one-notch scroll after
+# selecting Dodge, and the settle before clicking the GTS ACR tile.
+_MONEY_SCROLL_PAUSE  = 0.12
+_MONEY_TARGET_SETTLE = 2.0
+
 # Mastery positioning nav (chained-only): per-step detection window before
 # aborting, and a settle pause before each click/key so it doesn't land
 # mid-transition (mirrors race.py's nav). The fast-travel-home load can be slow,
@@ -141,6 +155,115 @@ def _grid_moves_for_count(n: int):
     return idx // _GARAGE_ROWS, idx % _GARAGE_ROWS
 
 
+def _money_target_nav(io, detector, press, wait, log_cb, stop, post_kw):
+    """buy.run `target_nav` for MONEY grind. Runs AFTER the shared menu nav +
+    Backspace lands on the brand list:
+      • OCR-locate the Dodge brand text → click it (brand order varies).
+      • Scroll down ONE notch → the black 'Viper GTS ACR' (Legendary) comes into
+        view (the cursor lands on the Dart HEMI a row above).
+      • Detect + click the black GTS ACR tile (FA-folder template; visually
+        distinct from the yellow FE beside it) → opens its detail view.
+    Leaves the GTS ACR focused so buy.run's macro buys it. Returns True/False.
+    The Dodge/GTS-ACR specifics live HERE (full_auto), never in shared buy.py."""
+    import detector as _det_mod
+    fresh    = config.load()
+    lang     = fresh.get("lang", "en")
+    tpl_lang = resolve_template_lang(fresh)
+    fa_folder = get_full_auto_templates(REFERENCE_RES, tpl_lang)
+
+    def _thr(key):
+        return fresh.get(f"thresh_{key}", 0.60)
+
+    # Dodge brand: OCR-locate the "Dodge" text + click (robust when the brand list
+    # order varies), falling back to a pixel match of the Dodge tile if OCR can't
+    # place it — same belt-and-braces pattern as Buy's Subaru step. The OCR hint
+    # is injected at runtime so the brand string stays out of detector.py's source.
+    _det_mod.OCR_HINTS.setdefault("dodge", ("dodge",))
+    try:
+        dodge_img, _ds, dmeta = load_template(
+            fa_folder, "dodge", io.width, io.height, grayscale=True,
+            ref_folder=fa_folder,
+            prefer_ref=fresh.get("template_prefer_reference", True))
+    except FileNotFoundError:
+        log_cb(_at("log_fa_money_tpl_missing", lang))
+        return False
+    if dmeta.get("roi"):                       # user-drawn ROI only; NO geometry —
+        detector.set_template_roi("dodge", dmeta["roi"],  # the brand position
+                                  dmeta.get("screen_width", 0),  # varies, so the
+                                  dmeta.get("screen_height", 0))  # match must roam
+    dodge = detector.locate_text(io.grab(), "dodge")
+    if dodge is None:                          # OCR couldn't place it → pixel match
+        end = time.time() + _NAV_STEP_WINDOW
+        while time.time() < end and not stop():
+            try:
+                r = detector.detect(io.grab(), "dodge", dodge_img,
+                                    _thr("dodge"), stable=False)
+                if r.matched:
+                    dodge = r
+                    break
+            except Exception:
+                pass
+            time.sleep(0.15)
+    if dodge is None:
+        if not stop():
+            log_cb(_at("log_fa_money_brand_fail", lang))
+        return False
+    log_cb(_at("log_fa_money_brand", lang, conf=f"{dodge.score:.0%}, {dodge.source}"))
+    wait(_NAV_SETTLE)
+    if stop():
+        return False
+    io.click(dodge.location[0], dodge.location[1], post_kw)
+    wait(_NAV_SETTLE)
+    if stop():
+        return False
+    # One-notch scroll → reveal the black GTS ACR row.
+    io.scroll(-1, post_wait=_MONEY_SCROLL_PAUSE)
+    wait(_MONEY_TARGET_SETTLE)
+    if stop():
+        return False
+    # Load + detect the black GTS ACR tile (FA folder). Missing template →
+    # graceful abort (user hasn't captured it yet).
+    try:
+        img, scale, meta = load_template(
+            fa_folder, "gts_acr", io.width, io.height, grayscale=True,
+            ref_folder=fa_folder,
+            prefer_ref=fresh.get("template_prefer_reference", True))
+    except FileNotFoundError:
+        log_cb(_at("log_fa_money_tpl_missing", lang))
+        return False
+    box = meta.get("box")
+    if box:
+        detector.set_template_geometry(
+            "gts_acr", box, meta.get("screen_width", io.width),
+            meta.get("screen_height", io.height))
+    if meta.get("roi"):
+        detector.set_template_roi("gts_acr", meta["roi"],
+                                  meta.get("screen_width", 0),
+                                  meta.get("screen_height", 0))
+    end = time.time() + _NAV_STEP_WINDOW
+    hit = None
+    while time.time() < end and not stop():
+        try:
+            r = detector.detect(io.grab(), "gts_acr", img, _thr("gts_acr"),
+                                stable=False)
+            if r.matched:
+                hit = r
+                break
+        except Exception:
+            pass
+        time.sleep(0.15)
+    if hit is None:
+        if not stop():
+            log_cb(_at("log_fa_money_car_fail", lang))
+        return False
+    log_cb(_at("log_fa_money_car", lang, conf=f"{hit.score:.0%}, {hit.source}"))
+    wait(_NAV_SETTLE)
+    if stop():
+        return False
+    io.click(hit.location[0], hit.location[1], post_kw)   # → GTS ACR detail view
+    return True
+
+
 def _navigate_to_mastery_start(cfg: dict, stop_event: threading.Event,
                                log_cb, status_cb) -> bool:
     """Chained-only mastery positioning prelude. From the main menu (where Buy
@@ -183,7 +306,9 @@ def _navigate_to_mastery_start(cfg: dict, stop_event: threading.Event,
                 key, box, meta.get("screen_width", cw),
                 meta.get("screen_height", ch))
         if meta.get("roi"):                       # user-drawn ROI overrides
-            detector.set_template_roi(key, meta["roi"])
+            detector.set_template_roi(key, meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
         return img
 
     # Full Auto keeps its OWN copy of every template it uses (incl.
@@ -347,6 +472,13 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
     tpl_lang = resolve_template_lang(fresh)
     # Shared menu cursor-tap delay (same setting as mastery/delete).
     tap_wait = max(0.1, min(0.5, float(fresh.get("menu_tap_wait", 0.25))))
+    # Force OCR confirmation for grind_brand too — it's a small text button that
+    # sits alone on the (varying) manufacturer menu, so it can't be recaptured
+    # bigger and pixel-matches weakly at low res (Ally X). Added here (private)
+    # so the FA-only key never enters detector.py's shared default.
+    fresh["detector_force_ocr_keys"] = sorted(
+        set(fresh.get("detector_force_ocr_keys",
+                      ["subaru", "wheelspin_collect_final"])) | {"grind_brand"})
 
     def stop():
         return stop_event.is_set()
@@ -372,16 +504,22 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
                 key, box, meta.get("screen_width", cw),
                 meta.get("screen_height", ch))
         if meta.get("roi"):                       # user-drawn ROI overrides
-            detector.set_template_roi(key, meta["roi"])
+            detector.set_template_roi(key, meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
         return img
 
     tpls = {}
     try:
-        # grind_brand/grind_car re-select the grind car; recently_added + cars_tab
-        # are reused from the positioning-nav set; my_cars/my_cars_header/anna are
-        # sell-only. grind_* skip geometry (large ROI — they move).
+        # grind_brand/grind_car re-select the grind car (always the 22B-STi — the
+        # race car never changes, even in money grind; only the BUY target does).
+        # recently_added is reused from the positioning-nav set; my_cars/
+        # my_cars_header/cars_tab_sell/anna are sell-only (cars_tab_sell = the CARS
+        # tab ACTIVE, unlike the mastery nav's inactive cars_tab). grind_* skip
+        # geometry (large ROI — they move). The block sold is the N newest cars
+        # (the just-bought 22Bs OR GTS ACRs) — positional, so no per-grind fork.
         for key in ("grind_brand", "grind_car", "select_action", "my_cars",
-                    "my_cars_header", "recently_added", "cars_tab", "anna"):
+                    "my_cars_header", "recently_added", "cars_tab_sell", "anna"):
             tpls[key] = _load(fa_folder, key, ref_folder, prefer_ref,
                               set_geom=(key not in _SELL_NO_GEOM))
     except FileNotFoundError:
@@ -466,7 +604,18 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
         io.press("backspace", post_wait=_NAV_SETTLE)     # Jump to Manufacturer
         if stop():
             return False
-        if not _click("grind_brand", _NAV_STEP_WINDOW, _at("fa_tpl_grind_brand", lang)):
+        # Click the grind-car BRAND. Same issue as Buy's Subaru step: the
+        # manufacturer list order varies, so a pixel match can peak on the wrong
+        # tile while a region OCR-confirm still passes. Locate the brand TEXT via
+        # OCR and click its box; fall back to the pixel nav-click if OCR can't.
+        gb = detector.locate_text(io.grab(), "grind_brand")
+        if gb is not None:
+            log_cb(_at("log_fa_mastery_nav_detected", lang,
+                       label=_at("fa_tpl_grind_brand", lang),
+                       conf=f"{gb.score:.0%}, ocr", secs="0.0"))
+            _wait(_NAV_SETTLE)
+            io.click(gb.location[0], gb.location[1], _NAV_SETTLE)
+        elif not _click("grind_brand", _NAV_STEP_WINDOW, _at("fa_tpl_grind_brand", lang)):
             return False
         # Clicking the car tile opens a "Select An Action" menu (Get In Car is
         # the default-highlighted option). Gate the Enter on that menu actually
@@ -566,11 +715,17 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
         io.press("esc", post_wait=_NAV_SETTLE)                 # My Cars → home
         if stop():
             return False
-        if _detect("cars_tab", _NAV_STEP_WINDOW) is None:
+        if _detect("cars_tab_sell", _NAV_STEP_WINDOW) is None:
             if not stop():
                 log_cb(_at("log_fa_sell_fail", lang,
-                           label=_at("fa_tpl_cars_tab", lang),
+                           label=_at("fa_tpl_cars_tab_sell", lang),
                            secs=f"{_NAV_STEP_WINDOW:.0f}"))
+            return False
+        # cars_tab_sell can match the instant the home menu transitions in, when
+        # it isn't input-ready yet — an immediate ESC gets dropped (stuck here).
+        # Settle before the ESC (the _click helper does the same before acting).
+        _wait(_NAV_SETTLE)
+        if stop():
             return False
         io.press("esc", post_wait=_NAV_SETTLE)                 # home → open world
         if stop():
@@ -589,6 +744,153 @@ def _sell_sequence(cfg: dict, stop_event: threading.Event,
         io.cleanup()
 
 
+_POINTS_PER_CAR = 30        # one 22B full mastery unlock costs 30 tech points
+_POINTS_MAX = 999           # game cap → floor(999/30) = 33 = CAR_COUNT
+
+
+def _read_tech_points(cfg: dict, stop_event: threading.Event,
+                      log_cb, status_cb):
+    """Auto-count read (chained-only). From the main menu (where race leaves us):
+    click the 車輛 top-nav tab → OCR the 'XXX點可用的技術點數' number → click 劇情
+    back. Returns the points int (0–999), or None on any failure (caller aborts —
+    a wrong number would mis-size the buy/unlock/sell run). Two reads must agree
+    (else the lower is taken) so a single garbled OCR can't drive the count."""
+    import re
+    fresh = config.load()
+    lang  = fresh.get("lang", "en")
+    tpl_lang = resolve_template_lang(fresh)
+    # tech_points is small CJK text → force OCR (FA-only; never enters the shared
+    # detector default). read_text() OCRs ungated + upscaled regardless, but the
+    # forced key also lets detect()-based confirmation use OCR if we ever need it.
+    fresh["detector_force_ocr_keys"] = sorted(
+        set(fresh.get("detector_force_ocr_keys",
+                      ["subaru", "wheelspin_collect_final"])) | {"tech_points"})
+
+    def stop():
+        return stop_event.is_set()
+
+    def _thr(key):
+        return fresh.get(f"thresh_{key}", 0.60)
+
+    io = GameIO(fresh, log_cb)
+    cw, ch = io.width, io.height
+    detector = ScreenDetector(fresh)
+    fa_folder = get_full_auto_templates(REFERENCE_RES, tpl_lang)
+    prefer_ref = fresh.get("template_prefer_reference", True)
+
+    def _load(key):
+        img, scale, meta = load_template(fa_folder, key, cw, ch, grayscale=True,
+                                         ref_folder=fa_folder, prefer_ref=prefer_ref)
+        box = meta.get("box")
+        if box:
+            detector.set_template_geometry(
+                key, box, meta.get("screen_width", cw), meta.get("screen_height", ch))
+        if meta.get("roi"):
+            detector.set_template_roi(key, meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
+        return img
+
+    try:
+        tpls = {k: _load(k) for k in ("cars_top_tab", "story_top_tab", "tech_points")}
+    except FileNotFoundError:
+        log_cb(_at("log_fa_points_nav_skip", lang))
+        io.cleanup()
+        return None
+
+    if not io.bg and fresh.get("auto_english_ime", True):
+        force_english_ime()
+        time.sleep(0.2)
+    io.mute(fresh)
+    io.start_keepalive(stop, fresh)
+
+    def _wait(secs):
+        end = time.time() + secs
+        while time.time() < end:
+            if stop():
+                return
+            time.sleep(0.1)
+
+    def _detect(key, window_s):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None
+            try:
+                r = detector.detect(io.grab(), key, tpls[key], _thr(key),
+                                    stable=False)
+                if r.matched:
+                    return r
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return None
+
+    def _read_number():
+        try:
+            text = detector.read_text(io.grab(), "tech_points", tpls["tech_points"])
+        except Exception:
+            text = ""
+        m = re.search(r"\d{1,3}", text or "")
+        if not m:
+            return None
+        v = int(m.group())
+        return v if 0 <= v <= _POINTS_MAX else None
+
+    try:
+        log_cb(_at("log_fa_points_begin", lang))
+        status_cb(_at("log_fa_points_begin", lang))
+        # IN: click the 車輛 tab, then read a valid number (a valid read is itself
+        # the confirmation we landed on the CARS tab). Retry the click+read a few
+        # times before giving up.
+        points = None
+        for attempt in range(3):
+            if stop():
+                return None
+            r = _detect("cars_top_tab", _NAV_STEP_WINDOW)
+            if r is None:
+                if not stop():
+                    log_cb(_at("log_fa_points_tab_fail", lang))
+                return None
+            _wait(_NAV_SETTLE)
+            # Posted click (re-posted on retries — stays background, no real
+            # cursor movement). If it's dropped, the click+read simply retries.
+            io.click(r.location[0], r.location[1], _NAV_SETTLE)
+            _wait(_NAV_SETTLE)
+            a = _read_number()
+            _wait(0.2)
+            b = _read_number()
+            if a is not None and a == b:
+                points = a
+                break
+            vals = [v for v in (a, b) if v is not None]
+            if len(vals) == 2:                 # disagree → conservative lower
+                points = min(vals)
+                break
+            # else: nothing read → re-click the tab and retry
+        if points is None:
+            log_cb(_at("log_fa_points_read_fail", lang))
+            return None
+        log_cb(_at("log_fa_points_read", lang, p=points))
+        # OUT: click 劇情 back; confirm we left the CARS tab (number no longer
+        # reads). Re-click once if it didn't take. Best-effort — buy's own nav
+        # re-confirms the main menu, so a soft failure here just defers to that.
+        for attempt in range(2):
+            if stop():
+                break
+            rb = _detect("story_top_tab", _NAV_STEP_WINDOW)
+            if rb is None:
+                break
+            _wait(_NAV_SETTLE)
+            io.click(rb.location[0], rb.location[1], _NAV_SETTLE)
+            _wait(_NAV_SETTLE)
+            if _read_number() is None:          # tech-points gone → off the tab
+                break
+        return points
+    finally:
+        io.cleanup()
+
+
 # Ordered linear chain steps. The branch (wheelspin/racing) runs after these
 # each cycle. start_from selects which of these the FIRST cycle begins at.
 STEP_ORDER = ["race", "buy", "mastery", "sell"]
@@ -597,18 +899,26 @@ STEP_ORDER = ["race", "buy", "mastery", "sell"]
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, race_count: int = 0,
         car_count: int = CAR_COUNT, branch_mode: str = "racing",
-        start_from: str = "race", section_cb=None):
+        start_from: str = "race", grind_type: str = "wheelspin",
+        section_cb=None):
     """
     Full Auto loop.
     race_count: AFK races per cycle (user-defined). 0 = unlimited, which would
                 never advance the cycle — the UI nudges a positive value.
-    car_count:  how many cars to buy / unlock mastery on / sell per cycle
-                (default CAR_COUNT = 33).
-    branch_mode: "racing" (no wheelspin) | "wheelspin" (spin each cycle). The
-                wheelspin step does car_count spins (1 car unlocked = 1 spin).
-    start_from: which step the FIRST cycle begins at — a STEP_ORDER step, or
-                "spin" (wheelspin branch only) to begin at the spin step. Cycle
-                2+ always runs the full loop from racing.
+    car_count:  initial fallback only — the real per-cycle count is read from the
+                tech points just before each buy (floor(points / 30)). Auto is the
+                only mode now (the fixed/manual count was removed).
+    branch_mode: "racing" (no wheelspin) | "wheelspin" (spin each cycle). Only
+                applies to WHEELSPIN-grind cycles (money grind never spins).
+    grind_type: what each cycle farms — "wheelspin" (Subaru 22B → wheelspin node)
+                | "money" (Dodge Viper GTS ACR → 150k-credit node, no spin) |
+                "mixed" (alternate per cycle, starting money → wheelspin → …).
+                The per-cycle type drives which car the buy/mastery/sell steps
+                target and whether the wheelspin branch runs.
+    start_from: which step the FIRST cycle begins at — "race" or "buy" (the only
+                auto-count-compatible starts; both flow through buy where the
+                count is read). Anything else is clamped to "race". Cycle 2+
+                always runs the full loop from racing.
     """
     section = section_cb or log_cb
     lang    = cfg.get("lang", "en")
@@ -618,11 +928,31 @@ def run(cfg: dict, stop_event: threading.Event,
     quiet_log = _make_quiet_log(log_cb, lang)
     if car_count <= 0:
         car_count = CAR_COUNT
-    # "spin" start is only meaningful in wheelspin mode; otherwise fall back to
-    # race so cycle 1 isn't an empty no-op.
-    if start_from == "spin" and branch_mode != "wheelspin":
+    # Car count is AUTO (the only mode — the fixed/manual count was removed; auto
+    # proved stable): just before the BUY step each cycle, read the available tech
+    # points and process floor(points / 30) cars. Only race/buy starts make sense
+    # — both flow through buy, where the count is read (race earns the points
+    # first; buy uses points already banked). Anything else → start at race.
+    if start_from not in ("race", "buy"):
         start_from = "race"
-    start_idx = STEP_ORDER.index(start_from) if start_from in STEP_ORDER else 0
+    start_idx = STEP_ORDER.index(start_from)
+    # Grind type drives which car each cycle buys/unlocks/sells and whether it
+    # spins. "mixed" alternates per cycle, STARTING with money (cycle 1 = money,
+    # 2 = wheelspin, …). `current_grind` is set at each cycle's top; the buy/
+    # mastery/sell step closures read it.
+    if grind_type not in ("wheelspin", "money", "mixed"):
+        grind_type = "wheelspin"
+
+    def _cycle_grind(cyc: int) -> str:
+        if grind_type == "mixed":
+            return "money" if cyc % 2 == 1 else "wheelspin"
+        return grind_type
+
+    current_grind = "wheelspin"
+    # Reloop guard for auto mode: P at the last "too few points, raced again"
+    # cycle. If a re-race doesn't grow points, racing isn't earning → abort
+    # instead of looping forever. Reset whenever we actually spend points.
+    last_reloop_p = None
 
     def stop():
         return stop_event.is_set()
@@ -633,18 +963,26 @@ def run(cfg: dict, stop_event: threading.Event,
     # cycle). race/buy/sell don't yet report failure, so they return True;
     # mastery reports a failed positioning nav.
     def _step_race():
+        # require_nav: in the chain, race MUST start by navigating from the main
+        # menu (no start_menu shortcut / wait-anywhere fallback). A False return
+        # means it couldn't start there → abort the run rather than desync.
         status_cb(_at("log_fa_step_race", lang))
         log_cb(_at("log_fa_step_race", lang))
-        _race.run(cfg, stop_event, quiet_log, status_cb,
-                  max_loops=race_count, section_cb=section_cb)
-        return True
+        return bool(_race.run(cfg, stop_event, quiet_log, status_cb,
+                              max_loops=race_count, section_cb=section_cb,
+                              require_nav=True))
 
     def _step_buy():
+        # require_nav: in the chain, buy MUST start by navigating from the main
+        # menu (no "assume pre-positioned, macro-only" fallback).
         status_cb(_at("log_fa_step_buy", lang))
         log_cb(_at("log_fa_step_buy", lang, n=car_count))
-        _buy.run(cfg, stop_event, quiet_log, status_cb,
-                 max_loops=car_count, section_cb=section_cb)
-        return True
+        # Money grind buys the Dodge GTS ACR via the custom target nav; wheelspin
+        # grind uses buy.py's built-in Subaru→22B path (target_nav=None).
+        tnav = _money_target_nav if current_grind == "money" else None
+        return bool(_buy.run(cfg, stop_event, quiet_log, status_cb,
+                             max_loops=car_count, section_cb=section_cb,
+                             require_nav=True, target_nav=tnav))
 
     def _step_mastery():
         # Navigate main menu → My Cars → newest car, then run the per-car loop.
@@ -656,16 +994,17 @@ def run(cfg: dict, stop_event: threading.Event,
             return False
         if stop():
             return True   # stopped mid-nav — the outer loop handles it
-        # Full Auto uses its OWN mastery-tree grid spec (the 22B tree).
+        # Hard-coded unlock path for the pre-determined grind car (no capture/UI):
+        # the GTS ACR tree (money, 150k-credit node) or the 22B tree (wheelspin).
         # end_at_mycars: the final car stops in My Cars (no step-11 sort) so the
         # sell step can ride the non-target car first.
-        grid_file = get_full_auto_grid_file(resolve_template_lang(cfg))
+        order = _GRID_GTSACR if current_grind == "money" else _GRID_22B
         # start_loop=1: the positioning nav lands on the newest car (top-left,
         # row 1), so force row 1 — the standalone mastery_start_loop must not
         # leak in (it would offset the snake and fire the column D one car early).
         _mastery.run(cfg, stop_event, quiet_log, status_cb,
                      max_cars=car_count, section_cb=section_cb,
-                     grid_file=grid_file, end_at_mycars=True, start_loop=1)
+                     grid_order=order, end_at_mycars=True, start_loop=1)
         return True
 
     def _step_sell():
@@ -727,6 +1066,10 @@ def run(cfg: dict, stop_event: threading.Event,
         while not stop() and not aborted:
             cycle += 1
             section(_at("log_fa_cycle", lang, n=cycle))
+            # Pick this cycle's grind (mixed alternates); steps read current_grind.
+            current_grind = _cycle_grind(cycle)
+            log_cb(_at("log_fa_grind_cycle", lang,
+                       grind=_at("full_auto_grind_" + current_grind, lang)))
 
             # Cycle 1 begins at the chosen start step; later cycles run the full
             # loop. start_from="spin" skips all linear steps so cycle 1 is the
@@ -735,9 +1078,34 @@ def run(cfg: dict, stop_event: threading.Event,
                 begin = len(STEP_ORDER)
             else:
                 begin = start_idx if cycle == 1 else 0
+            skip_cycle = False
             for step_key in STEP_ORDER[begin:]:
                 if stop():
                     break
+                # Auto-count: size this cycle from the tech points right BEFORE
+                # buy — works whether we raced first (race precedes buy) or
+                # started at buy with points already banked. Reads from / returns
+                # to the main menu, where buy then begins.
+                if step_key == "buy":
+                    pts = _read_tech_points(cfg, stop_event, quiet_log, status_cb)
+                    if stop():
+                        break
+                    if pts is None:           # OCR/nav failed — don't guess a count
+                        aborted = True
+                        break
+                    n = max(0, min(CAR_COUNT, pts // _POINTS_PER_CAR))
+                    if n == 0:                # < 30 pts: race again (with a guard)
+                        if last_reloop_p is not None and pts <= last_reloop_p:
+                            log_cb(_at("log_fa_points_no_progress", lang))
+                            aborted = True
+                            break
+                        last_reloop_p = pts
+                        log_cb(_at("log_fa_points_too_few", lang, p=pts))
+                        skip_cycle = True
+                        break
+                    last_reloop_p = None      # we'll spend points this cycle
+                    car_count = n
+                    log_cb(_at("log_fa_points_count", lang, p=pts, n=n))
                 ok = _steps[step_key]()
                 if stop():
                     break
@@ -748,13 +1116,17 @@ def run(cfg: dict, stop_event: threading.Event,
                     break
             if stop() or aborted:
                 break
+            if skip_cycle:
+                continue                      # back to the top → race again
 
-            # Branch: wheelspin each cycle (car_count spins), or back to racing.
-            if branch_mode == "wheelspin":
+            # Branch: spin only on WHEELSPIN-grind cycles with the wheelspin
+            # branch chosen. Money-grind cycles never spin (credits come from the
+            # mastery node) — they loop straight back to racing.
+            if current_grind == "wheelspin" and branch_mode == "wheelspin":
                 _step_spin()
                 if stop():
                     break
-            # else "racing": fall through and loop back to the top.
+            # else: fall through and loop back to the top.
     finally:
         # Release the session mute (and the hold) no matter how we exit.
         if mute_on:

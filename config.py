@@ -8,8 +8,8 @@ import sys
 import json
 import ctypes
 
-# ── Base path (works both frozen exe and dev) ────────────────
-if getattr(sys, 'frozen', False):
+# ── Base path (works both frozen exe and dev; PyInstaller→sys.frozen, Nuitka→__compiled__) ──
+if getattr(sys, 'frozen', False) or "__compiled__" in globals():
     BASE_DIR = os.path.dirname(sys.executable)
 else:
     # Flat structure — config.py sits alongside forza_app.py
@@ -120,11 +120,8 @@ def get_mastery_grid_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     return os.path.join(d, "mastery_grid.json")
 
 
-def get_full_auto_grid_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
-    """Full Auto's own mastery-tree unlock path spec (for the 22B tree)."""
-    d = os.path.join(_lang_dir(lang), "full_auto")
-    os.makedirs(d, exist_ok=True)
-    return os.path.join(d, "mastery_grid.json")
+# Full Auto's mastery unlock paths are HARD-CODED in full_auto.py (its grind cars
+# are fixed), so there's no per-car grid-file helper here anymore.
 
 
 def get_examples_dir(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
@@ -183,6 +180,14 @@ def _get_primary_monitor_index() -> int:
     except Exception:
         pass
     return 1
+
+
+# Config migration version. Bump when a DEFAULT value changes and existing
+# users should pick up the new value. `_migrate()` applies each step once, and
+# only to a setting still on the OLD default (so customizations are preserved).
+# Stored in config.json as "config_schema"; deliberately NOT in DEFAULTS, so the
+# missing-key back-fill can't stamp it current before _migrate() runs.
+CONFIG_SCHEMA = 1
 
 
 DEFAULTS = {
@@ -260,13 +265,16 @@ DEFAULTS = {
     # straight back to racing, no wheelspin) | "wheelspin" (run wheelspin each
     # cycle). The buy/master/sell count is fixed (33) in full_auto.py.
     "full_auto_branch_mode":  "racing",
+    # Full Auto grind type — what the chain farms each cycle:
+    #   "wheelspin" → Subaru 22B (mastery wheelspin node); branch toggle applies.
+    #   "money"     → Dodge Viper GTS ACR (mastery 150k-credit node); no spin.
+    #   "mixed"     → alternate per cycle, starting money → wheelspin → money …
+    # (branch_mode only affects "wheelspin" grind.)
+    "full_auto_grind_type":   "wheelspin",
     # How many cars the chain buys, unlocks mastery on, and sells per cycle.
-    # Default 33 (999 max mastery pts ÷ 30 per Subaru 22B); user-adjustable for
-    # those who farm differently.
-    "full_auto_car_count":    33,
-    # Which step the FIRST cycle starts at — "race" (full cycle) | "buy" |
-    # "mastery" | "sell" — for users who already have points/cars lined up.
-    # Cycle 2 onward always runs the full loop from racing.
+    # Which step the FIRST cycle starts at — "race" (full cycle) | "buy" (use
+    # points already banked). Both flow through buy, where the per-cycle count is
+    # read from tech points. Cycle 2 onward always runs the full loop from racing.
     "full_auto_start_from":   "race",
     # Full Auto chain-only navigation templates (grouped by category in the
     # Setup panel). Currently the mastery positioning nav: main menu → My
@@ -294,9 +302,12 @@ DEFAULTS = {
     # one-time garage layout, so it persists (the driving/map/credits items are
     # per-session and reset each launch).
     "fa_check_neighbor_ok":   False,
-    # Buy / Delete settings
-    "buy_post_key_wait":      0.5,
-    "delete_post_key_wait":   0.5,
+    # Buy / Delete settings. 0.75 (not 0.5) because these run keys back-to-back
+    # (Buy macro; Delete's Enter/Down×N/Enter; sell Down×2/Enter) — a 0.5s gap was
+    # marginal and an FPS dip during a consecutive run dropped a key. 0.75 adds the
+    # margin. Gated single-presses elsewhere pass their own (often 0) post-wait.
+    "buy_post_key_wait":      0.75,
+    "delete_post_key_wait":   0.75,
     # Buy menu-navigation (optional — start/end the buy run on the main menu;
     # skipped if these templates aren't captured).
     "thresh_collection_log":      0.60,
@@ -304,6 +315,10 @@ DEFAULTS = {
     "thresh_car_collection":      0.60,
     "thresh_subaru":              0.60,
     "thresh_buy_target_car":      0.60,
+    # Buy gating anchors (optional — if both captured, each purchase is confirmed
+    # by the "Buy Car" popup and a dropped key is retried; absent → blind macro).
+    "thresh_buy_confirm":         0.60,
+    "thresh_buy_detail":          0.60,
     # Auto Spin Wheel settings. dup_mode is "garage" (safe) | "sell" (sells
     # duplicates UNATTENDED — warned in the UI).
     "thresh_wheelspin_duplicate": 0.60,
@@ -313,8 +328,12 @@ DEFAULTS = {
     "thresh_wheelspin_skip":      0.60,
     "thresh_wheelspin_collect":   0.60,
     "thresh_wheelspin_collect_final": 0.60,
-    "wheelspin_post_key_wait":   0.5,
+    "wheelspin_post_key_wait":   0.75,  # see buy/delete note — used by the sell Down×2/Enter run
     "wheelspin_dup_mode":        "garage",
+    # Sell mode only: keep Forza Edition (FE) duplicate cars (name ends in "FE")
+    # by routing them to Add to Garage instead of selling. OCR-read; errs toward
+    # keep. No effect in Garage mode.
+    "wheelspin_keep_fe":         True,
     # Which wheel to spin: "super" (Super Wheelspin, 3 prizes) | "normal"
     # (Wheelspin, 1 prize). Only changes which tile template is clicked to
     # start; the rest of the flow is identical.
@@ -389,6 +408,22 @@ def load() -> dict:
         if data.get("template_lang") == "chs":
             data["template_lang"] = "auto"
             added = True
+        # Version-gated value migrations: when a DEFAULT changes between releases,
+        # update an existing user's value too — but ONLY if they're still on the
+        # OLD default (an untouched setting), so intentional customizations are
+        # kept. config_schema records the last step applied; absent = pre-schema.
+        schema = data.get("config_schema", 0)
+        if schema < 1:
+            # 1.8.x consecutive-key drop fix: the macro post-key gaps were
+            # marginal at 0.5 and an FPS dip dropped a key — raise to 0.75.
+            for _k in ("buy_post_key_wait", "delete_post_key_wait",
+                       "wheelspin_post_key_wait"):
+                if abs(float(data.get(_k, 0.75)) - 0.5) < 1e-6:
+                    data[_k] = 0.75
+                    added = True
+        if schema < CONFIG_SCHEMA:
+            data["config_schema"] = CONFIG_SCHEMA
+            added = True
         # Validate monitor index against available monitors (runtime-only;
         # doesn't itself trigger a rewrite).
         try:
@@ -402,7 +437,9 @@ def load() -> dict:
             save(data)
         return data
     # No config yet — create one from defaults so the file exists + is complete.
+    # Stamp it current so the one-time migrations don't re-touch a fresh file.
     data = dict(DEFAULTS)
+    data["config_schema"] = CONFIG_SCHEMA
     save(data)
     return data
 

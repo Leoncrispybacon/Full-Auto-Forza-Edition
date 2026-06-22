@@ -16,7 +16,7 @@ from config import (load, save, resolve_template_lang,
                     get_race_templates, get_mastery_templates,
                     get_wheelspin_templates, get_buy_templates,
                     get_full_auto_templates,
-                    get_mastery_grid_file, get_full_auto_grid_file)
+                    get_mastery_grid_file)
 from grid_widget import MasteryGridWidget, MasteryCarBlockWidget
 from log_widget import LogWidget
 from setup_panel import SetupPanel
@@ -87,6 +87,11 @@ BUY_TEMPLATE_KEYS = [
     ("car_collection",  "buy_tpl_car_collection"),
     ("subaru",          "buy_tpl_subaru"),
     ("buy_target_car",  "buy_tpl_target_car"),
+    # Purchase-confirmation gating (optional): capture BOTH to switch from the
+    # blind macro to a confirmed/retrying loop. buy_confirm = the solid "Buy Car"
+    # popup header; buy_detail = a stable car-detail-view element (price / Buy).
+    ("buy_confirm",     "buy_tpl_confirm"),
+    ("buy_detail",      "buy_tpl_detail"),
 ]
 # Mastery is keyboard-driven (no detection), so it has no template list — the
 # Setup panel shows node capture only.
@@ -103,15 +108,31 @@ FULL_AUTO_TEMPLATE_KEYS = [
         ("cars_tab",       "fa_tpl_cars_tab"),
         ("recently_added", "fa_tpl_recently_added"),
     ]),
-    # Sell reuses recently_added + cars_tab from the mastery set above; my_cars
-    # is the only sell-specific capture (re-enter the grid after riding).
+    # Sell reuses recently_added from the mastery set above. cars_tab_sell is
+    # sell-specific (the CARS tab is ACTIVE/highlighted on the sell exit, a
+    # different look than the inactive cars_tab captured in the mastery nav).
     ("fa_cat_sell", [
         ("grind_brand",     "fa_tpl_grind_brand"),
         ("grind_car",       "fa_tpl_grind_car"),
         ("select_action",   "fa_tpl_select_action"),
         ("my_cars",         "fa_tpl_my_cars"),
         ("my_cars_header",  "fa_tpl_my_cars_header"),
+        ("cars_tab_sell",   "fa_tpl_cars_tab_sell"),
         ("anna",            "fa_tpl_anna"),
+    ]),
+    # Auto-count mode: read available tech points from the MAIN-MENU CARS tab
+    # (車輛, top nav — distinct from the home-menu CARS tab in the mastery set).
+    ("fa_cat_points", [
+        ("cars_top_tab",   "fa_tpl_cars_top_tab"),
+        ("story_top_tab",  "fa_tpl_story_top_tab"),
+        ("tech_points",    "fa_tpl_tech_points"),
+    ]),
+    # Money grind (Dodge Viper GTS ACR). dodge = the brand tile in the brand list
+    # after Backspace (OCR-located primary, pixel fallback — like Subaru). gts_acr
+    # = the black car tile, captured AFTER the one-notch scroll (NOT the FE).
+    ("fa_cat_money", [
+        ("dodge",          "fa_tpl_dodge"),
+        ("gts_acr",        "fa_tpl_gts_acr"),
     ]),
 ]
 
@@ -277,6 +298,19 @@ class MainWindow(ctk.CTk):
             self._diag(f"[Updater] {msg}")   # also to the persistent file
         check_async(_on_found, on_status=_on_status)
 
+        # Refresh the Full Auto license in the background at launch: re-validates
+        # the stored key online (if any), resetting the offline-grace timer and
+        # catching a revoked/expired key. Best-effort — failures leave the cache
+        # alone so the grace window still applies offline.
+        def _license_refresh():
+            try:
+                import license_client
+                if license_client.status().get("state") != "unlicensed":
+                    license_client.validate()
+            except Exception:
+                pass
+        threading.Thread(target=_license_refresh, daemon=True).start()
+
     def _show_update_dialog(self, tag: str, url: str):
         lang = self._lang
         dialog = ctk.CTkToplevel(self)
@@ -400,7 +434,7 @@ class MainWindow(ctk.CTk):
         """Locate FAFE_icon.ico in dev and frozen (--onedir) layouts."""
         name = "FAFE_icon.ico"
         candidates = []
-        if getattr(sys, "frozen", False):
+        if (getattr(sys, "frozen", False) or "__compiled__" in globals()):
             meipass = getattr(sys, "_MEIPASS", None)
             if meipass:
                 candidates.append(os.path.join(meipass, name))  # _internal
@@ -467,6 +501,7 @@ class MainWindow(ctk.CTk):
 
         # Tab content frames (parented to the content area).
         self._full_auto_frame = self._build_full_auto_tab()
+        self._full_auto_locked_frame = self._build_full_auto_locked_tab()
         self._race_frame    = self._build_race_tab()
         self._mastery_frame = self._build_mastery_tab()
         self._buy_frame     = self._build_buy_tab()
@@ -677,6 +712,7 @@ class MainWindow(ctk.CTk):
             capture_key=self._capture_key,
             main_cfg=self._cfg,
             tpl_lang=self._tpl_lang,
+            allow_roi=True,   # per-row "Detection area" override (dev fine-tuning)
             fg_color=self._t("surface_alt"),
             border_width=1, border_color=self._t("border"),
             corner_radius=self._t("corner"),
@@ -816,16 +852,6 @@ class MainWindow(ctk.CTk):
         ctk.CTkEntry(count_row, textvariable=self._full_auto_count_var,
                      width=70, justify="center").pack(side="left", padx=8)
 
-        # Cars to buy / unlock / sell per cycle (default 33, user-adjustable)
-        car_row = ctk.CTkFrame(frame, fg_color="transparent")
-        car_row.pack(fill="x", padx=12, pady=(8, 0))
-        ctk.CTkLabel(car_row, text=_at("full_auto_car_count_label", self._lang),
-                     font=("Arial", 12)).pack(side="left")
-        self._full_auto_car_count_var = ctk.StringVar(
-            value=str(self._cfg.get("full_auto_car_count", 33)))
-        ctk.CTkEntry(car_row, textvariable=self._full_auto_car_count_var,
-                     width=70, justify="center").pack(side="left", padx=8)
-
         # Start-cycle-from selector (first cycle only) — for users who already
         # have points/cars lined up and want to skip ahead.
         start_row = ctk.CTkFrame(frame, fg_color="transparent")
@@ -856,6 +882,32 @@ class MainWindow(ctk.CTk):
         )
         self._fa_start_menu.pack(side="left", padx=theme.PAD_INLINE)
 
+        # Grind type: what the chain farms — Wheelspin (22B), Money (GTS ACR), or
+        # Mixed (alternate each cycle).
+        grind_row = ctk.CTkFrame(frame, fg_color="transparent")
+        grind_row.pack(fill="x", padx=12, pady=(8, 0))
+        ctk.CTkLabel(grind_row, text=_at("full_auto_grind_label", self._lang),
+                     font=theme.LABEL_FONT).pack(side="left")
+        self._fa_grind_labels = {
+            "wheelspin": _at("full_auto_grind_wheelspin", self._lang),
+            "money":     _at("full_auto_grind_money", self._lang),
+            "mixed":     _at("full_auto_grind_mixed", self._lang),
+        }
+        cur_grind = self._cfg.get("full_auto_grind_type", "wheelspin")
+        if cur_grind not in self._fa_grind_labels:
+            cur_grind = "wheelspin"
+        self._fa_grind_var = ctk.StringVar(value=self._fa_grind_labels[cur_grind])
+        ctk.CTkSegmentedButton(
+            grind_row,
+            values=[self._fa_grind_labels["wheelspin"],
+                    self._fa_grind_labels["money"],
+                    self._fa_grind_labels["mixed"]],
+            variable=self._fa_grind_var,
+            command=self._on_fa_grind_change,
+            height=32,
+            **theme.segbtn_kwargs(self._cfg),
+        ).pack(side="left", padx=theme.PAD_INLINE)
+
         # Branch toggle: spin wheels each cycle, or straight back to racing
         branch_row = ctk.CTkFrame(frame, fg_color="transparent")
         branch_row.pack(fill="x", padx=12, pady=(8, 0))
@@ -879,19 +931,18 @@ class MainWindow(ctk.CTk):
             height=32,
             **theme.segbtn_kwargs(self._cfg),
         ).pack(side="left", padx=theme.PAD_INLINE)
+        ctk.CTkLabel(branch_row, text=_at("full_auto_branch_note", self._lang),
+                     font=("Arial", 11),
+                     text_color=self._t("text_muted")).pack(side="left",
+                                                            padx=theme.PAD_INLINE)
 
         # Setup panel — chain-only nav templates, grouped by category.
         self._full_auto_setup = self._make_full_auto_setup(frame)
         self._full_auto_setup.pack(fill="x", padx=8, pady=(4, 8))
 
-        # Mastery-tree unlock path (Full Auto's own grid spec, for the 22B tree).
-        self._full_auto_grid = MasteryGridWidget(
-            frame, grid_file=get_full_auto_grid_file(self._tpl_lang),
-            lang=self._lang,
-            fg_color=self._t("surface_alt"),
-            border_width=1, border_color=self._t("border"),
-            corner_radius=self._t("corner"))
-        self._full_auto_grid.pack(fill="x", padx=8, pady=(0, 8))
+        # No mastery-grid widgets here: Full Auto's grind cars are pre-determined
+        # (22B-STi / Dodge Viper GTS ACR), so their unlock paths are HARD-CODED in
+        # full_auto.py (_GRID_22B / _GRID_GTSACR) — nothing for the user to capture.
 
         # Pre-flight checklist — gates Start until every requirement is ticked.
         self._build_fa_checklist(frame)
@@ -914,13 +965,54 @@ class MainWindow(ctk.CTk):
         self._full_auto_log.pack(fill="both", expand=True, padx=8, pady=(4, 8))
         return frame
 
+    def _build_full_auto_locked_tab(self) -> ctk.CTkFrame:
+        """Paywall view shown in place of the Full Auto tab when unlicensed:
+        a description of what Full Auto does + a Buy button (store link, set via
+        license_client.STORE_URL) + a hint to enter a key in Settings."""
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
+
+        ctk.CTkLabel(frame, text="🔒 " + _at("fa_lock_title", self._lang),
+                     anchor="w", font=("Arial", 18, "bold")).pack(
+                         fill="x", padx=16, pady=(16, 4))
+        ctk.CTkLabel(frame, text=_at("fa_lock_desc", self._lang),
+                     anchor="w", wraplength=520, justify="left",
+                     font=("Arial", 13), text_color=self._t("text")).pack(
+                         fill="x", padx=16, pady=(0, 12))
+
+        btn_row = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_row.pack(fill="x", padx=16, pady=(0, 6))
+        ctk.CTkButton(
+            btn_row, text=_at("fa_lock_buy_btn", self._lang),
+            height=40, width=200, font=("Arial", 13, "bold"),
+            command=self._on_fa_buy).pack(side="left")
+
+        ctk.CTkLabel(frame, text=_at("fa_lock_have_key", self._lang),
+                     anchor="w", font=("Arial", 11),
+                     text_color=self._t("text_muted")).pack(
+                         fill="x", padx=16, pady=(8, 2))
+        ctk.CTkButton(
+            frame, text=_at("fa_lock_settings_btn", self._lang),
+            height=30, width=160, fg_color="transparent", border_width=1,
+            border_color=self._t("border"), text_color=self._t("text"),
+            hover_color=self._t("surface_alt"),
+            command=self._open_settings).pack(anchor="w", padx=16, pady=(0, 12))
+        return frame
+
+    def _on_fa_buy(self):
+        """Open the store page, or note it's not live yet (awaiting LS review)."""
+        import license_client
+        if license_client.STORE_URL:
+            __import__("webbrowser").open(license_client.STORE_URL)
+        else:
+            self._set_status(_at("fa_lock_soon", self._lang))
+
     def _fa_start_keys(self):
-        """Start-cycle-from options. 'spin' (begin at the wheelspin step) is only
-        offered in wheelspin branch mode."""
-        keys = ["race", "buy", "mastery", "sell"]
-        if self._cfg.get("full_auto_branch_mode", "racing") == "wheelspin":
-            keys.append("spin")
-        return keys
+        """Start-cycle-from options. Only race/buy are auto-count-compatible:
+        both flow through the buy step, where the per-cycle count is read from
+        the tech points (race earns them first; buy uses points already banked).
+        Mastery/sell/spin starts would have no count basis, so they're not
+        offered."""
+        return ["race", "buy"]
 
     def _refresh_fa_start_options(self):
         """Rebuild the start-from dropdown for the current branch; if the chosen
@@ -941,6 +1033,11 @@ class MainWindow(ctk.CTk):
         self._cfg["full_auto_branch_mode"] = rev.get(val, "racing")
         save(self._cfg)
         self._refresh_fa_start_options()
+
+    def _on_fa_grind_change(self, val: str):
+        rev = {v: k for k, v in getattr(self, "_fa_grind_labels", {}).items()}
+        self._cfg["full_auto_grind_type"] = rev.get(val, "wheelspin")
+        save(self._cfg)
 
     def _on_fa_start_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_fa_start_labels", {}).items()}
@@ -1168,6 +1265,7 @@ class MainWindow(ctk.CTk):
         # Duplicate-handling mode toggle (garage / sell)
         mode_row = ctk.CTkFrame(frame, fg_color="transparent")
         mode_row.pack(fill="x", padx=12, pady=(4, 0))
+        self._spin_mode_row = mode_row
         ctk.CTkLabel(mode_row, text=_at("spin_mode_label", self._lang),
                      font=theme.LABEL_FONT).pack(side="left")
         self._spin_mode_labels = {
@@ -1191,6 +1289,24 @@ class MainWindow(ctk.CTk):
         ctk.CTkLabel(mode_row, text=_at("spin_mode_hint", self._lang),
                      font=("Arial", 11),
                      text_color=self._t("text_muted")).pack(side="left")
+
+        # Keep Forza Edition (FE) duplicates instead of selling them. Sell mode
+        # only (Garage keeps everything anyway), so the row is shown only when
+        # Sell is selected — see _apply_spin_fe_visibility.
+        fe_row = ctk.CTkFrame(frame, fg_color="transparent")
+        self._spin_fe_row = fe_row
+        self._spin_keep_fe_var = ctk.BooleanVar(
+            value=bool(self._cfg.get("wheelspin_keep_fe", True)))
+        ctk.CTkCheckBox(
+            fe_row, text=_at("spin_keep_fe_label", self._lang),
+            variable=self._spin_keep_fe_var, onvalue=True, offvalue=False,
+            font=("Arial", 12), command=self._on_spin_keep_fe_change,
+        ).pack(side="left")
+        ctk.CTkLabel(fe_row, text=_at("spin_keep_fe_hint", self._lang),
+                     font=("Arial", 11),
+                     text_color=self._t("text_muted")).pack(side="left",
+                                                             padx=theme.PAD_INLINE)
+        self._apply_spin_fe_visibility(cur_mode)   # show only in sell mode
 
         # Spin count row (0 = unlimited)
         count_row = ctk.CTkFrame(frame, fg_color="transparent")
@@ -1236,6 +1352,7 @@ class MainWindow(ctk.CTk):
             capture_key=self._capture_key,
             main_cfg=self._cfg,
             tpl_lang=self._tpl_lang,
+            allow_roi=True,   # per-row "Detection area" override (dev fine-tuning)
             fg_color=self._t("surface_alt"),
             border_width=1, border_color=self._t("border"),
             corner_radius=self._t("corner"),
@@ -1258,6 +1375,7 @@ class MainWindow(ctk.CTk):
             capture_key=self._capture_key,
             main_cfg=self._cfg,
             tpl_lang=self._tpl_lang,
+            allow_roi=True,   # per-row "Detection area" override (dev fine-tuning)
             fg_color=self._t("surface_alt"),
             border_width=1, border_color=self._t("border"),
             corner_radius=self._t("corner"),
@@ -1294,7 +1412,24 @@ class MainWindow(ctk.CTk):
 
     def _on_spin_mode_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_spin_mode_labels", {}).items()}
-        self._cfg["wheelspin_dup_mode"] = rev.get(val, "garage")
+        mode = rev.get(val, "garage")
+        self._cfg["wheelspin_dup_mode"] = mode
+        save(self._cfg)
+        self._apply_spin_fe_visibility(mode)   # FE toggle is sell-mode only
+
+    def _apply_spin_fe_visibility(self, mode: str):
+        """Show the Keep-FE checkbox only in Sell mode (no effect in Garage)."""
+        row = getattr(self, "_spin_fe_row", None)
+        if row is None:
+            return
+        if mode == "sell":
+            row.pack(fill="x", padx=12, pady=(4, 0),
+                     after=self._spin_mode_row)
+        else:
+            row.pack_forget()
+
+    def _on_spin_keep_fe_change(self):
+        self._cfg["wheelspin_keep_fe"] = bool(self._spin_keep_fe_var.get())
         save(self._cfg)
 
     def _build_run_controls(self, parent, mode: str):
@@ -1477,6 +1612,13 @@ class MainWindow(ctk.CTk):
                  "race": self._race_frame, "mastery": self._mastery_frame,
                  "buy": self._buy_frame, "delete": self._delete_frame,
                  "spin": self._spin_frame}[tab]
+        # Paywall: show the locked/purchase view in place of the Full Auto tab
+        # until a license is active (re-checked on every switch, so activating a
+        # key then re-clicking the tab unlocks it without a restart).
+        if tab == "full_auto":
+            import license_client
+            if not license_client.is_allowed():
+                frame = self._full_auto_locked_frame
         self._show_main(frame)
         self._current_tab = tab
         self._in_settings = False
@@ -1854,6 +1996,14 @@ class MainWindow(ctk.CTk):
             self._set_status(_at("status_fa_checklist", self._lang))
             self._full_auto_log.log(_at("log_fa_checklist_block", self._lang))
             return
+        # Paywall gate (fast, cache-based — no network). Unlicensed/expired →
+        # refuse and send the user to Settings to enter/activate a key.
+        import license_client
+        if not license_client.is_allowed():
+            self._set_status(_at("status_license_required", self._lang))
+            self._full_auto_log.log(_at("log_license_required", self._lang))
+            self._open_settings()
+            return
         self._stop_event.clear()
         self._set_status(_at("status_starting_full_auto", self._lang))
         self._full_auto_start_btn.configure(state="disabled")
@@ -1878,26 +2028,20 @@ class MainWindow(ctk.CTk):
                     race_count = int(self._full_auto_count_var.get())
                 except ValueError:
                     race_count = 0
-                try:
-                    car_count = int(self._full_auto_car_count_var.get())
-                except ValueError:
-                    car_count = 33
-                if car_count <= 0:
-                    car_count = 33
-                # Persist the entered car count so it survives restarts.
-                self._cfg['full_auto_car_count'] = car_count
-                save(self._cfg)
                 branch = self._cfg.get('full_auto_branch_mode', 'racing')
                 start_from = self._cfg.get('full_auto_start_from', 'race')
+                grind_type = self._cfg.get('full_auto_grind_type', 'wheelspin')
+                # car_count is AUTO (read from tech points before each buy), so we
+                # don't pass it — run() uses its default as the initial fallback.
                 fa_run(
                     cfg=_cfg_mod.load(),
                     stop_event=self._stop_event,
                     log_cb=log_cb,
                     status_cb=self._set_status,
                     race_count=race_count,
-                    car_count=car_count,
                     branch_mode=branch,
                     start_from=start_from,
+                    grind_type=grind_type,
                     section_cb=self._full_auto_log.log_section,
                 )
             except Exception as e:
@@ -2051,9 +2195,11 @@ class MainWindow(ctk.CTk):
         self._report_in_progress = True
         # Snapshot each tab's log on the UI side (copy = safe to read off-thread)
         logs = {}
-        for label, attr in [('Race Auto', '_race_log'),
+        for label, attr in [('Full Auto', '_full_auto_log'),
+                            ('Race Auto', '_race_log'),
                             ('Auto Unlock 22B', '_mastery_log'),
                             ('Auto Buy', '_buy_log'),
+                            ('Auto Spin Wheel', '_spin_log'),
                             ('Delete Used Cars', '_delete_log')]:
             w = getattr(self, attr, None)
             if w is not None:
@@ -2105,6 +2251,85 @@ class MainWindow(ctk.CTk):
         detection that won't spike CPU / stutter the game."""
         self._cfg['detector_enable_ocr'] = bool(self._ocr_var.get())
         save(self._cfg)
+
+    def _on_debug_toggle(self):
+        """Persist debug-snapshot mode. Picked up at the next run start (each run
+        builds a fresh detector from fresh config), so it takes effect WITHOUT an
+        app restart. On = annotated detection PNGs written to debug/<key>.png."""
+        self._cfg['debug_detection'] = bool(self._debug_var.get())
+        save(self._cfg)
+
+    # ── Full Auto license (paywall) ─────────────────────────
+    def _build_license_section(self, parent):
+        """Settings → Full Auto license: status, key field, Activate/Deactivate,
+        and a Buy link. Network calls run on daemon threads (never block the UI)."""
+        import license_client
+        self._license_status_lbl = ctk.CTkLabel(
+            parent, text="", anchor='w', font=("Arial", 12))
+        self._license_status_lbl.pack(fill='x', padx=12, pady=(2, 4))
+
+        row = ctk.CTkFrame(parent, fg_color='transparent')
+        row.pack(fill='x', padx=12, pady=4)
+        self._license_key_var = ctk.StringVar(value="")
+        ctk.CTkEntry(row, textvariable=self._license_key_var, width=240,
+                     placeholder_text=_at('license_key_placeholder', self._lang)
+                     ).pack(side='left')
+        ctk.CTkButton(row, text=_at('license_activate_btn', self._lang), width=90,
+                      command=self._on_activate_license).pack(side='left', padx=6)
+        ctk.CTkButton(row, text=_at('license_deactivate_btn', self._lang), width=90,
+                      fg_color='transparent', border_width=1,
+                      border_color=self._t("border"), text_color=self._t("text"),
+                      hover_color=self._t("surface_alt"),
+                      command=self._on_deactivate_license).pack(side='left')
+
+        if license_client.STORE_URL:
+            ctk.CTkButton(
+                parent, text=_at('license_buy_btn', self._lang), width=160,
+                command=lambda: __import__("webbrowser").open(license_client.STORE_URL)
+            ).pack(anchor='w', padx=12, pady=(4, 2))
+
+        # Machine id (helps support match a key to a seat)
+        ctk.CTkLabel(parent,
+                     text=_at('license_machine_id', self._lang,
+                              id=license_client.machine_id()[:18]),
+                     font=("Arial", 10), text_color=self._t("text_muted"),
+                     anchor='w').pack(fill='x', padx=12, pady=(0, 2))
+        self._refresh_license_status()
+
+    def _refresh_license_status(self):
+        import license_client
+        st = license_client.status()
+        state = st["state"]
+        ok = state == "licensed"
+        txt = _at('license_status_' + state, self._lang)
+        if st.get("key"):
+            txt += f"  ({st['key']})"
+        try:
+            self._license_status_lbl.configure(
+                text=txt,
+                text_color=("#3fbf6f" if ok else self._t("text_muted")))
+        except Exception:
+            pass
+
+    def _on_activate_license(self):
+        key = self._license_key_var.get().strip()
+        if not key:
+            return
+        self._license_status_lbl.configure(
+            text=_at('license_activating', self._lang),
+            text_color=self._t("text_muted"))
+        def _work():
+            import license_client
+            license_client.activate(key)
+            self.after(0, self._refresh_license_status)
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_deactivate_license(self):
+        def _work():
+            import license_client
+            license_client.deactivate()
+            self.after(0, self._refresh_license_status)
+        threading.Thread(target=_work, daemon=True).start()
 
     def _on_overlay_move(self, x, y):
         """Persist the overlay position after the user drags it."""
@@ -2336,7 +2561,7 @@ class MainWindow(ctk.CTk):
     def _resource_path(self, *parts):
         """Locate a bundled resource in dev and frozen (--onedir) layouts."""
         bases = []
-        if getattr(sys, "frozen", False):
+        if (getattr(sys, "frozen", False) or "__compiled__" in globals()):
             mp = getattr(sys, "_MEIPASS", None)
             if mp:
                 bases.append(mp)
@@ -2658,6 +2883,24 @@ class MainWindow(ctk.CTk):
                      font=("Arial", 11),
                      text_color=self._t("text_muted")).pack(side='left')
 
+        # Debug-snapshot toggle — write annotated detection PNGs to debug/<key>.png
+        # for diagnosing mis-detections. Applies at the next run start (no restart).
+        _dbg_row = ctk.CTkFrame(scroll, fg_color='transparent')
+        _dbg_row.pack(fill='x', padx=12, pady=4)
+        ctk.CTkLabel(_dbg_row, text=_at('setting_debug', self._lang),
+                     width=160, anchor='w').pack(side='left')
+        self._debug_var = ctk.BooleanVar(
+            value=bool(self._cfg.get('debug_detection', False)))
+        ctk.CTkSwitch(_dbg_row, text='', variable=self._debug_var,
+                      command=self._on_debug_toggle).pack(side='left', padx=8)
+        ctk.CTkLabel(_dbg_row, text=_at('setting_debug_hint', self._lang),
+                     font=("Arial", 11),
+                     text_color=self._t("text_muted")).pack(side='left')
+
+        # ── Full Auto license ─────────────────────────────
+        section('settings_license_section')
+        self._build_license_section(scroll)
+
         # ── Shortcuts ─────────────────────────────────────
         section('settings_shortcuts_section')
         self._build_key_bindings(scroll)
@@ -2869,9 +3112,9 @@ class MainWindow(ctk.CTk):
             return
         import subprocess
         import os
-        cwd = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
+        cwd = os.path.dirname(sys.executable) if (getattr(sys, 'frozen', False) or "__compiled__" in globals()) \
               else os.path.dirname(os.path.abspath(sys.argv[0]))
-        if getattr(sys, 'frozen', False):
+        if (getattr(sys, 'frozen', False) or "__compiled__" in globals()):
             subprocess.Popen([sys.executable], cwd=cwd)
         else:
             subprocess.Popen([sys.executable] + sys.argv, cwd=cwd)

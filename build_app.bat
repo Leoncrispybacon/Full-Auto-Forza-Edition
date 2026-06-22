@@ -24,6 +24,7 @@ if exist dist rmdir /s /q dist >nul 2>&1
 if exist build rmdir /s /q build >nul 2>&1
 if exist FAFE.spec del /f /q FAFE.spec >nul 2>&1
 if exist FAFE_dist rmdir /s /q FAFE_dist >nul 2>&1
+if exist compiled rmdir /s /q compiled >nul 2>&1
 
 echo.
 echo  =====================================================
@@ -35,12 +36,12 @@ if not "%FAFE_NOPAUSE%"=="1" pause
 :: -- Step 1: Install dependencies ----------------------------
 echo.
 if /i "%DEPS_MODE%"=="full" (
-    echo  [1/2]  Installing / upgrading dependencies ^(full^)...
+    echo  [1/3]  Installing / upgrading dependencies ^(full^)...
 ) else (
-    echo  [1/2]  Ensuring dependencies present ^(fast - pass "full" to upgrade^)...
+    echo  [1/3]  Ensuring dependencies present ^(fast - pass "full" to upgrade^)...
 )
 echo  -----------------------------------------------------
-pip install %PIP_FLAGS% pyinstaller customtkinter Pillow ^
+pip install %PIP_FLAGS% pyinstaller nuitka customtkinter Pillow ^
     pydirectinput opencv-python ^
     mss numpy keyboard requests certifi ^
     rapidocr-onnxruntime ^
@@ -53,34 +54,39 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: -- Step 2: Build FAFE.exe ----------------------------------
+:: -- Step 2: Compile the paid modules to native .pyd ----------
+:: Nuitka MODULE mode (fast -- compiles only these two files, NOT the whole app).
+:: PyInstaller then ships these .pyd instead of decompilable .pyc, so the
+:: full_auto / license_client source is not exposed in _internal. The .pyd is
+:: renamed to the plain extension so the build isn't pinned to one Python tag.
 echo.
-echo  [2/2]  Building FAFE.exe...
+echo  [2/3]  Compiling protected modules (full_auto, license_client)...
+echo  -----------------------------------------------------
+python -m nuitka --module full_auto.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
+if errorlevel 1 ( echo  ERROR: Nuitka full_auto failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+python -m nuitka --module license_client.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
+if errorlevel 1 ( echo  ERROR: Nuitka license_client failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+for %%F in ("compiled\full_auto.*.pyd")     do move /y "%%F" "compiled\full_auto.pyd" >nul
+for %%F in ("compiled\license_client.*.pyd") do move /y "%%F" "compiled\license_client.pyd" >nul
+if not exist "compiled\full_auto.pyd" ( echo  ERROR: full_auto.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+if not exist "compiled\license_client.pyd" ( echo  ERROR: license_client.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+
+:: -- Step 3: Build FAFE.exe ----------------------------------
+:: --exclude-module keeps PyInstaller from bundling the .py source as .pyc;
+:: --add-binary ships the compiled .pyd instead (extension modules outrank .py
+:: at import, and the deps of full_auto/license_client are imported elsewhere
+:: too, so excluding them does not drop those from the bundle).
+echo.
+echo  [3/3]  Building FAFE.exe...
 echo  -----------------------------------------------------
 python -m PyInstaller --onedir --windowed --name FAFE ^
     --icon "%CD%\FAFE_icon.ico" ^
     --add-data "%CD%\FAFE_icon.ico;." ^
     --add-data "%CD%\assets;assets" ^
-    --add-data "%CD%\app_lang.py;." ^
-    --add-data "%CD%\config.py;." ^
-    --add-data "%CD%\capture.py;." ^
-    --add-data "%CD%\detector.py;." ^
-    --add-data "%CD%\theme.py;." ^
-    --add-data "%CD%\race.py;." ^
-    --add-data "%CD%\gameio.py;." ^
-    --add-data "%CD%\mastery.py;." ^
-    --add-data "%CD%\main_window.py;." ^
-    --add-data "%CD%\setup_panel.py;." ^
-    --add-data "%CD%\grid_widget.py;." ^
-    --add-data "%CD%\log_widget.py;." ^
-    --add-data "%CD%\version.py;." ^
-    --add-data "%CD%\updater.py;." ^
-    --add-data "%CD%\delete_cars.py;." ^
-    --add-data "%CD%\wheelspin.py;." ^
-    --add-data "%CD%\buy.py;." ^
-    --add-data "%CD%\full_auto.py;." ^
-    --add-data "%CD%\report.py;." ^
-    --add-data "%CD%\overlay.py;." ^
+    --exclude-module full_auto ^
+    --exclude-module license_client ^
+    --add-binary "%CD%\compiled\full_auto.pyd;." ^
+    --add-binary "%CD%\compiled\license_client.pyd;." ^
     --hidden-import customtkinter ^
     --hidden-import PIL ^
     --hidden-import PIL.Image ^
@@ -119,7 +125,7 @@ xcopy /e /i /q dist\FAFE FAFE_dist >nul
 echo  [+]    Bundling templates...
 if exist templates xcopy /e /i /q templates "FAFE_dist\templates" >nul
 
-:: -- Step 3: Generate default config.json -------------------
+:: -- Step 4: Generate default config.json -------------------
 echo  [+]    Writing default config.json...
 (
   echo {
@@ -152,8 +158,8 @@ echo  [+]    Writing default config.json...
   echo   "mastery_start_loop": 1,
   echo   "mastery_post_click_wait": 0.8,
   echo   "mastery_post_key_wait": 1.2,
-  echo   "buy_post_key_wait": 0.5,
-  echo   "delete_post_key_wait": 0.5
+  echo   "buy_post_key_wait": 0.75,
+  echo   "delete_post_key_wait": 0.75
   echo }
 ) > FAFE_dist\config.json
 
@@ -167,6 +173,6 @@ echo.
 echo  Templates will be saved to a 'templates' subfolder
 echo  next to the exe automatically.
 echo.
-echo  You can delete 'dist', 'build', and FAFE.spec.
+echo  You can delete 'dist', 'build', 'compiled', and FAFE.spec.
 echo.
 if not "%FAFE_NOPAUSE%"=="1" pause
