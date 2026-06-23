@@ -886,6 +886,7 @@ class MainWindow(ctk.CTk):
         # Mixed (alternate each cycle).
         grind_row = ctk.CTkFrame(frame, fg_color="transparent")
         grind_row.pack(fill="x", padx=12, pady=(8, 0))
+        self._fa_grind_row = grind_row
         ctk.CTkLabel(grind_row, text=_at("full_auto_grind_label", self._lang),
                      font=theme.LABEL_FONT).pack(side="left")
         self._fa_grind_labels = {
@@ -908,9 +909,12 @@ class MainWindow(ctk.CTk):
             **theme.segbtn_kwargs(self._cfg),
         ).pack(side="left", padx=theme.PAD_INLINE)
 
-        # Branch toggle: spin wheels each cycle, or straight back to racing
+        # Branch toggle: spin wheels each cycle, or straight back to racing.
+        # Shown only for grind types that spin (wheelspin / mixed) — see
+        # _apply_fa_branch_visibility; it doesn't apply to money grind.
         branch_row = ctk.CTkFrame(frame, fg_color="transparent")
         branch_row.pack(fill="x", padx=12, pady=(8, 0))
+        self._fa_branch_row = branch_row
         ctk.CTkLabel(branch_row, text=_at("full_auto_branch_label", self._lang),
                      font=theme.LABEL_FONT).pack(side="left")
         self._fa_branch_labels = {
@@ -935,6 +939,7 @@ class MainWindow(ctk.CTk):
                      font=("Arial", 11),
                      text_color=self._t("text_muted")).pack(side="left",
                                                             padx=theme.PAD_INLINE)
+        self._apply_fa_branch_visibility(cur_grind)   # hide for money grind
 
         # Setup panel — chain-only nav templates, grouped by category.
         self._full_auto_setup = self._make_full_auto_setup(frame)
@@ -1036,8 +1041,21 @@ class MainWindow(ctk.CTk):
 
     def _on_fa_grind_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_fa_grind_labels", {}).items()}
-        self._cfg["full_auto_grind_type"] = rev.get(val, "wheelspin")
+        grind = rev.get(val, "wheelspin")
+        self._cfg["full_auto_grind_type"] = grind
         save(self._cfg)
+        self._apply_fa_branch_visibility(grind)
+
+    def _apply_fa_branch_visibility(self, grind: str):
+        """The 'After selling' branch toggle only applies to grind types that
+        spin (wheelspin / mixed). Hide it for money grind, where it's irrelevant."""
+        row = getattr(self, "_fa_branch_row", None)
+        if row is None:
+            return
+        if grind in ("wheelspin", "mixed"):
+            row.pack(fill="x", padx=12, pady=(8, 0), after=self._fa_grind_row)
+        else:
+            row.pack_forget()
 
     def _on_fa_start_change(self, val: str):
         rev = {v: k for k, v in getattr(self, "_fa_start_labels", {}).items()}
