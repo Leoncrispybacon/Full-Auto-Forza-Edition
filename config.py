@@ -6,7 +6,9 @@ import os
 import mss
 import sys
 import json
+import time
 import ctypes
+import threading
 
 # ── Base path (works both frozen exe and dev; PyInstaller→sys.frozen, Nuitka→__compiled__) ──
 if getattr(sys, 'frozen', False) or "__compiled__" in globals():
@@ -20,6 +22,10 @@ else:
         BASE_DIR = os.path.dirname(BASE_DIR)
 
 CONFIG_FILE       = os.path.join(BASE_DIR, "config.json")
+# Whether a config file existed BEFORE this launch — captured at import, before
+# load() can create one. Drives the web app's first-run language picker (a fresh
+# install has no config, so we ask the language instead of silently defaulting).
+HAD_CONFIG        = os.path.exists(CONFIG_FILE)
 TEMPLATES_DIR     = os.path.join(BASE_DIR, "templates")
 
 # Only the single built-in (auto-scaled) set now — the user-capture "custom"
@@ -208,6 +214,10 @@ DEFAULTS = {
     # `debug/` folder next to the exe — one image per template key, overwritten
     # live. For diagnosing why a step mis-detected. Off for normal use.
     "debug_detection":   False,
+    # Developer mode: reveals template recapture + detection tools in the Setup
+    # panels (and the Capture shortcut). Off for normal users so they can't break
+    # the built-in templates; toggle in Settings → Developer.
+    "dev_mode":          False,
     # OCR confirmation during detection. Default OFF: the onnxruntime inference
     # is CPU-heavy and stutters the game (esp. on 1080p / lower-core machines),
     # and pixel matching at native res is reliable on its own. Turn ON for more
@@ -220,19 +230,19 @@ DEFAULTS = {
     # Per-template thresholds. Race Auto detects start_menu + restart_menu
     # (racing/confirm are blind timing). Mastery is keyboard-driven — no
     # templates, so no mastery thresholds.
-    "thresh_start_menu":           0.60,
-    "thresh_restart_menu":         0.60,
+    "thresh_start_menu":           0.70,
+    "thresh_restart_menu":         0.70,
     # Race menu-navigation templates (optional — used to auto-walk from the main
     # menu to the Start screen before the AFK loop; skipped if not captured).
-    "thresh_creative_hub":         0.60,
-    "thresh_eventlab":             0.60,
-    "thresh_play_event":           0.60,
-    "thresh_events_arrow":         0.60,
-    "thresh_my_history":           0.60,
-    "thresh_choose_race_type":     0.60,
-    "thresh_car_select":           0.60,
+    "thresh_creative_hub":         0.70,
+    "thresh_eventlab":             0.70,
+    "thresh_play_event":           0.70,
+    "thresh_events_arrow":         0.70,
+    "thresh_my_history":           0.70,
+    "thresh_choose_race_type":     0.70,
+    "thresh_car_select":           0.70,
     # Race exit: the recommended "What's Next" menu shown after Continue.
-    "thresh_next_activity":        0.60,
+    "thresh_next_activity":        0.70,
     "race_check_interval":    0.5,
     "race_post_key_wait":     0.75,
     # Mastery settings (keyboard-driven; no detection)
@@ -280,24 +290,24 @@ DEFAULTS = {
     # Setup panel). Currently the mastery positioning nav: main menu → My
     # Horizon → Return Home → CARS → My Cars → sort Recently Added → newest car.
     # my_horizon_tab is reused from the wheelspin set, so it isn't listed here.
-    "thresh_return_home":     0.60,
-    "thresh_cars_tab":        0.60,
-    "thresh_recently_added":  0.60,
+    "thresh_return_home":     0.70,
+    "thresh_cars_tab":        0.70,
+    "thresh_recently_added":  0.70,
     # Sell step (chained-only): My Cars option clicked after riding the
     # non-target car (re-enters the grid before the re-sort + sell block).
-    "thresh_my_cars":         0.60,
+    "thresh_my_cars":         0.70,
     # Sell step: the "My Cars" header (top-left) — confirms the grid finished
     # loading before pressing X (pressing X mid-load drops the sort menu).
-    "thresh_my_cars_header":  0.60,
+    "thresh_my_cars_header":  0.70,
     # Sell exit: the home icon shown when leaving the home menu — confirms we
     # backed out to the open world so the final ESC opens the main menu.
-    "thresh_anna":            0.60,
+    "thresh_anna":            0.70,
     # Sell re-select grind car: the "Select An Action" menu that opens after
     # clicking the car tile — gates the "Get In Car" Enter (was a blind press).
-    "thresh_select_action":   0.60,
+    "thresh_select_action":   0.70,
     # Sell re-select grind car: brand button (manufacturer jump) + car tile.
-    "thresh_grind_brand":     0.60,
-    "thresh_grind_car":       0.60,
+    "thresh_grind_brand":     0.70,
+    "thresh_grind_car":       0.70,
     # Full Auto pre-flight checklist: the "car to the right isn't new" item is a
     # one-time garage layout, so it persists (the driving/map/credits items are
     # per-session and reset each launch).
@@ -310,30 +320,31 @@ DEFAULTS = {
     "delete_post_key_wait":   0.75,
     # Buy menu-navigation (optional — start/end the buy run on the main menu;
     # skipped if these templates aren't captured).
-    "thresh_collection_log":      0.60,
-    "thresh_discover_japan":      0.60,
-    "thresh_car_collection":      0.60,
-    "thresh_subaru":              0.60,
-    "thresh_buy_target_car":      0.60,
+    "thresh_collection_log":      0.70,
+    "thresh_discover_japan":      0.70,
+    "thresh_car_collection":      0.70,
+    "thresh_subaru":              0.70,
+    "thresh_buy_target_car":      0.70,
     # Buy gating anchors (optional — if both captured, each purchase is confirmed
     # by the "Buy Car" popup and a dropped key is retried; absent → blind macro).
-    "thresh_buy_confirm":         0.60,
-    "thresh_buy_detail":          0.60,
-    # Auto Spin Wheel settings. dup_mode is "garage" (safe) | "sell" (sells
-    # duplicates UNATTENDED — warned in the UI).
-    "thresh_wheelspin_duplicate": 0.60,
-    "thresh_super_wheelspin":     0.60,
-    "thresh_normal_wheelspin":    0.60,
-    "thresh_my_horizon_tab":      0.60,
-    "thresh_wheelspin_skip":      0.60,
-    "thresh_wheelspin_collect":   0.60,
-    "thresh_wheelspin_collect_final": 0.60,
+    "thresh_buy_confirm":         0.70,
+    "thresh_buy_detail":          0.70,
+    # Auto Spin Wheel settings. Duplicate cars are SOLD by default (unattended);
+    # two independent keep-exceptions: keep_fe and keep_above_price (below).
+    "thresh_wheelspin_duplicate": 0.70,
+    "thresh_super_wheelspin":     0.70,
+    "thresh_normal_wheelspin":    0.70,
+    "thresh_my_horizon_tab":      0.70,
+    "thresh_wheelspin_skip":      0.70,
+    "thresh_wheelspin_collect":   0.70,
+    "thresh_wheelspin_collect_final": 0.70,
     "wheelspin_post_key_wait":   0.75,  # see buy/delete note — used by the sell Down×2/Enter run
-    "wheelspin_dup_mode":        "garage",
-    # Sell mode only: keep Forza Edition (FE) duplicate cars (name ends in "FE")
-    # by routing them to Add to Garage instead of selling. OCR-read; errs toward
-    # keep. No effect in Garage mode.
+    # Keep Forza Edition (FE) duplicates (name ends in "FE") instead of selling.
+    # OCR-read from the duplicate modal; errs toward keep.
     "wheelspin_keep_fe":         True,
+    # Keep a duplicate when its read sell price >= this many credits (0 = off →
+    # sell regardless of price). OCR-read; an unreadable price errs toward keep.
+    "wheelspin_keep_above_price": 0,
     # Which wheel to spin: "super" (Super Wheelspin, 3 prizes) | "normal"
     # (Wheelspin, 1 prize). Only changes which tile template is clicked to
     # start; the rest of the flow is identical.
@@ -383,11 +394,22 @@ DEFAULTS = {
 
 def load() -> dict:
     if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
-            # Unreadable/corrupt — fall back to defaults but DON'T overwrite the
+        # Retry a few times before giving up: a read can briefly fail if it lands
+        # mid-write from another thread/window (the overlay saves its position
+        # while the main window saves settings). Falling straight back to DEFAULTS
+        # here is dangerous — callers do `save({**load(), key: val})`, so a
+        # defaulted load would PERSIST defaults and reset e.g. the language. Atomic
+        # writes (see save) make a partial read unlikely; this is the safety net.
+        data = None
+        for _attempt in range(4):
+            try:
+                with open(CONFIG_FILE, encoding="utf-8") as f:
+                    data = json.load(f)
+                break
+            except Exception:
+                time.sleep(0.04)
+        if data is None:
+            # Genuinely unreadable — fall back to defaults but DON'T overwrite the
             # file (it may be recoverable / the user's).
             return dict(DEFAULTS)
         # Fill in any missing keys with defaults, and persist them back so the
@@ -444,12 +466,41 @@ def load() -> dict:
     return data
 
 
-def save(data: dict):
+def save(data: dict) -> bool:
+    """Write config.json ATOMICALLY (temp file + os.replace). Returns True on
+    success, False if it couldn't be written.
+
+    Atomic matters here: the overlay window writes config on its own thread
+    (position) while the main window writes settings — a plain in-place write can
+    be READ half-finished, making load() hit a JSON error and fall back to
+    DEFAULTS (lang='en'); the next `save({**load(), ...})` would then persist that
+    default and silently reset the user's language. With temp+replace, a reader
+    always sees either the complete old file or the complete new one."""
+    # UNIQUE temp name per writer (pid+thread) so two concurrent saves (overlay
+    # thread + main window) don't fight over the same temp file → WinError 32.
+    tmp = "%s.%d.%d.tmp" % (CONFIG_FILE, os.getpid(), threading.get_ident())
     try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        # Retry the rename: a concurrent reader/replacer can briefly lock the
+        # target on Windows. The file content is always complete, so worst case
+        # is last-writer-wins — never a partial/defaulted write.
+        for _attempt in range(6):
+            try:
+                os.replace(tmp, CONFIG_FILE)   # atomic on Windows (same volume)
+                return True
+            except Exception:
+                time.sleep(0.03)
+        raise OSError("config.json replace kept failing (locked)")
     except Exception as e:
         print(f"[config] Failed to save: {e}")
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        return False
 
 
 # ── DPI / resolution scaling ─────────────────────────────────

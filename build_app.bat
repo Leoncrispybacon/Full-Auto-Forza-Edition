@@ -2,22 +2,34 @@
 :: Change to the folder containing this bat file
 cd /d "%~dp0"
 
-title Forza Auto App - Build
+title Full Auto Forza Edition - Build (web UI)
 
-:: -- Build mode -------------------------------------------------
-:: Dependency handling:
-::   (default)  FAST  - install only what's missing. Near-instant when deps are
-::                      already present (no PyPI re-check, no re-download).
-::   full / upgrade    - re-check & --upgrade every package from PyPI (slow).
-::                       Use this for release builds.
-:: Set FAFE_NOPAUSE=1 in the environment to skip all pauses (unattended / CI).
+:: ============================================================
+::  Builds the PyWebView app (app_web.py) into FAFE_dist\FAFE.exe.
+::  - bundles webui\ (HTML/CSS/JS UI) and assets\ into the build
+::  - templates\ are COPIED next to the exe (read from BASE_DIR, not _internal)
+::  - full_auto / license_client are Nuitka-compiled to .pyd so the paid source
+::    is not shipped as decompilable .pyc
+::
+::  PREREQUISITE on the target machine: the Microsoft Edge WebView2 Runtime
+::  (present by default on Windows 11; Windows 10 may need the Evergreen
+::  bootstrapper). PyWebView uses the system runtime - it isn't bundled here.
+:: ============================================================
+
 set DEPS_MODE=fast
 if /i "%~1"=="full"    set DEPS_MODE=full
 if /i "%~1"=="upgrade" set DEPS_MODE=full
 set PIP_FLAGS=
 if /i "%DEPS_MODE%"=="full" set PIP_FLAGS=--upgrade
 
-:: Clean up old build artifacts to avoid permission errors
+:: full_auto (the PAID feature) is OMITTED by default → safe public/teaser build
+:: (defense-by-absence: the .pyd simply isn't shipped, so no env-var/JS bypass can
+:: run it). Set FAFE_FULLAUTO=1 to build the private, full-feature build for
+:: license testing:   set FAFE_FULLAUTO=1 && build_app.bat
+set FA_ADD=
+if /i "%FAFE_FULLAUTO%"=="1" set FA_ADD=--add-binary "%CD%\compiled\full_auto.pyd;."
+
+:: Clean old artifacts
 taskkill /f /im FAFE.exe >nul 2>&1
 timeout /t 1 /nobreak >nul
 if exist dist rmdir /s /q dist >nul 2>&1
@@ -33,86 +45,70 @@ echo  =====================================================
 echo.
 if not "%FAFE_NOPAUSE%"=="1" pause
 
-:: -- Step 1: Install dependencies ----------------------------
+:: -- Step 1: dependencies ------------------------------------
 echo.
-if /i "%DEPS_MODE%"=="full" (
-    echo  [1/3]  Installing / upgrading dependencies ^(full^)...
-) else (
-    echo  [1/3]  Ensuring dependencies present ^(fast - pass "full" to upgrade^)...
-)
+echo  [1/3]  Ensuring dependencies present (pass "full" to upgrade)...
 echo  -----------------------------------------------------
-pip install %PIP_FLAGS% pyinstaller nuitka customtkinter Pillow ^
-    pydirectinput opencv-python ^
-    mss numpy keyboard requests certifi ^
+pip install %PIP_FLAGS% pyinstaller nuitka ^
+    pywebview pythonnet ^
+    opencv-python mss numpy keyboard certifi ^
     rapidocr-onnxruntime ^
     pycaw comtypes
 if errorlevel 1 (
-    echo.
     echo  ERROR: pip failed. Check Python installation.
-    echo.
     if not "%FAFE_NOPAUSE%"=="1" pause
     exit /b 1
 )
 
-:: -- Step 2: Compile the paid modules to native .pyd ----------
-:: Nuitka MODULE mode (fast -- compiles only these two files, NOT the whole app).
-:: PyInstaller then ships these .pyd instead of decompilable .pyc, so the
-:: full_auto / license_client source is not exposed in _internal. The .pyd is
-:: renamed to the plain extension so the build isn't pinned to one Python tag.
+:: -- Step 2: compile the paid modules to native .pyd ----------
+:: Nuitka MODULE mode (only these two files). PyInstaller ships the .pyd instead
+:: of .pyc so full_auto / license_client source is not exposed in _internal.
 echo.
-echo  [2/3]  Compiling protected modules (full_auto, license_client)...
+echo  [2/3]  Compiling protected modules...
 echo  -----------------------------------------------------
-python -m nuitka --module full_auto.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
-if errorlevel 1 ( echo  ERROR: Nuitka full_auto failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
 python -m nuitka --module license_client.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
 if errorlevel 1 ( echo  ERROR: Nuitka license_client failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
-for %%F in ("compiled\full_auto.*.pyd")     do move /y "%%F" "compiled\full_auto.pyd" >nul
-for %%F in ("compiled\license_client.*.pyd") do move /y "%%F" "compiled\license_client.pyd" >nul
-if not exist "compiled\full_auto.pyd" ( echo  ERROR: full_auto.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+for %%F in ("compiled\license_client.*.pyd")  do move /y "%%F" "compiled\license_client.pyd" >nul
 if not exist "compiled\license_client.pyd" ( echo  ERROR: license_client.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
 
-:: -- Step 3: Build FAFE.exe ----------------------------------
-:: --exclude-module keeps PyInstaller from bundling the .py source as .pyc;
-:: --add-binary ships the compiled .pyd instead (extension modules outrank .py
-:: at import, and the deps of full_auto/license_client are imported elsewhere
-:: too, so excluding them does not drop those from the bundle).
+:: full_auto only in the private (paid) build — FAFE_FULLAUTO=1
+if /i not "%FAFE_FULLAUTO%"=="1" echo  Teaser build: full_auto (paid feature) NOT bundled.
+if /i not "%FAFE_FULLAUTO%"=="1" goto after_fa_compile
+python -m nuitka --module full_auto.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
+if errorlevel 1 ( echo  ERROR: Nuitka full_auto failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+for %%F in ("compiled\full_auto.*.pyd")      do move /y "%%F" "compiled\full_auto.pyd" >nul
+if not exist "compiled\full_auto.pyd" ( echo  ERROR: full_auto.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+:after_fa_compile
+
+:: -- Step 3: build FAFE.exe ----------------------------------
 echo.
-echo  [3/3]  Building FAFE.exe...
+echo  [3/3]  Building FAFE.exe (PyWebView)...
 echo  -----------------------------------------------------
 python -m PyInstaller --onedir --windowed --name FAFE ^
     --icon "%CD%\FAFE_icon.ico" ^
     --add-data "%CD%\FAFE_icon.ico;." ^
+    --add-data "%CD%\webui;webui" ^
     --add-data "%CD%\assets;assets" ^
     --exclude-module full_auto ^
     --exclude-module license_client ^
-    --add-binary "%CD%\compiled\full_auto.pyd;." ^
+    --exclude-module customtkinter ^
+    %FA_ADD% ^
     --add-binary "%CD%\compiled\license_client.pyd;." ^
-    --hidden-import customtkinter ^
-    --hidden-import PIL ^
-    --hidden-import PIL.Image ^
-    --hidden-import PIL.ImageTk ^
+    --collect-all webview ^
+    --collect-all clr_loader ^
+    --hidden-import clr ^
     --hidden-import detector ^
     --hidden-import rapidocr_onnxruntime ^
-    --hidden-import asyncio ^
-    --hidden-import asyncio.base_events ^
-    --hidden-import asyncio.events ^
-    --hidden-import asyncio.futures ^
-    --hidden-import asyncio.tasks ^
-    --hidden-import urllib.request ^
-    --hidden-import zipfile ^
     --hidden-import certifi ^
     --hidden-import pycaw ^
     --hidden-import comtypes ^
-    --collect-all customtkinter ^
     --collect-all rapidocr_onnxruntime ^
     --collect-all certifi ^
     --collect-all comtypes ^
     --collect-submodules pycaw ^
-    forza_app.py
+    app_web.py
 if errorlevel 1 (
-    echo.
     echo  ERROR: Build failed. See output above.
-    echo.
     if not "%FAFE_NOPAUSE%"=="1" pause
     exit /b 1
 )
@@ -120,59 +116,47 @@ if errorlevel 1 (
 if exist FAFE_dist rmdir /s /q FAFE_dist >nul 2>&1
 xcopy /e /i /q dist\FAFE FAFE_dist >nul
 
-:: -- Bundle the template sets (read from BASE_DIR\templates = next to the exe,
-::    NOT from _internal, so they must be COPIED here, not --add-data'd) --------
+:: Template sets are read from BASE_DIR\templates (next to the exe), so COPY them.
 echo  [+]    Bundling templates...
 if exist templates xcopy /e /i /q templates "FAFE_dist\templates" >nul
 
-:: -- Step 4: Generate default config.json -------------------
-echo  [+]    Writing default config.json...
-(
-  echo {
-  echo   "lang": "en",
-  echo   "lang_chosen": false,
-  echo   "theme": "system",
-  echo   "toggle_key": "f9",
-  echo   "capture_key": "caps lock",
-  echo   "monitor_index": 1,
-  echo   "race_resolution": "built-in",
-  echo   "mastery_resolution": "built-in",
-  echo   "wheelspin_resolution": "built-in",
-  echo   "buy_resolution": "built-in",
-  echo   "race_threshold": 0.6,
-  echo   "thresh_start_menu": 0.5,
-  echo   "thresh_racing": 0.5,
-  echo   "thresh_restart_menu": 0.5,
-  echo   "thresh_confirm": 0.5,
-  echo   "thresh_mastery_ride_car": 0.6,
-  echo   "thresh_mastery_esc_hint": 0.6,
-  echo   "thresh_mastery_upgrade_item": 0.5,
-  echo   "thresh_mastery_mastery_item": 0.6,
-  echo   "thresh_mastery_anchor": 0.6,
-  echo   "thresh_mastery_my_cars": 0.6,
-  echo   "thresh_mastery_sort_recent": 0.6,
-  echo   "race_check_interval": 0.5,
-  echo   "race_post_key_wait": 0.75,
-  echo   "mastery_threshold": 0.85,
-  echo   "mastery_check_interval": 0.5,
-  echo   "mastery_start_loop": 1,
-  echo   "mastery_post_click_wait": 0.8,
-  echo   "mastery_post_key_wait": 1.2,
-  echo   "buy_post_key_wait": 0.75,
-  echo   "delete_post_key_wait": 0.75
-  echo }
-) > FAFE_dist\config.json
+:: Teaser build: strip the Full Auto template images (paid feature) so the FREE
+:: download doesn't ship them. The paid build (FAFE_FULLAUTO=1) keeps them.
+if /i not "%FAFE_FULLAUTO%"=="1" echo  [+]    Teaser build: removing Full Auto templates...
+if /i not "%FAFE_FULLAUTO%"=="1" for /d %%D in ("FAFE_dist\templates\*") do if exist "%%D\full_auto" rmdir /s /q "%%D\full_auto"
+
+:: Bundle the Edge WebView2 Evergreen bootstrapper if present, so Win10 PCs
+:: without the runtime can install it on first launch (app_web._ensure_webview2
+:: searches _internal via _res_dir/_MEIPASS).
+if exist MicrosoftEdgeWebview2Setup.exe copy /y MicrosoftEdgeWebview2Setup.exe "FAFE_dist\_internal\" >nul
+
+:: No config.json is written here - config.py self-completes a full default
+:: config.json from DEFAULTS on first launch (avoids shipping stale keys).
+
+:: -- Step 4: build the installer (Inno Setup) ----------------
+:: An installer avoids the "Mark of the Web" DLL block (a downloaded ZIP flags
+:: its DLLs; .NET refuses to load them). Installer-written files don't inherit
+:: MOTW. Skipped gracefully if Inno Setup (ISCC.exe) isn't installed.
+echo.
+echo  [4/4]  Building installer (Inno Setup, if present)...
+echo  -----------------------------------------------------
+set ISCC=
+if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe
+if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe
+if not defined ISCC (
+    echo  Inno Setup not found - skipping installer. Install from https://jrsoftware.org/isdl.php
+    echo  to also produce FAFE_Setup_*.exe, then re-run.
+) else (
+    "%ISCC%" build_installer.iss
+    if errorlevel 1 ( echo  WARNING: installer build failed - FAFE_dist\ is still good. ) else ( echo  [+]    Installer written to Output\ )
+)
 
 echo.
 echo  =====================================================
-echo   BUILD COMPLETE
+echo   BUILD COMPLETE  -  FAFE.exe is in FAFE_dist\
 echo  =====================================================
 echo.
-echo  FAFE.exe is ready in FAFE_dist\.
-echo.
-echo  Templates will be saved to a 'templates' subfolder
-echo  next to the exe automatically.
-echo.
+echo  Note: requires the Edge WebView2 Runtime on the target PC (default on Win11).
 echo  You can delete 'dist', 'build', 'compiled', and FAFE.spec.
 echo.
 if not "%FAFE_NOPAUSE%"=="1" pause

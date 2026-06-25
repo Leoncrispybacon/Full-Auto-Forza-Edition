@@ -271,9 +271,46 @@ STRINGS = {
         "en":    "Spin Wheel",
         "zh-tw": "轉輪",
     },
+    "full_auto_kicker": {
+        "en":    "PRO · CHAINED FARM",
+        "zh-tw": "PRO · 連鎖農場",
+    },
+    "full_auto_licensed_pill": {
+        "en":    "LICENSED",
+        "zh-tw": "已啟用",
+    },
+    "full_auto_title": {
+        "en":    "Full Auto",
+        "zh-tw": "全自動",
+    },
+    "full_auto_tagline": {
+        "en":    "Chain all functions into a single fully-AFK loop — race, buy, "
+                 "unlock, sell, and choose whether to include wheelspins. Set it "
+                 "running and walk away.",
+        "zh-tw": "將所有功能串成一個完全掛機的循環——跑賽、購車、解鎖、賣車，"
+                 "並可選擇是否加入轉輪。設定好就能放著跑。",
+    },
+    "full_auto_howto": {
+        "en":    "How it works",
+        "zh-tw": "運作方式",
+    },
+    "full_auto_loop_label": {
+        "en":    "THE LOOP",
+        "zh-tw": "循環",
+    },
+    "full_auto_loop_repeat": {
+        "en":    "↻ repeats until Stop / F9",
+        "zh-tw": "↻ 重複直到停止 / F9",
+    },
+    "fa_chain_afk_race":   {"en": "AFK Race", "zh-tw": "賽事掛機"},
+    "fa_chain_buy":        {"en": "Buy",      "zh-tw": "購買"},
+    "fa_chain_unlock":     {"en": "Unlock",   "zh-tw": "解鎖"},
+    "fa_chain_sell":       {"en": "Sell",     "zh-tw": "賣出"},
+    "fa_chain_race_again": {"en": "Race again", "zh-tw": "再賽事"},
+    "fa_chain_wheelspin":  {"en": "Wheelspin", "zh-tw": "轉輪"},
     "full_auto_grind_label": {
-        "en":    "Grind type:",
-        "zh-tw": "農場類型：",
+        "en":    "What to farm:",
+        "zh-tw": "農場目標：",
     },
     "full_auto_grind_wheelspin": {
         "en":    "Wheelspin",
@@ -446,6 +483,10 @@ STRINGS = {
         "en":    "  → X → open sort menu",
         "zh-tw": "  → X → 開啟排序選單",
     },
+    "log_fa_key_retry": {
+        "en":    "  ↻ menu didn't open — re-pressing {key} (try {n})",
+        "zh-tw": "  ↻ 選單未開啟 — 重新按 {key}（第 {n} 次）",
+    },
     "log_fa_mastery_nav_fail": {
         "en":    "  ✗ {label} not found in {secs}s — aborting mastery nav.",
         "zh-tw": "  ✗ {secs}s 內找不到 {label} — 中止熟練導航。",
@@ -529,8 +570,8 @@ STRINGS = {
         "zh-tw": "賣車（車庫 → 賣出區塊）",
     },
     "fa_cat_points": {
-        "en":    "Auto-count (read tech points on the main-menu CARS tab)",
-        "zh-tw": "自動數量（讀取主選單車輛分頁的技術點數）",
+        "en":    "Car count",
+        "zh-tw": "車輛計數",
     },
     "fa_tpl_cars_top_tab": {
         "en":    "CARS top-nav tab (車輛, main menu)",
@@ -698,22 +739,6 @@ STRINGS = {
         "en":    "Normal (1 prize)",
         "zh-tw": "一般（1 獎）",
     },
-    "spin_mode_label": {
-        "en":    "Duplicate handling:",
-        "zh-tw": "重複獎勵處理：",
-    },
-    "spin_mode_garage": {
-        "en":    "Add to Garage",
-        "zh-tw": "加入車庫",
-    },
-    "spin_mode_sell": {
-        "en":    "Sell Car",
-        "zh-tw": "賣出車輛",
-    },
-    "spin_mode_hint": {
-        "en":    "Sell mode sells duplicates automatically — see the warning above.",
-        "zh-tw": "賣出模式會自動賣掉重複車輛 — 請見上方警告。",
-    },
     "spin_keep_fe_label": {
         "en":    "Keep Forza Edition (FE) cars",
         "zh-tw": "保留 Forza Edition (FE) 車輛",
@@ -767,8 +792,16 @@ STRINGS = {
         "zh-tw": "自動轉輪已啟動 — 將轉動 {n} 次。",
     },
     "log_spin_sell_warn": {
-        "en":    "SELL mode: duplicate cars will be sold automatically and unattended.",
-        "zh-tw": "賣出模式：重複車輛將被自動且無人看管地賣出。",
+        "en":    "Duplicate cars will be SOLD automatically and unattended (unless kept below).",
+        "zh-tw": "重複車輛將被自動且無人看管地賣出（除非符合下列保留條件）。",
+    },
+    "log_spin_keep_fe_on": {
+        "en":    "  keeping: Forza Edition (FE) cars",
+        "zh-tw": "  保留：Forza Edition（FE）車輛",
+    },
+    "log_spin_keep_price_on": {
+        "en":    "  keeping: cars with sell price >= {price}",
+        "zh-tw": "  保留：售價 >= {price} 的車輛",
     },
     "log_spin_select_mh_tab": {
         "en":    "Selecting the My Horizon tab (starting from the main menu)...",
@@ -865,6 +898,14 @@ STRINGS = {
     "log_spin_dup_keep_fe": {
         "en":    "  → duplicate #{n}: Forza Edition ({name}) — keeping (Add to Garage)",
         "zh-tw": "  → 重複 #{n}：Forza Edition（{name}）— 保留（加入車庫）",
+    },
+    "log_spin_dup_keep_price": {
+        "en":    "  → duplicate #{n}: sell price {price} >= threshold — keeping (Add to Garage)",
+        "zh-tw": "  → 重複 #{n}：售價 {price} >= 門檻 — 保留（加入車庫）",
+    },
+    "log_spin_dup_keep_price_unknown": {
+        "en":    "  → duplicate #{n}: sell price unreadable — keeping (Add to Garage)",
+        "zh-tw": "  → 重複 #{n}：無法讀取售價 — 保留（加入車庫）",
     },
     "log_spin_limit_reached": {
         "en":    "Reached target of {n} spins. Stopping.",
@@ -1464,6 +1505,10 @@ STRINGS = {
     "startup_running": {
         "en":    "  Running!",
         "zh-tw": "  開始執行！",
+    },
+    "log_ocr_enabled": {
+        "en":    "  OCR confirmation: ON (text-match assist)",
+        "zh-tw": "  OCR 確認：開啟（文字比對輔助）",
     },
     "log_placeholder": {
 

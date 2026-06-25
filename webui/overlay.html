@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FAFE Overlay</title>
+<style>
+  @import url('fonts.css');
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; height:100%; background:#0B0F17; font-family:'Work Sans',system-ui,sans-serif;
+              user-select:none; cursor:move; overflow:hidden; }
+  @keyframes ovSpin { to { transform:rotate(360deg); } }
+  @keyframes ovDrive { from { transform:translateX(-82px); } to { transform:translateX(300px); } }
+
+  .card { height:100%; border:1px solid #243044; border-radius:8px; background:#0B0F17; overflow:hidden;
+          display:flex; flex-direction:column; }
+
+  /* header */
+  .ov-head { height:36px; display:flex; align-items:center; gap:8px; padding:0 8px 0 12px;
+             background:#141B26; border-bottom:1px solid #1a2433; position:relative; z-index:30; }
+  .ov-mark { font-family:'Big Shoulders Display'; font-weight:800; font-size:22px; line-height:1; letter-spacing:.02em;
+             background:linear-gradient(92deg,#F4F8FD 22%,#7DB2FF); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .ov-fnwrap { position:relative; }
+  .ov-func { font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:.1em; color:#82A0B2;
+             background:transparent; border:none; cursor:pointer; display:flex; align-items:center; gap:5px; padding:2px 0; }
+  .ov-func:hover { color:#cdd8e4; }
+  .ov-func b { color:#5f7488; font-size:8px; font-weight:400; }
+  /* position:fixed + outside the card so the card's overflow:hidden can't clip it;
+     max-height + scroll so it always fits inside a short overlay window. */
+  .ov-menu { position:fixed; top:38px; right:10px; min-width:140px; max-height:calc(100vh - 46px); overflow-y:auto;
+             background:#141B26; border:1px solid #2c3a52;
+             border-radius:7px; padding:5px; display:none; flex-direction:column; gap:2px; z-index:40;
+             box-shadow:0 12px 30px -10px rgba(0,0,0,.85); }
+  .ov-menu.open { display:flex; }
+  .ov-menu button { text-align:left; background:transparent; border:none; color:#cdd8e4; font-family:'Work Sans';
+                    font-size:12px; padding:6px 10px; border-radius:5px; cursor:pointer; white-space:nowrap; }
+  .ov-menu button:hover { background:#1f2a3a; }
+  .ov-menu button.on { color:#7DB2FF; }
+  .ov-burger { display:flex; flex-direction:column; gap:3px; padding-left:4px; }
+  .ov-burger span { width:12px; height:1.5px; background:#3a4a5e; }
+
+  /* status banner */
+  .ov-banner { position:relative; display:flex; align-items:center; gap:12px; padding:14px;
+               background:linear-gradient(90deg,rgba(34,197,94,.16),rgba(34,197,94,.04)); overflow:hidden; }
+  .ov-bar { position:absolute; left:0; top:0; bottom:0; width:3px; background:#22C55E; }
+  .ov-trail { position:absolute; left:0; right:0; bottom:0; height:14px; overflow:hidden; pointer-events:none; }
+  .ov-trail .rail { position:absolute; left:0; right:0; bottom:3px; height:2px; background:rgba(34,197,94,.15); }
+  .ov-car { position:absolute; bottom:0; left:0; display:flex; align-items:flex-end; animation:ovDrive 2.4s linear infinite; }
+  .ov-car .streak { height:2px; width:58px; background:linear-gradient(90deg,rgba(52,215,120,0),#34D778); margin-bottom:4px; }
+  .ov-spin { width:22px; height:22px; border-radius:50%; border:2.5px solid rgba(52,215,120,.25); border-top-color:#34D778;
+             flex:none; animation:ovSpin 1s linear infinite; }
+  .ov-staterow { display:flex; align-items:baseline; gap:10px; }
+  .ov-state { font-size:20px; font-weight:700; color:#F4F8FD; line-height:1; }
+  .ov-timer { font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:#34D778;
+              font-variant-numeric:tabular-nums; line-height:1; }
+  .ov-banner.idle .ov-timer { display:none; }
+  .ov-sub { font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:.05em; color:#34D778; margin-top:4px;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* idle (not running): drop the green, stop the motion */
+  .ov-banner.idle { background:linear-gradient(90deg,rgba(130,160,178,.12),rgba(130,160,178,.03)); }
+  .ov-banner.idle .ov-bar { background:#3a4a5e; }
+  .ov-banner.idle .ov-spin, .ov-banner.idle .ov-trail { display:none; }
+  .ov-banner.idle .ov-sub { color:#82A0B2; }
+
+  /* header / banner / footer keep their natural height; log fills the rest */
+  .ov-head, .ov-banner, .ov-foot { flex:none; }
+
+  /* log — fills the space LEFT OVER below the running component. flex:1 + min-height:0
+     so it shrinks as the window is resized smaller, down to nothing (the header /
+     status / footer above keep their height — they're flex:none). Newest lines
+     anchored to the bottom, wrapped, older content clipped above. */
+  .ov-log { flex:1; min-height:0; overflow:hidden; padding:11px 14px 7px;
+            font-family:'Geist Mono',monospace; font-size:11px; line-height:1.5;
+            display:flex; flex-direction:column; justify-content:flex-end; gap:4px; }
+  .ov-log div { overflow-wrap:break-word; color:#6b7d92; }
+  .ov-log div.ok { color:#34D778; }
+  .ov-log div.last { color:#aeb9c6; }
+
+  /* footer */
+  .ov-foot { display:flex; align-items:center; gap:8px; padding:8px 14px 12px; }
+  .ov-key { display:flex; align-items:center; justify-content:center; height:20px; padding:0 8px; background:#0c1320;
+            border:1px solid #2c3a52; border-radius:5px; font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; color:#cdd8e4; }
+  .ov-hint { font-size:12px; color:#82A0B2; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="ov-head">
+      <span class="ov-mark">FAFE</span>
+      <div style="flex:1"></div>
+      <div class="ov-fnwrap">
+        <button class="ov-func" id="ovFuncBtn"><span id="ovFunc">—</span> <b>&#9660;</b></button>
+      </div>
+      <div class="ov-burger"><span></span><span></span><span></span></div>
+    </div>
+
+    <div class="ov-banner idle" id="ovBanner">
+      <div class="ov-bar"></div>
+      <div class="ov-trail">
+        <div class="rail"></div>
+        <div class="ov-car">
+          <div class="streak"></div>
+          <svg width="32" height="12" viewBox="0 0 64 24" style="display:block">
+            <path fill="#34D778" d="M2.5 13.2 C2.5 12 2.8 11.5 4 11.3 C8 9.6 12.5 7.4 19 6.4 C23 5.8 26.5 5.9 29.5 7 C31.5 7.8 32.6 8.6 34 9.4 C41 10.4 50 11.2 57.5 12.3 C60 12.7 61.6 13.2 61.6 14.8 L61.6 16 L53 16 A5 5 0 0 0 43 16 L20 16 A5 5 0 0 0 10 16 L3 16 Z"/>
+            <path fill="#0B0F17" d="M20 8.5 C24 7 27.5 7 30.4 8 C31.7 8.5 32.6 9.1 33.6 9.7 L18.4 10 Z"/>
+            <circle cx="15" cy="16.4" r="4.4" fill="#0B0F17" stroke="#34D778" stroke-width="1.6"/>
+            <circle cx="48" cy="16.4" r="4.4" fill="#0B0F17" stroke="#34D778" stroke-width="1.6"/>
+            <circle cx="15" cy="16.4" r="1.4" fill="#34D778"/>
+            <circle cx="48" cy="16.4" r="1.4" fill="#34D778"/>
+          </svg>
+        </div>
+      </div>
+      <span class="ov-spin"></span>
+      <div style="min-width:0">
+        <div class="ov-staterow">
+          <span class="ov-state" id="ovState">Ready</span>
+          <span class="ov-timer" id="ovTimer"></span>
+        </div>
+        <div class="ov-sub" id="ovSub">idle</div>
+      </div>
+    </div>
+
+    <div class="ov-log" id="ovLog"></div>
+
+    <div class="ov-foot">
+      <span class="ov-key" id="ovKey">F9</span>
+      <span class="ov-hint" id="ovHint">to start automation</span>
+    </div>
+  </div>
+  <!-- outside .card so its overflow:hidden can't clip the dropdown -->
+  <div class="ov-menu" id="ovMenu"></div>
+
+<script>
+  // Driven from Python via window.evaluate_js("ovUpdate({...})").
+  const OV_I18N = {
+    en:      { run:'Running', ready:'Ready', idle:'idle', start:'to start automation', stop:'to stop automation',
+               funcs:{ full_auto:'Full Auto', race:'AFK Races', buy:'Buy Cars', wheelspin:'Auto Wheelspins', mastery:'Unlock Wheelspins', delete:'Delete Cars' } },
+    'zh-tw': { run:'執行中',  ready:'就緒',  idle:'閒置', start:'開始自動化',          stop:'停止自動化',
+               funcs:{ full_auto:'全自動', race:'掛機刷車', buy:'自動購車', wheelspin:'自動轉盤', mastery:'解鎖轉盤', delete:'刪除車輛' } },
+  };
+  let curLang = 'en';
+  let curFaAvail = false;          // Full Auto only listed when runnable
+  window.ovUpdate = (d) => {
+    if (!d) return;
+    if (d.lang) curLang = d.lang;
+    if (d.fa_available !== undefined) curFaAvail = !!d.fa_available;
+    const L = OV_I18N[d.lang] || OV_I18N.en;
+    if (d.func_key !== undefined) {
+      curFunc = d.func_key || '';
+      document.getElementById('ovFunc').textContent = L.funcs[d.func_key] || '—';
+    }
+    if (d.key  !== undefined) document.getElementById('ovKey').textContent  = d.key  || 'F9';
+    const running = !!d.running;
+    document.getElementById('ovBanner').classList.toggle('idle', !running);
+    document.getElementById('ovState').textContent = running ? L.run : L.ready;
+    if (running && d.started) startTimer(d.started); else stopTimer();
+    if (d.sub !== undefined) document.getElementById('ovSub').textContent = d.sub || (running ? '' : L.idle);
+    document.getElementById('ovHint').textContent = running ? L.stop : L.start;
+    if (Array.isArray(d.lines)) {
+      const log = document.getElementById('ovLog');
+      log.innerHTML = '';
+      d.lines.forEach((t, i) => {
+        const el = document.createElement('div');
+        el.textContent = t;
+        const s = String(t).trim();
+        if (s.startsWith('✓') || /detected|match/i.test(s)) el.className = 'ok';
+        else if (i === d.lines.length - 1) el.className = 'last';
+        log.appendChild(el);
+      });
+    }
+  };
+  // Elapsed timer next to "Running" — Python sends the run-start epoch (ms); JS
+  // ticks locally so it counts up smoothly between status pushes.
+  let timerInt = null;
+  const pad = (n) => String(n).padStart(2, '0');
+  function fmtElapsed(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600),
+          m = Math.floor((s % 3600) / 60), ss = s % 60;
+    return h > 0 ? h + ':' + pad(m) + ':' + pad(ss) : m + ':' + pad(ss);
+  }
+  function startTimer(started) {
+    const t = document.getElementById('ovTimer');
+    const tick = () => { t.textContent = fmtElapsed(Date.now() - started); };
+    tick();
+    if (timerInt) clearInterval(timerInt);
+    timerInt = setInterval(tick, 1000);
+  }
+  function stopTimer() {
+    if (timerInt) { clearInterval(timerInt); timerInt = null; }
+    const t = document.getElementById('ovTimer'); if (t) t.textContent = '';
+  }
+
+  // Dragging: easy_drag is broken in this WebView2 build, so we drive it
+  // ourselves — tell Python to start/stop following the cursor. Python moves the
+  // window via SetWindowPos and stops on mouse-up on its own.
+  // Python reads this once on show to size the (fixed) window to its content,
+  // so it's correct regardless of the display's DPI scaling.
+  window.ovHeight = () => Math.ceil(document.querySelector('.card').getBoundingClientRect().height);
+
+  const api = () => (window.pywebview && window.pywebview.api) || null;
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.ov-fnwrap') || e.target.closest('.ov-menu')) return;   // not drag handles
+    const a = api(); if (!a || !a.drag_begin) return;
+    try { document.documentElement.setPointerCapture(e.pointerId); } catch (_) {}
+    a.drag_begin();
+  });
+  const endDrag = () => { const a = api(); if (a && a.drag_end) a.drag_end(); };
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+
+  // Function switcher (top-right dropdown) — picking one drives the main window.
+  // Labels are localized from OV_I18N[curLang].funcs; curFunc holds the KEY.
+  const FUNC_KEYS = ['full_auto','race','buy','wheelspin','mastery','delete'];
+  let curFunc = '';
+  const ovMenu = document.getElementById('ovMenu');
+  const ovFuncBtn = document.getElementById('ovFuncBtn');
+  function buildMenu() {
+    ovMenu.innerHTML = '';
+    const funcs = (OV_I18N[curLang] || OV_I18N.en).funcs;
+    FUNC_KEYS.filter((k) => k !== 'full_auto' || curFaAvail).forEach((k) => {
+      const b = document.createElement('button');
+      b.textContent = funcs[k] || k; if (k === curFunc) b.className = 'on';
+      b.addEventListener('click', (e) => {
+        e.stopPropagation(); ovMenu.classList.remove('open');
+        const a = api(); if (a && a.select_func) a.select_func(k);
+      });
+      ovMenu.appendChild(b);
+    });
+  }
+  ovFuncBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); buildMenu(); ovMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.ov-fnwrap') && !e.target.closest('.ov-menu')) ovMenu.classList.remove('open');
+  });
+</script>
+</body>
+</html>

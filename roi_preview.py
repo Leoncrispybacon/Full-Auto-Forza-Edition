@@ -79,7 +79,12 @@ def main(keys):
                 except Exception:
                     meta = {}
         if meta.get("roi"):                                  # user-drawn ROI
-            roi = tuple(meta["roi"]); src = "custom roi"
+            # Route through the detector so the preview reflects the live-aspect
+            # remap (same as detection), not the raw captured fractions.
+            det.set_template_roi(key, meta["roi"],
+                                 meta.get("screen_width", 0),
+                                 meta.get("screen_height", 0))
+            roi = det._custom_roi_for_frame(key, w, h); src = "custom roi"
         elif meta.get("box"):                                # geometry box
             bx, by, bw, bh = meta["box"]
             det.set_template_geometry(key, meta["box"],

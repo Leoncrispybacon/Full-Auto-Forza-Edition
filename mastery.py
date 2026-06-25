@@ -163,7 +163,7 @@ _TAP_WAIT               = 0.25   # matches grid move rate; 0.1 dropped taps on s
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
         grid_file: str = None, end_at_mycars: bool = False,
-        start_loop: int = None, grid_order: list = None):
+        start_loop: int = None, grid_order: list = None, progress_cb=None):
     # warn_cb is accepted for call-site compatibility but unused — this flow
     # never detects, so there's no "not detected" warning to raise.
     # grid_file: which mastery-tree path spec to use. None → the Mastery tab's
@@ -189,11 +189,11 @@ def run(cfg: dict, stop_event: threading.Event,
         start_loop = _fresh.get("mastery_start_loop", 1)
     start_loop = max(1, min(3, int(start_loop)))
     # Step waits — fixed constants (see top of section), except the cutscene
-    # wait (default 11). The Settings slider's min is 11, but there's NO code
-    # floor: users of the "skip cutscene" mod can hand-edit mastery_cutscene_wait
-    # below 11 in config.json (only clamped to >= 0 to avoid a negative wait).
-    cut_wait    = max(0.0,
-                      float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT)))
+    # wait (default 11). No code FLOOR (the "skip cutscene" mod can hand-edit it
+    # below 11), but a HARD CEILING of 13s: anything higher overruns the next
+    # step and breaks the loop, so clamp it regardless of config.
+    cut_wait    = min(13.0, max(0.0,
+                      float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT))))
     screen_wait = _KEYS_SCREEN_WAIT
     # Menu cursor tap delay (Up/Down) — Settings-tunable (default 0.25, slider
     # 0.1–0.5s), shared with Delete Cars. Higher helps weak hardware register taps.
@@ -264,6 +264,8 @@ def run(cfg: dict, stop_event: threading.Event,
     while not stop():
         car_num    += 1
         is_first   = (car_num == 1)
+        if progress_cb:                       # cars completed so far → UI bar fill
+            progress_cb(car_num - 1, max_cars)
 
         # ── 1. Navigate to next car (top→bottom column-major) ──
         # The first car needs no nav (we start positioned on it). Otherwise emit

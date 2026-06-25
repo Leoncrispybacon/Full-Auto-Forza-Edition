@@ -45,7 +45,11 @@ REF_ASPECT = 16.0 / 9.0
 # to the content box, e.g. menus). Everything else uses a full-axis band because
 # in-game HUD elements anchor to the screen edges. start_menu specifically needs
 # the box — on a full-width band it false-matched the loading screen (~85%).
-_ROI_BOX_KEYS = frozenset({"start_menu"})
+_ROI_BOX_KEYS = frozenset({"start_menu",
+                           # duplicate modal is a centred dialog → map its OCR
+                           # bands into the centred 16:9 box (NOT a full-width
+                           # band) so they stay tight on ultrawide.
+                           "wheelspin_dup_name", "wheelspin_dup_price"})
 
 
 @dataclass
@@ -83,10 +87,17 @@ DEFAULT_ROIS: dict[str, Rect] = {
     "wheelspin_skip":       (0.00, 0.86, 0.40, 0.14),  # bottom-left button prompt
     "wheelspin_collect":    (0.00, 0.86, 0.40, 0.14),  # bottom-left button prompt
     "wheelspin_collect_final": (0.00, 0.86, 0.40, 0.14),  # final-spin single "Collect Prize"
-    # Duplicate-menu car-name band (OCR-read, not pixel-matched): the centred
-    # modal's name + buttons. Generous on purpose — item-level FE-suffix matching
-    # ignores the surrounding Chinese, so it only needs to CONTAIN the name line.
-    "wheelspin_dup_name":   (0.20, 0.48, 0.60, 0.46),
+    # Duplicate-menu OCR bands (read, not pixel-matched). Split so each is tight:
+    #   _name  — the green car-name line (FE suffix test)
+    #   _price — the "Sell for CR N" row only (sell-price read; no stray numbers)
+    # x stays generous (0.30-0.70) so the centred modal fits 16:9 AND ultrawide;
+    # y is tight per line (the modal is height-scaled + vertically centred, so the
+    # per-line y-fractions are stable across resolutions).
+    "wheelspin_dup_name":   (0.30, 0.60, 0.40, 0.09),
+    # Tall enough for reliable OCR — a too-thin strip starves RapidOCR (reads
+    # nothing). Includes the "Send as a Gift" row, but that has no digits so it
+    # never affects the parsed price (largest >=4-digit run = the sell price).
+    "wheelspin_dup_price":  (0.30, 0.74, 0.40, 0.11),
     # ── Race menu navigation (main menu → EventLab → MY HISTORY → Start) ──
     # Fallback ROIs only; user captures carry a geometry box that supplies the
     # real ROI. Generous bands here so a no-box capture still detects.
@@ -308,6 +319,11 @@ def _clip_roi(frame: np.ndarray, roi: Optional[Rect]) -> tuple[np.ndarray, int, 
 # Module-level so the marker survives across the per-run detector instance and
 # is readable from the F12 report's own thread.
 _LAST_DETECT = None    # (frame, key, roi, MatchResult, soft_threshold, time)
+# Per-key recent detections (roi/result only — NO frame, to avoid holding a big
+# frame per template) so the F12 report can show EVERY template a wait is
+# checking, not just the last one. Drawn on the single latest frame.
+_RECENT_DETECT = {}    # key -> (roi, MatchResult, soft_threshold, time)
+_REPORT_WINDOW = 3.0   # draw every template checked within this many seconds
 _LAST_CLICK = None     # (x, y, time) in detection-frame (cropped client) coords
 _CLICK_DRAW_AGE = 15.0  # only mark a click on a snapshot if it's this recent
 
@@ -325,7 +341,9 @@ def record_click(x: int, y: int) -> None:
 
 def _record_detect(frame, key, roi, result, soft) -> None:
     global _LAST_DETECT
-    _LAST_DETECT = (frame, key, roi, result, soft, time.time())
+    t = time.time()
+    _LAST_DETECT = (frame, key, roi, result, soft, t)
+    _RECENT_DETECT[key] = (roi, result, soft, t)
 
 
 _CJK_FONT = None
@@ -401,20 +419,62 @@ def _draw_debug(img, key, roi, result, soft_threshold) -> None:
     _draw_header_text(img, label, (12, 34), col)
 
 
+def _draw_match(img, roi, result) -> None:
+    """Draw one template's searched ROI (yellow box) + best-match cross
+    (green matched / red miss) onto `img`. No header/click — see render_report_image."""
+    h, w = img.shape[:2]
+    col = (0, 200, 0) if result.matched else (0, 90, 255)
+    if roi:
+        rx, ry = int(roi[0] * w), int(roi[1] * h)
+        rw, rh = int(roi[2] * w), int(roi[3] * h)
+        cv2.rectangle(img, (rx, ry), (rx + rw, ry + rh), (0, 220, 220), 3)
+    if result.location:
+        lx, ly = int(result.location[0]), int(result.location[1])
+        cv2.drawMarker(img, (lx, ly), col, cv2.MARKER_CROSS, 44, 3)
+        cv2.circle(img, (lx, ly), 16, col, 3)
+
+
 def render_report_image(max_age: float = 30.0):
-    """Annotated debug image for the F12 report, built from the most recent
-    detection (the frame FAFE last looked at + its ROI/match + last click).
-    Returns a BGR ndarray, or None if there's no recent detection (the caller
-    then falls back to a plain screenshot)."""
+    """Annotated debug image for the F12 report. Draws EVERY template checked in
+    the last `_REPORT_WINDOW` seconds (so a wait that polls multiple templates —
+    e.g. My Horizon tab + Super Wheelspin tile — shows all of them), overlaid on
+    the single latest frame, plus the last click. Returns a BGR ndarray, or None
+    if there's no recent detection (caller falls back to a plain screenshot)."""
     last = _LAST_DETECT
     if not last:
         return None
-    frame, key, roi, result, soft, t = last
-    if frame is None or getattr(frame, "size", 0) == 0 or time.time() - t > max_age:
+    frame, _lk, _lroi, _lres, _lsoft, t0 = last
+    now = time.time()
+    if frame is None or getattr(frame, "size", 0) == 0 or now - t0 > max_age:
         return None
+    # the concurrent search set (every template checked in the recent window);
+    # fall back to just the last detection if nothing is within the window.
+    recent = [(k, roi, res, soft) for k, (roi, res, soft, t) in _RECENT_DETECT.items()
+              if now - t <= _REPORT_WINDOW]
+    if not recent:
+        recent = [(_lk, _lroi, _lres, _lsoft)]
     try:
         img = frame.copy()
-        _draw_debug(img, key, roi, result, soft)
+        h, w = img.shape[:2]
+        for (_k, roi, res, _s) in recent:
+            _draw_match(img, roi, res)
+        # header: one line per template (newest first), each coloured by match
+        recent.sort(key=lambda e: (0 if e[2].matched else 1, e[0]))
+        bar_h = 12 + 22 * len(recent)
+        cv2.rectangle(img, (0, 0), (w, bar_h), (0, 0, 0), -1)
+        for i, (k, _roi, res, soft) in enumerate(recent):
+            col = (0, 200, 0) if res.matched else (0, 90, 255)
+            line = (f"{k}  {res.score:.0%} (>={soft:.0%})  {res.source}  "
+                    f"{'MATCH' if res.matched else 'miss'}")
+            if res.ocr_text:
+                line += f"  OCR:'{res.ocr_text[:24]}'"
+            _draw_header_text(img, line, (12, 28 + i * 22), col)
+        click = _LAST_CLICK
+        if click and now - click[2] <= _CLICK_DRAW_AGE:
+            cx, cy = click[0], click[1]
+            cv2.circle(img, (cx, cy), 18, (255, 0, 255), 3)
+            cv2.line(img, (cx - 28, cy), (cx + 28, cy), (255, 0, 255), 2)
+            cv2.line(img, (cx, cy - 28), (cx, cy + 28), (255, 0, 255), 2)
         return img
     except Exception:
         return None
@@ -1266,51 +1326,80 @@ class ScreenDetector:
         except Exception:
             return ""
 
-    def duplicate_is_fe(self, frame: np.ndarray,
-                        key: str = "wheelspin_dup_name"):
-        """Read the duplicate-menu car name and decide if it's a Forza Edition
-        car. FE is always a name SUFFIX ('Sunshine FE'). Returns (verdict, text):
-          • (True,  name) — an OCR item ends in 'fe' → Forza Edition → KEEP
-          • (False, name) — name read, no FE suffix → ordinary duplicate → sell
-          • (None,  '')   — no text read at all
-        The caller (wheelspin, sell mode) KEEPS on True OR None (keep-on-uncertain)
-        and sells only on a confident False. Item-level (not the joined read) so
-        the surrounding Chinese UI text (prompt / 新增至車庫 / 送禮 / 出售價格) can't
-        break the suffix test — only the Latin car name can end in 'fe'. Always
-        runs OCR (a read, not a gated confirm), so it works with OCR off."""
+    def _ocr_region(self, frame: np.ndarray, key: str):
+        """OCR one ROI region (custom > geometry > DEFAULT_ROIS) → (items, roi).
+        `roi` is the fractional rect used (for debug overlay); items may be []."""
+        h, w = frame.shape[:2]
+        roi = self._custom_roi_for_frame(key, w, h)
+        if roi is None and self._geom_roi_on:
+            roi = self._geom_roi(key, w, h)
+        if roi is None:
+            roi = self._roi_for_frame(key, DEFAULT_ROIS.get(key), w, h)
+        if roi:
+            x = max(0, int(roi[0] * w))
+            y = max(0, int(roi[1] * h))
+            cw = max(1, min(w - x, int(roi[2] * w)))
+            ch = max(1, min(h - y, int(roi[3] * h)))
+            area = frame[y:y + ch, x:x + cw]
+        else:
+            area = frame
+        if area is None or getattr(area, "size", 0) == 0:
+            return ([], roi)
+        return (self._ocr.read_items(_upscale_for_ocr(area)), roi)
+
+    def duplicate_info(self, frame: np.ndarray):
+        """Read the duplicate modal from TWO tight ROIs → (fe, price, text):
+          • fe    — True  : the car-name line ends in 'fe' → Forza Edition
+                    False : name read, no FE suffix
+                    None  : no name text read
+          • price — int sell price read from the 'Sell for CR N' row, or None.
+          • text  — the car name, for logging.
+        Separate bands (wheelspin_dup_name / wheelspin_dup_price) so each stays
+        tight: the name band gives the FE suffix, the price band gives ONLY the
+        sell row (no stray numbers). Caller KEEPS when fe in (True, None) and/or
+        price >= threshold, selling only when every keep-condition fails — erring
+        toward KEEP on anything unread (selling is irreversible). Always runs OCR
+        (a read, not a gated confirm) → works with the OCR toggle off.
+        ponytail: price = largest digit-run >= 1000 in a single OCR token; a price
+        split across two tokens ('35' '000') reads as None → caller keeps it."""
         if not self._ocr.available():
-            return (None, "")
+            return (None, None, "")
         try:
-            h, w = frame.shape[:2]
-            roi = self._custom_roi_for_frame(key, w, h)
-            if roi is None and self._geom_roi_on:
-                roi = self._geom_roi(key, w, h)
-            if roi is None:
-                roi = self._roi_for_frame(key, DEFAULT_ROIS.get(key), w, h)
-            if roi:
-                x = max(0, int(roi[0] * w))
-                y = max(0, int(roi[1] * h))
-                cw = max(1, min(w - x, int(roi[2] * w)))
-                ch = max(1, min(h - y, int(roi[3] * h)))
-                area = frame[y:y + ch, x:x + cw]
-            else:
-                area = frame
-            if area is None or getattr(area, "size", 0) == 0:
-                return (None, "")
-            items = self._ocr.read_items(_upscale_for_ocr(area))
-            if not items:
-                return (None, "")
+            name_items, name_roi = self._ocr_region(frame, "wheelspin_dup_name")
+            fe = None
             seen = []
-            for text, _ in items:
+            for text, _ in name_items:
                 n = _normalize_text(text)
                 if not n:
                     continue
                 seen.append(text.strip())
                 if n.endswith("fe"):          # 'FE' suffix (also matches 'FE' alone)
-                    return (True, " ".join(seen))
-            return (False, " ".join(seen))
+                    fe = True
+            if name_items and fe is None:     # name read, no FE suffix
+                fe = False
+
+            price_items, price_roi = self._ocr_region(frame, "wheelspin_dup_price")
+            price = 0
+            for text, _ in price_items:
+                digits = "".join(ch for ch in text if ch.isdigit())
+                if len(digits) >= 4:          # sell prices are >= 1000 credits
+                    price = max(price, int(digits))
+
+            if self._debug:                   # dump both ROIs + reads for tuning
+                self.save_debug(frame, "wheelspin_dup_name", name_roi,
+                                MatchResult(fe is True, 1.0 if fe else 0.0, 0.0,
+                                            None, 1.0, "ocr-fe",
+                                            ocr_text=f"fe={fe} {' '.join(seen)}"[:60]),
+                                0.70)
+                self.save_debug(frame, "wheelspin_dup_price", price_roi,
+                                MatchResult(bool(price), 1.0 if price else 0.0, 0.0,
+                                            None, 1.0, "ocr-price",
+                                            ocr_text=f"price={price} "
+                                            f"{' '.join(t for t, _ in price_items)}"[:60]),
+                                0.70)
+            return (fe, (price or None), " ".join(seen))
         except Exception:
-            return (None, "")
+            return (None, None, "")
 
     def locate_text(self, frame: np.ndarray, key: str,
                     template: Optional[np.ndarray] = None):

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Full Auto Forza Edition</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="wordmark">FAFE</div><div class="wordmark-u"></div></div>
+    <nav class="nav" id="nav">
+      <a data-view="full_auto" class="active">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M7 8.5a3.5 3.5 0 1 0 0 7c2 0 3.2-1.6 5-3.5 1.8-1.9 3-3.5 5-3.5a3.5 3.5 0 1 1 0 7c-2 0-3.2-1.6-5-3.5-1.8-1.9-3-3.5-5-3.5Z"/></svg></span>
+        <span data-i18n="nav_full_auto">Full Auto</span><span class="pro">PRO</span></a>
+      <a data-view="race">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M5 21V4"/><path d="M5 5c2.7-1.4 5.3 1.2 8 0s5 .4 5 .4v8.4s-2.3-1.2-5 0-5.3-1.4-8 0"/></svg></span>
+        <span data-i18n="nav_race">AFK Races</span></a>
+      <a data-view="mastery">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/><circle cx="12" cy="15.5" r="1.4"/></svg></span>
+        <span data-i18n="nav_mastery">Unlock Wheelspins</span></a>
+      <a data-view="buy">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20.6 13.4l-7.2 7.2a1.5 1.5 0 0 1-2.1 0l-7.3-7.3A1.5 1.5 0 0 1 3.5 12V5a1.5 1.5 0 0 1 1.5-1.5h7a1.5 1.5 0 0 1 1.1.4l7.5 7.4a1.5 1.5 0 0 1 0 2.1z"/><circle cx="8" cy="8" r="1.3"/></svg></span>
+        <span data-i18n="nav_buy">Buy Cars</span></a>
+      <a data-view="delete">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M4 7h16"/><path d="M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7"/><path d="M6.2 7l.9 12.1a1.4 1.4 0 0 0 1.4 1.3h7a1.4 1.4 0 0 0 1.4-1.3L17.8 7"/><path d="M10 11v6M14 11v6"/></svg></span>
+        <span data-i18n="nav_delete">Delete Cars</span></a>
+      <a data-view="wheelspin">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8v3.4M12 16.8v3.4M3.8 12h3.4M16.8 12h3.4M6.2 6.2l2.4 2.4M15.4 15.4l2.4 2.4M17.8 6.2l-2.4 2.4M8.6 15.4l-2.4 2.4"/><circle cx="12" cy="12" r="2"/></svg></span>
+        <span data-i18n="nav_wheelspin">Auto Wheelspins</span></a>
+    </nav>
+    <div style="flex:1"></div>
+    <div class="side-bottom">
+      <button class="side-btn" data-view="settings">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M5.2 18.8l1.9-1.9M16.9 7.1l1.9-1.9"/></svg></span>
+        <span data-i18n="side_settings">Settings</span></button>
+      <button class="side-btn" onclick="reportBug()">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="8" y="7" width="8" height="12" rx="4"/><path d="M12 7V4.2M9.4 5.2L7.6 4M14.6 5.2L16.4 4M8 11H4.6M8 15H4.6M16 11h3.4M16 15h3.4M9.2 18.4l-1.7 1.8M14.8 18.4l1.7 1.8"/></svg></span>
+        <span data-i18n="side_report">Report a Bug</span></button>
+      <button class="side-btn discord" onclick="API('open_link','discord')">
+        <img src="assets/discord_logo.png" alt="" /><span>Discord</span></button>
+      <button class="side-btn support" onclick="openSupport()">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 20.3l-1.3-1.2C5.7 14.6 2.5 11.7 2.5 8.1 2.5 5.5 4.5 3.5 7 3.5c1.5 0 2.9.7 3.8 1.8L12 6.6l1.2-1.3C14.1 4.2 15.5 3.5 17 3.5c2.5 0 4.5 2 4.5 4.6 0 3.6-3.2 6.5-8.2 11z"/></svg></span>
+        <span data-i18n="side_support">Support Me</span></button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <!-- ===== Full Auto view ===== -->
+    <div class="view" id="view-full_auto">
+      <section class="hero">
+        <div class="glow"></div><div class="drift"></div>
+        <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
+          <div style="min-width:0;">
+            <div style="display:flex;align-items:center;">
+              <span class="kicker" data-i18n="fa_kicker">PRO · CHAINED FARM</span>
+              <span class="pill" id="licPill"><span class="dot"></span><span data-i18n="licensed">LICENSED</span></span>
+            </div>
+            <h1 class="title" data-i18n="fa_title">Full Auto</h1>
+            <div class="underline"></div>
+            <p class="tagline" data-i18n="fa_tagline">Chain all functions into a single fully-AFK loop — race, buy, unlock, sell, and choose whether to include wheelspins. Set it running and walk away.</p>
+            <button class="ghost-btn" onclick="openHowto()" data-i18n="howitworks">ⓘ How it works</button>
+          </div>
+          <div class="hero-right">
+            <span style="font-size:12px;color:var(--text2);" data-i18n="monitor">Game monitor:</span>
+            <select class="mon-btn" id="monitor"></select>
+            <button class="overlay-btn">○ Overlay</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card chain"><div class="lbl" data-i18n="fa_loop">The loop</div><div class="steps" id="steps"></div></section>
+
+      <section class="card panel" id="faTplPanel">
+        <button class="panel-head" onclick="togglePanel('faTplPanel')">
+          <span style="display:flex;align-items:center;gap:13px;">
+            <span class="chip"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.6" y="1.6" width="5" height="5" rx="1.2" stroke="#7DB2FF" stroke-width="1.4"/><rect x="9.4" y="1.6" width="5" height="5" rx="1.2" stroke="#7DB2FF" stroke-width="1.4"/><rect x="1.6" y="9.4" width="5" height="5" rx="1.2" stroke="#7DB2FF" stroke-width="1.4"/><rect x="9.4" y="9.4" width="5" height="5" rx="1.2" stroke="#3a4a5e" stroke-width="1.4"/></svg></span>
+            <span style="display:flex;flex-direction:column;gap:3px;text-align:left;">
+              <span class="panel-sub" data-i18n="detection">Detection</span><span class="panel-title" data-i18n="templates">Templates</span></span>
+          </span>
+          <span style="display:flex;align-items:center;gap:14px;">
+            <span class="ready-pill"><span class="d"></span><span data-i18n="ready_pill">READY</span></span><span class="caret">▶</span></span>
+        </button>
+        <div class="panel-body" id="faTplBody"></div>
+      </section>
+
+      <section class="card panel open" id="setupPanel">
+        <button class="panel-head" onclick="togglePanel('setupPanel')">
+          <span style="display:flex;align-items:center;gap:13px;">
+            <span class="chip">⚙</span>
+            <span style="display:flex;flex-direction:column;gap:3px;text-align:left;">
+              <span class="panel-sub" data-i18n="parameters">Parameters</span><span class="panel-title" data-i18n="setup">Setup</span></span>
+          </span><span class="caret">▶</span>
+        </button>
+        <div class="panel-body">
+          <div class="row"><span class="lab" data-i18n="fa_races_per_cycle">Races per cycle (for mastery points):</span>
+            <input class="num" id="faRaces" value="2" /></div>
+          <div class="row"><span class="lab" data-i18n="fa_start_from">Start cycle from:</span>
+            <select class="dropdown" id="faStart">
+              <option value="race" data-i18n="fa_start_race">Race (full cycle)</option>
+              <option value="buy" data-i18n="fa_start_buy">Buy cars</option></select></div>
+          <div class="divider"></div>
+          <div class="row"><span class="lab" data-i18n="fa_what_to_farm">What to farm:</span><div class="seg" id="grindSeg"></div></div>
+          <div class="row" id="branchRow"><span class="lab"><span data-i18n="fa_after_selling">After selling:</span><span class="note" data-i18n="fa_branch_note">Only affects Wheelspin grind.</span></span>
+            <div class="seg" id="branchSeg"></div></div>
+        </div>
+      </section>
+
+      <div id="faChecklist"></div>
+
+      <div class="controls">
+        <button class="start" id="faStartBtn" onclick="startFA()" data-i18n="start">▶ Start</button>
+        <button class="stop" onclick="API('stop')" data-i18n="stop">■ Stop</button>
+        <span class="hint" data-i18n="startstop_hint">F9 to start / stop</span>
+      </div>
+
+      <section class="log">
+        <div class="log-head"><span class="t" data-i18n="activity">Activity</span>
+          <span class="status"><span class="d"></span><span class="statusText" data-i18n="ready">Ready</span></span></div>
+        <div class="log-body"></div>
+      </section>
+    </div>
+
+    <!-- ===== generic function-tab (mode) view ===== -->
+    <div class="view" id="view-mode" hidden>
+      <section class="hero">
+        <div class="glow"></div><div class="drift"></div>
+        <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
+          <div style="min-width:0;">
+            <div class="kicker" id="modeKicker"></div>
+            <h1 class="title" id="modeTitle" style="font-size:clamp(30px,4vw,44px)"></h1>
+            <div class="underline"></div>
+            <p class="tagline" id="modeTagline"></p>
+            <button class="ghost-btn" onclick="openHowto()" data-i18n="howitworks">ⓘ How it works</button>
+          </div>
+          <div class="hero-right">
+            <span style="font-size:12px;color:var(--text2);" data-i18n="monitor">Game monitor:</span>
+            <select class="mon-btn" id="modeMonitor"></select>
+            <button class="overlay-btn">○ Overlay</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card panel" id="modeTplPanel">
+        <button class="panel-head" onclick="togglePanel('modeTplPanel')">
+          <span style="display:flex;align-items:center;gap:13px;">
+            <span class="chip"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.6" y="1.6" width="5" height="5" rx="1.2" stroke="#7DB2FF" stroke-width="1.4"/><rect x="9.4" y="1.6" width="5" height="5" rx="1.2" stroke="#7DB2FF" stroke-width="1.4"/><rect x="1.6" y="9.4" width="5" height="5" rx="1.2" stroke="#7DB2FF" stroke-width="1.4"/><rect x="9.4" y="9.4" width="5" height="5" rx="1.2" stroke="#3a4a5e" stroke-width="1.4"/></svg></span>
+            <span style="display:flex;flex-direction:column;gap:3px;text-align:left;">
+              <span class="panel-sub" data-i18n="detection">Detection</span><span class="panel-title" data-i18n="templates">Templates</span></span>
+          </span>
+          <span style="display:flex;align-items:center;gap:14px;">
+            <span class="ready-pill"><span class="d"></span><span data-i18n="ready_pill">READY</span></span><span class="caret">▶</span></span>
+        </button>
+        <div class="panel-body" id="modeTplBody"></div>
+      </section>
+
+      <section class="card panel open" id="modeSetupPanel">
+        <button class="panel-head" onclick="togglePanel('modeSetupPanel')">
+          <span style="display:flex;align-items:center;gap:13px;">
+            <span class="chip">⚙</span>
+            <span style="display:flex;flex-direction:column;gap:3px;text-align:left;">
+              <span class="panel-sub" data-i18n="parameters">Parameters</span><span class="panel-title" data-i18n="setup">Setup</span></span>
+          </span><span class="caret">▶</span>
+        </button>
+        <div class="panel-body" id="modeSetupBody"></div>
+      </section>
+
+      <div id="modeConfirm"></div>
+
+      <div class="controls">
+        <button class="start" id="modeStart" data-i18n="start">▶ Start</button>
+        <button class="stop" onclick="API('stop')" data-i18n="stop">■ Stop</button>
+        <span class="hint" data-i18n="startstop_hint">F9 to start / stop</span>
+      </div>
+
+      <section class="log">
+        <div class="log-head"><span class="t" data-i18n="activity">Activity</span>
+          <span class="status"><span class="d"></span><span class="statusText" data-i18n="ready">Ready</span></span></div>
+        <div class="log-body"></div>
+      </section>
+    </div>
+
+    <!-- ===== locked / paywall view (Full Auto, unlicensed) ===== -->
+    <div class="view" id="view-locked" hidden>
+      <div style="max-width:680px;margin:0 auto;">
+        <div class="hero" style="border-radius:14px;padding:34px 34px 30px;background:radial-gradient(700px 240px at 100% -20%, rgba(37,99,235,.22), #0c1626);">
+          <div class="glow"></div>
+          <div style="position:relative;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+              <span style="width:54px;height:54px;border-radius:13px;background:rgba(37,99,235,.16);border:1px solid rgba(125,178,255,.3);display:flex;align-items:center;justify-content:center;flex:none;color:#9ec3ff;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/><circle cx="12" cy="15.3" r="1.5"/></svg>
+              </span>
+              <div>
+                <div class="kicker" style="letter-spacing:.22em;margin-bottom:7px" data-i18n="locked_premium">PREMIUM</div>
+                <h1 class="title" style="font-size:34px;margin:0" data-i18n="fa_title">Full Auto</h1>
+              </div>
+            </div>
+            <p style="margin:0;font-size:14.5px;line-height:1.6;color:var(--row2);max-width:560px;white-space:pre-line;" data-i18n="locked_desc">Full Auto chains every farm step into one hands-off loop: AFK race for mastery points, buy cars, unlock their mastery, sell them, then loop — wheelspins or straight back to racing.
+
+Unlock it with a one-time purchase. Your license activates on up to 2 machines.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin:22px 0 6px;" id="lockedFeatures"></div>
+          </div>
+        </div>
+
+        <div id="comingSoonBanner" hidden style="margin-top:18px;border-radius:12px;padding:22px 26px;background:linear-gradient(135deg, rgba(37,99,235,.16), rgba(37,99,235,.04));border:1px solid rgba(125,178,255,.25);display:flex;align-items:center;gap:16px;">
+          <span style="font-size:26px;line-height:1;flex:none;">🚧</span>
+          <div>
+            <div style="font-family:var(--display);font-weight:800;font-size:18px;color:var(--text);letter-spacing:.05em;" data-i18n="cs_badge">COMING SOON</div>
+            <div style="font-size:13.5px;color:var(--row2);line-height:1.5;margin-top:4px;" data-i18n="cs_sub">Full Auto is in final testing and unlocks in a future update.</div>
+          </div>
+        </div>
+
+        <div id="lockedPurchase" class="card" style="margin-top:18px;padding:24px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+          <div>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span style="font-family:var(--display);font-weight:800;font-size:32px;color:var(--text);" data-i18n="locked_onetime">One-time</span>
+              <span style="font-size:13px;color:var(--text2);" data-i18n="locked_lifetime">· lifetime unlock</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--muted);margin-top:5px;" data-i18n="locked_activates">Activates on up to 2 machines · 3-day offline grace</div>
+          </div>
+          <button onclick="API('buy')" style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <span data-i18n="locked_buy">Buy Full Auto</span>
+          </button>
+        </div>
+
+        <div id="lockedKeyrow" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#0e1420;border:1px solid var(--border-tile);border-radius:10px;padding:16px 20px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:13px;color:var(--row);font-weight:500;" data-i18n="locked_havekey">Already have a license key?</div>
+            <div style="font-family:var(--mono);font-size:10.5px;color:#3c4c5e;margin-top:6px;" id="lockedMachineId">Machine ID: —</div>
+          </div>
+          <button onclick="showView('settings')" style="display:inline-flex;align-items:center;gap:8px;background:var(--ctrl);border:1px solid #2c3a52;color:#9ec3ff;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;" data-i18n="locked_enterkey">Enter key in Settings →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Settings view ===== -->
+    <div class="view" id="view-settings" hidden>
+      <div class="set-wrap">
+        <div class="set-head">
+          <button class="set-back" onclick="showView('full_auto')" data-i18n="set_back">← Back</button>
+          <h1 class="set-title" data-i18n="set_title">Settings</h1>
+        </div>
+
+        <div class="set-section" data-i18n="set_appearance">Appearance</div>
+        <div class="set-group">
+          <div class="set-row"><span class="lbl" data-i18n="set_app_lang">App language</span>
+            <select class="dropdown accent" id="setLang"><option value="en">English</option><option value="zh-tw">繁體中文</option></select></div>
+          <div class="set-row"><span class="lbl" data-i18n="set_game_lang">Game-menu language</span>
+            <select class="dropdown accent" id="setTplLang"><option value="auto" data-i18n="set_game_lang_auto">Auto (follow app)</option><option value="en">English</option><option value="cht">繁體中文</option></select></div>
+          <div class="set-row"><span class="lbl" data-i18n="set_overlay">Game overlay</span>
+            <button class="switch" id="setOverlay"><span class="knob"></span></button></div>
+        </div>
+
+        <div class="set-section" data-i18n="set_system">System</div>
+        <div class="set-group" id="systemToggles"></div>
+
+        <div class="set-section" data-i18n="set_shortcuts">Shortcuts</div>
+        <div class="set-group" id="shortcutGroup"></div>
+
+        <div class="set-section" data-i18n="set_timing">Timing</div>
+        <div class="set-group" id="timingGroup"></div>
+
+        <div class="set-section" id="licSection" data-i18n="set_license">License</div>
+        <div class="set-group" id="licGroup" style="gap:0">
+          <div class="lic-status"><span class="d" id="licDot"></span><span id="licState"></span><span class="lic-key" id="licKey"></span></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input class="lic-input" id="licInput" placeholder="Paste your license key" data-i18n-ph="lic_placeholder" />
+            <button class="lic-btn" id="licActivate" data-i18n="lic_activate">Activate</button>
+          </div>
+          <div class="lic-mid" id="licMachine">Machine ID: —</div>
+          <div id="licMsg" style="font-size:12.5px;margin-top:10px;"></div>
+        </div>
+
+        <div class="set-section" data-i18n="set_developer">Developer</div>
+        <div class="set-group">
+          <div class="set-row">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-size:15px;color:var(--text)" data-i18n="dev_mode_label">Developer mode</span>
+              <span style="font-size:12px;color:var(--text2)" data-i18n="dev_mode_hint">Show template recapture &amp; detection tools. Leave off for normal use.</span>
+            </div>
+            <button class="switch" id="setDevMode"><span class="knob"></span></button>
+          </div>
+          <div class="set-row" id="devDebugRow">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-size:15px;color:var(--text)" data-i18n="sys_debug_detection">Debug snapshots</span>
+              <span style="font-size:12px;color:var(--text2)" data-i18n="sys_debug_detection_h">Saves annotated detection images to /debug for bug reports.</span>
+            </div>
+            <button class="switch" id="setDebugSnap"><span class="knob"></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- in-app tutorial modal (How it works) -->
+<div id="howModal" class="how-overlay" onclick="closeHowto()">
+  <div class="how-card" onclick="event.stopPropagation()">
+    <div class="how-head">
+      <div>
+        <div class="how-kicker" data-i18n="how_kicker">How it works</div>
+        <h2 class="how-title" id="howTitle">Full Auto</h2>
+      </div>
+      <button class="how-close" onclick="closeHowto()">&#10005;</button>
+    </div>
+    <div class="how-body" id="howBody"></div>
+    <div class="how-foot">
+      <a class="how-link" href="#" onclick="event.preventDefault(); openGuide();" data-i18n="how_fullguide">Read the full guide on the web ↗</a>
+    </div>
+  </div>
+</div>
+
+<!-- Report a Bug tutorial modal (the button shows this; F12 does the actual capture) -->
+<div id="reportModal" class="how-overlay" onclick="closeReport()">
+  <div class="how-card" onclick="event.stopPropagation()">
+    <div class="how-head">
+      <div>
+        <div class="how-kicker" data-i18n="report_kicker">Report a Bug</div>
+        <h2 class="how-title" data-i18n="report_title">How to Report a Bug</h2>
+      </div>
+      <button class="how-close" onclick="closeReport()">&#10005;</button>
+    </div>
+    <div class="how-body">
+      <p data-i18n="report_intro" style="margin:0 0 14px">Found a problem? Follow these steps:</p>
+      <ol id="reportSteps" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px"></ol>
+    </div>
+  </div>
+</div>
+
+<!-- Support Me modal -->
+<div id="supportModal" class="how-overlay" onclick="closeSupport()">
+  <div class="how-card" onclick="event.stopPropagation()">
+    <div class="how-head">
+      <div>
+        <div class="how-kicker" data-i18n="support_kicker">Support</div>
+        <h2 class="how-title" data-i18n="side_support">Support Me</h2>
+      </div>
+      <button class="how-close" onclick="closeSupport()">&#10005;</button>
+    </div>
+    <div class="how-body">
+      <p data-i18n="support_body" style="margin:0 0 16px">Thanks for using FAFE!</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="sup-btn" onclick="API('open_link','paypal')">PayPal</button>
+        <button class="sup-btn" onclick="API('open_link','jko')" data-i18n="support_jko">JKOPAY (街口支付)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- first-run language picker (shown once on a fresh install; bilingual, before i18n applies) -->
+<div id="langPicker">
+  <div class="lang-pick-card">
+    <div class="lang-pick-mark">FAFE</div>
+    <div class="lang-pick-sub">Select language · 選擇語言</div>
+    <div class="lang-pick-btns">
+      <button class="lang-pick" data-lang="en">English</button>
+      <button class="lang-pick" data-lang="zh-tw">繁體中文</button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

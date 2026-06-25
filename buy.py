@@ -80,7 +80,7 @@ _EXIT_CONFIRM_WINDOW = 10.0   # detect the main menu after the Esc chain
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
         warn_cb=None, section_cb=None, require_nav: bool = False,
-        target_nav=None):
+        target_nav=None, progress_cb=None):
     """
     Auto Buy loop.
     cfg: config dict
@@ -424,6 +424,8 @@ def run(cfg: dict, stop_event: threading.Event,
                 log_cb(_at('log_buy_key', lang, key=key.upper()))
                 press(key)
             loop += 1
+        if progress_cb:
+            progress_cb(loop, max_loops)
         if max_loops > 0 and loop >= max_loops:
             log_cb(_at('log_buy_limit_reached', lang, n=max_loops))
             break

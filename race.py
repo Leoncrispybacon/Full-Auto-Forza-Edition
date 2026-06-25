@@ -147,7 +147,8 @@ _NAV_SETTLE   = 0.3
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
-        warn_cb=None, section_cb=None, require_nav: bool = False):
+        warn_cb=None, section_cb=None, require_nav: bool = False,
+        progress_cb=None):
     """
     Main race automation loop.
     cfg: config dict
@@ -711,6 +712,10 @@ def run(cfg: dict, stop_event: threading.Event,
         _release_w()
         if stop(): break
         log_cb(_at("log_released_w", lang))
+
+        # One full race completed → report progress (n of max) to the UI bar.
+        if progress_cb:
+            progress_cb(loop_count, max_loops)
 
         # One full race completed. Stop here (on the results/restart screen)
         # when the requested number of races is reached, rather than kicking

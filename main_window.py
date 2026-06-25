@@ -401,21 +401,15 @@ class MainWindow(ctk.CTk):
         ctk.set_window_scaling(self._ui_scale)
 
     def _apply_theme(self):
-        theme_mode = self._cfg.get("theme", "system")
-        preset = self._cfg.get("theme_preset", "default")
-        if preset != "default":
-            # Theme presets are dark-only; force dark (the light/dark switch was
-            # replaced by the preset picker).
-            ctk.set_appearance_mode("dark")
-        elif theme_mode == "system":
-            ctk.set_appearance_mode("system")
-        else:
-            ctk.set_appearance_mode(theme_mode)
+        # Dark-only (DESIGN.md) — every preset, including default (the FAFE design
+        # palette), is a dark scheme, so force dark regardless of the old
+        # light/dark setting.
+        ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
         # Push the preset's colors into CTk's ThemeManager AFTER
         # set_default_color_theme() (which reloads the JSON and would otherwise
-        # wipe them) — same ordering rule as init_fonts(). "default" is a no-op.
-        theme.apply_preset(preset)
+        # wipe them) — same ordering rule as init_fonts().
+        theme.apply_preset(self._cfg.get("theme_preset", "default"))
 
     def _t(self, key):
         """Look up a theme design token (color / corner radius / font) for the
@@ -831,17 +825,108 @@ class MainWindow(ctk.CTk):
                         lambda e, k=key, va=var: self._on_setting_change(k, va))
             slider.pack(side="left", fill="x", expand=True, padx=4)
 
+    def _open_fa_howto(self):
+        """'How it works' — open the online Full Auto guide (CTk can't host the
+        rich tutorial the mock implies; the website covers it)."""
+        import webbrowser
+        try:
+            webbrowser.open("https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/")
+        except Exception:
+            pass
+
+    def _build_fa_hero(self, frame):
+        """Redesigned hero: kicker + LICENSED pill, big title, accent underline,
+        tagline, 'How it works'. Flat CTk approximation of the mock (no animated
+        glow / gradient underline — the framework can't render those)."""
+        hero = ctk.CTkFrame(frame, fg_color=self._t("surface"),
+                            corner_radius=self._t("corner"),
+                            border_width=1, border_color=self._t("border"))
+        hero.pack(fill="x", padx=8, pady=(8, 6))
+        inner = ctk.CTkFrame(hero, fg_color="transparent")
+        inner.pack(fill="x", padx=22, pady=20)
+
+        krow = ctk.CTkFrame(inner, fg_color="transparent")
+        krow.pack(fill="x", anchor="w")
+        ctk.CTkLabel(krow, text=_at("full_auto_kicker", self._lang),
+                     font=(theme.UI_FAMILY, 11, "bold"),
+                     text_color=self._t("log_accent")).pack(side="left")
+        ctk.CTkLabel(krow,
+                     text="  ●  " + _at("full_auto_licensed_pill", self._lang) + "  ",
+                     font=(theme.UI_FAMILY, 10, "bold"),
+                     text_color="#34D778", fg_color="#13241b",
+                     corner_radius=10).pack(side="left", padx=(10, 0))
+
+        ctk.CTkLabel(inner, text=_at("full_auto_title", self._lang),
+                     font=(theme.UI_FAMILY, 32, "bold"),
+                     text_color=self._t("text"), anchor="w").pack(fill="x",
+                                                                  anchor="w",
+                                                                  pady=(10, 0))
+        bar = ctk.CTkFrame(inner, fg_color=self._t("accent"), height=4, width=84,
+                           corner_radius=2)
+        bar.pack(anchor="w", pady=(8, 0))
+        bar.pack_propagate(False)
+
+        ctk.CTkLabel(inner, text=_at("full_auto_tagline", self._lang),
+                     font=(theme.UI_FAMILY, 13), text_color=self._t("text_muted"),
+                     anchor="w", justify="left",
+                     wraplength=560).pack(fill="x", anchor="w", pady=(12, 0))
+        ctk.CTkButton(inner, text="ⓘ  " + _at("full_auto_howto", self._lang),
+                      command=self._open_fa_howto,
+                      fg_color=self._t("surface_alt"), hover_color=self._t("bg"),
+                      text_color=self._t("log_accent"),
+                      border_width=1, border_color=self._t("border"),
+                      corner_radius=self._t("corner_sm"), height=34,
+                      font=(theme.UI_FAMILY, 13, "bold")).pack(anchor="w",
+                                                               pady=(14, 0))
+
+    def _build_fa_chain(self, frame):
+        """'The loop' chain visualization: 5 numbered chips with arrows + the
+        repeat note. Step 5 reflects the current branch (Race again / Wheelspin)."""
+        card = ctk.CTkFrame(frame, fg_color=self._t("surface"),
+                            corner_radius=self._t("corner"),
+                            border_width=1, border_color=self._t("border"))
+        card.pack(fill="x", padx=8, pady=(0, 6))
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="x", padx=20, pady=16)
+        ctk.CTkLabel(inner, text=_at("full_auto_loop_label", self._lang),
+                     font=(theme.UI_FAMILY, 10, "bold"),
+                     text_color="#5f7488", anchor="w").pack(fill="x", anchor="w")
+        row = ctk.CTkFrame(inner, fg_color="transparent")
+        row.pack(fill="x", anchor="w", pady=(10, 0))
+        branch = self._cfg.get("full_auto_branch_mode", "racing")
+        step5 = _at("fa_chain_wheelspin" if branch == "wheelspin"
+                    else "fa_chain_race_again", self._lang)
+        steps = [("1", _at("fa_chain_afk_race", self._lang)),
+                 ("2", _at("fa_chain_buy", self._lang)),
+                 ("3", _at("fa_chain_unlock", self._lang)),
+                 ("4", _at("fa_chain_sell", self._lang)),
+                 ("5", step5)]
+        for i, (n, label) in enumerate(steps):
+            chip = ctk.CTkLabel(row, text=n, width=24, height=24,
+                                font=(theme.UI_FAMILY, 12, "bold"),
+                                text_color=self._t("log_accent"),
+                                fg_color="#16233a",
+                                corner_radius=self._t("corner_sm"))
+            chip.pack(side="left", padx=(0, 6))
+            ctk.CTkLabel(row, text=label, font=(theme.UI_FAMILY, 13, "bold"),
+                         text_color="#cdd9e5").pack(side="left")
+            if i < len(steps) - 1:
+                ctk.CTkLabel(row, text="  →  ", font=(theme.UI_FAMILY, 14),
+                             text_color="#3a4a5e").pack(side="left")
+        ctk.CTkLabel(row, text="    " + _at("full_auto_loop_repeat", self._lang),
+                     font=(theme.UI_FAMILY, 11),
+                     text_color="#3a4a5e").pack(side="left")
+
     def _build_full_auto_tab(self) -> ctk.CTkFrame:
         # Solid bg (not transparent): a transparent CTkScrollableFrame canvas
         # has nothing to repaint over old child positions while scrolling, so
         # widgets ghost/smear. "surface" is what sits behind it anyway, so the
         # look is unchanged — just solid enough to clear cleanly on scroll.
-        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("surface"))
+        frame = ctk.CTkScrollableFrame(self._main_content, fg_color=self._t("bg"))
 
-        # Description
-        ctk.CTkLabel(frame, text=_at("full_auto_description", self._lang),
-                     anchor="w", wraplength=480, justify="left",
-                     font=("Arial", 12)).pack(fill="x", padx=12, pady=(8, 0))
+        # Hero + chain visualization (the redesigned top section).
+        self._build_fa_hero(frame)
+        self._build_fa_chain(frame)
 
         # Races-per-cycle count row (user-defined; for mastery points)
         count_row = ctk.CTkFrame(frame, fg_color="transparent")
@@ -1280,38 +1365,11 @@ class MainWindow(ctk.CTk):
             **theme.segbtn_kwargs(self._cfg),
         ).pack(side="left", padx=theme.PAD_INLINE)
 
-        # Duplicate-handling mode toggle (garage / sell)
-        mode_row = ctk.CTkFrame(frame, fg_color="transparent")
-        mode_row.pack(fill="x", padx=12, pady=(4, 0))
-        self._spin_mode_row = mode_row
-        ctk.CTkLabel(mode_row, text=_at("spin_mode_label", self._lang),
-                     font=theme.LABEL_FONT).pack(side="left")
-        self._spin_mode_labels = {
-            "garage": _at("spin_mode_garage", self._lang),
-            "sell":   _at("spin_mode_sell", self._lang),
-        }
-        cur_mode = self._cfg.get("wheelspin_dup_mode", "garage")
-        if cur_mode not in self._spin_mode_labels:
-            cur_mode = "garage"
-        self._spin_mode_var = ctk.StringVar(
-            value=self._spin_mode_labels[cur_mode])
-        ctk.CTkSegmentedButton(
-            mode_row,
-            values=[self._spin_mode_labels["garage"],
-                    self._spin_mode_labels["sell"]],
-            variable=self._spin_mode_var,
-            command=self._on_spin_mode_change,
-            height=32,
-            **theme.segbtn_kwargs(self._cfg),
-        ).pack(side="left", padx=theme.PAD_INLINE)
-        ctk.CTkLabel(mode_row, text=_at("spin_mode_hint", self._lang),
-                     font=("Arial", 11),
-                     text_color=self._t("text_muted")).pack(side="left")
-
-        # Keep Forza Edition (FE) duplicates instead of selling them. Sell mode
-        # only (Garage keeps everything anyway), so the row is shown only when
-        # Sell is selected — see _apply_spin_fe_visibility.
+        # Keep Forza Edition (FE) duplicates instead of selling them. Duplicates
+        # are sold by default; this keeps FE cars (the web UI also has a keep-by-
+        # price option — not ported to this legacy window).
         fe_row = ctk.CTkFrame(frame, fg_color="transparent")
+        fe_row.pack(fill="x", padx=12, pady=(4, 0))
         self._spin_fe_row = fe_row
         self._spin_keep_fe_var = ctk.BooleanVar(
             value=bool(self._cfg.get("wheelspin_keep_fe", True)))
@@ -1324,7 +1382,6 @@ class MainWindow(ctk.CTk):
                      font=("Arial", 11),
                      text_color=self._t("text_muted")).pack(side="left",
                                                              padx=theme.PAD_INLINE)
-        self._apply_spin_fe_visibility(cur_mode)   # show only in sell mode
 
         # Spin count row (0 = unlimited)
         count_row = ctk.CTkFrame(frame, fg_color="transparent")
@@ -1427,24 +1484,6 @@ class MainWindow(ctk.CTk):
         rev = {v: k for k, v in getattr(self, "_spin_type_labels", {}).items()}
         self._cfg["wheelspin_type"] = rev.get(val, "super")
         save(self._cfg)
-
-    def _on_spin_mode_change(self, val: str):
-        rev = {v: k for k, v in getattr(self, "_spin_mode_labels", {}).items()}
-        mode = rev.get(val, "garage")
-        self._cfg["wheelspin_dup_mode"] = mode
-        save(self._cfg)
-        self._apply_spin_fe_visibility(mode)   # FE toggle is sell-mode only
-
-    def _apply_spin_fe_visibility(self, mode: str):
-        """Show the Keep-FE checkbox only in Sell mode (no effect in Garage)."""
-        row = getattr(self, "_spin_fe_row", None)
-        if row is None:
-            return
-        if mode == "sell":
-            row.pack(fill="x", padx=12, pady=(4, 0),
-                     after=self._spin_mode_row)
-        else:
-            row.pack_forget()
 
     def _on_spin_keep_fe_change(self):
         self._cfg["wheelspin_keep_fe"] = bool(self._spin_keep_fe_var.get())
@@ -2937,7 +2976,7 @@ class MainWindow(ctk.CTk):
         self._build_settings_fields(
             scroll,
             fields=[
-                (_at('setting_mastery_cutscene_wait', self._lang), 'mastery_cutscene_wait', 11.0, 25.0, 0.5, 'tip_mastery_cutscene_wait'),
+                (_at('setting_mastery_cutscene_wait', self._lang), 'mastery_cutscene_wait', 11.0, 13.0, 0.5, 'tip_mastery_cutscene_wait'),
                 (_at('setting_mastery_grid_unlock_wait', self._lang), 'mastery_grid_unlock_wait', 1.0, 2.0, 0.25, 'tip_mastery_grid_unlock_wait'),
                 (_at('setting_menu_tap_wait', self._lang), 'menu_tap_wait', 0.1, 0.5, 0.05, 'tip_menu_tap_wait'),
             ])

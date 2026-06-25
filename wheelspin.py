@@ -76,7 +76,7 @@ TEMPLATE_KEY = "wheelspin_duplicate"  # the 3-option duplicate-reward menu
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
-        warn_cb=None, section_cb=None):
+        warn_cb=None, section_cb=None, progress_cb=None):
     """
     Auto Spin Wheel loop.
     cfg: config dict
@@ -96,8 +96,16 @@ def run(cfg: dict, stop_event: threading.Event,
     import config as _cfg_mod
     _fresh   = _cfg_mod.load()
     post_kw  = _fresh.get("wheelspin_post_key_wait", 0.5)
-    dup_mode = _fresh.get("wheelspin_dup_mode", "garage")
-    keep_fe  = _fresh.get("wheelspin_keep_fe", True)  # sell mode: route FE → garage
+    # Duplicates are SOLD by default. Two independent keep-exceptions:
+    #   keep_fe     — keep Forza Edition cars (name ends in "FE")
+    #   keep_price  — keep when the read sell price >= this many credits (0 = off)
+    # Either needs an OCR read of the modal; with both off we sell unconditionally.
+    keep_fe  = _fresh.get("wheelspin_keep_fe", True)
+    try:
+        keep_price = int(_fresh.get("wheelspin_keep_above_price", 0) or 0)
+    except (TypeError, ValueError):
+        keep_price = 0
+    need_ocr = keep_fe or keep_price > 0
     wtype    = _fresh.get("wheelspin_type", "super")   # "super" | "normal"
     # Which tile starts the run: Super Wheelspin (3 prizes) or normal Wheelspin
     # (1 prize). Only this start tile differs — collect/duplicate flow is the same.
@@ -268,8 +276,11 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb(_at("log_spin_started_count", lang, n=max_loops))
     else:
         log_cb(_at("log_spin_started", lang))
-    if dup_mode == "sell":
-        log_cb(_at("log_spin_sell_warn", lang))
+    log_cb(_at("log_spin_sell_warn", lang))
+    if keep_fe:
+        log_cb(_at("log_spin_keep_fe_on", lang))
+    if keep_price > 0:
+        log_cb(_at("log_spin_keep_price_on", lang, price=f"{keep_price:,}"))
     # Switch the game to English input only if it isn't already (foreground
     # only — in background mode it would target the wrong window).
     if not io.bg and _fresh.get("auto_english_ime", True):
@@ -337,6 +348,8 @@ def run(cfg: dict, stop_event: threading.Event,
     loop_count = 0
     while not stop():
         loop_count += 1
+        if progress_cb:                       # spins done so far → UI bar fill
+            progress_cb(loop_count - 1, max_loops)
         section(f"-- {_at('spin_loop', lang)} #{loop_count}" +
                 (f" / {max_loops}" if max_loops > 0 else "") + " --")
         # Last counted spin: collect with Esc (collects all 3 prizes AND exits
@@ -423,15 +436,26 @@ def run(cfg: dict, stop_event: threading.Event,
         # dups, so rising-edge counting would never see dup #2). The just-pressed
         # collect prompt also lingers, but we watch ONLY the duplicate menu here,
         # so it's simply ignored.
+        #
+        # We ALSO catch the NEXT spin's reveal Skip prompt here, so Skip works on
+        # every spin (its reveal starts during this wait, not just spin #1's).
+        # FRESHNESS GATE (skip_armed): the Skip/collect prompt from THIS spin
+        # lingers right after we collect, so we only accept a Skip once the prompt
+        # area has been seen CLEAR at least once — i.e. a Skip that REAPPEARED is
+        # the next reveal, not the stale one. Without this gate the lingering
+        # prompt fires an instant false break and the loop races (one real spin
+        # logged as ten).
         announce(_at("log_spin_wait_dup", lang))
         chain = 0
         _t_dup = time.time()
         dup_deadline = _t_dup + DUP_WINDOW_S
+        skip_armed = False
         while not stop() and chain < MAX_DUP_CHAIN:
             if time.time() >= dup_deadline:           # window elapsed → none left
                 log_cb(_at("log_spin_no_dup", lang,
                            secs=f"{time.time() - _t_dup:.1f}"))
                 break
+            frame = None
             try:
                 frame = io.grab()
                 dr = detector.detect(frame, TEMPLATE_KEY, dup_tpl,
@@ -439,6 +463,23 @@ def run(cfg: dict, stop_event: threading.Event,
             except Exception:
                 dr = None
             if dr is None or not dr.matched:
+                # No dup this frame — arm/fire the next-reveal Skip (freshness-gated).
+                if skip_tpl is not None and frame is not None:
+                    try:
+                        sr = detector.detect(frame, SKIP_KEY, skip_tpl,
+                                             _thr(SKIP_KEY), stable=False)
+                    except Exception:
+                        sr = None
+                    if sr is None or not sr.matched:
+                        skip_armed = True             # prompt area clear → now armed
+                    elif skip_armed:                  # Skip REAPPEARED → next reveal
+                        log_cb(_at("log_spin_detected", lang,
+                                   label=_at("spin_tpl_skip", lang),
+                                   conf=f"{sr.score:.0%}, {sr.source}",
+                                   secs=f"{time.time() - _t_dup:.1f}"))
+                        announce(_at("log_spin_skip", lang))
+                        press('enter', post_wait=0.0)  # fast-forward next reveal
+                        break                          # dups done → next spin
                 time.sleep(_DETECT_IV)
                 continue
             log_cb(_at("log_spin_detected", lang,
@@ -446,22 +487,30 @@ def run(cfg: dict, stop_event: threading.Event,
                        conf=f"{dr.score:.0%}, {dr.source}",
                        secs=f"{time.time() - _t_dup:.1f}"))
             chain += 1
-            # In sell mode (with keep_fe on), route Forza Edition cars (name ends
-            # in "FE") to Add to garage instead of selling. Errs toward KEEP: only
-            # a confident non-FE name sells (no name read → keep). Same `frame` the
-            # dup was detected on — no extra grab.
-            fe_keep = False
-            nm = ""
-            if dup_mode == "sell" and keep_fe:
-                verdict, nm = detector.duplicate_is_fe(frame)
-                fe_keep = verdict is not False     # True/None → keep
-            if dup_mode != "sell" or fe_keep:
-                # Garage = top option: Enter (+ its post-key settle).
-                if fe_keep:
+            # Decide keep vs sell. Default = sell; keep only if FE (when keep_fe)
+            # OR the read sell price >= keep_price (when set). Errs toward KEEP on
+            # anything unread (selling is irreversible): an FE verdict of None
+            # (no name read) keeps, and an unreadable price keeps when price-keep
+            # is on. OCR runs on the same `frame` the dup was detected on (no extra
+            # grab); skipped entirely when both exceptions are off → unconditional
+            # sell, no OCR cost.
+            keep = False
+            if need_ocr:
+                fe, price, txt = detector.duplicate_info(frame)
+                if keep_fe and fe is not False:        # True/None → keep
+                    keep = True
                     announce(_at("log_spin_dup_keep_fe", lang, n=chain,
-                                 name=(nm or "FE")))
-                else:
-                    announce(_at("log_spin_dup_garage", lang, n=chain))
+                                 name=(txt or "FE")))
+                elif keep_price > 0:
+                    if price is None:                  # couldn't read price → keep
+                        keep = True
+                        announce(_at("log_spin_dup_keep_price_unknown", lang, n=chain))
+                    elif price >= keep_price:
+                        keep = True
+                        announce(_at("log_spin_dup_keep_price", lang, n=chain,
+                                     price=f"{price:,}"))
+            if keep:
+                # Garage = top option: Enter (+ its post-key settle).
                 press('enter')
             else:
                 # Sell = 3rd option: Down ×2 → Enter (Enter's post-wait settles).

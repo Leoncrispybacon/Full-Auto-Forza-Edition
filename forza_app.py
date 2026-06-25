@@ -30,7 +30,7 @@ def _except_hook(exc_type, exc_value, exc_tb):
     try:
         import os as _os, sys as _sys, time as _t
         base = (_os.path.dirname(_sys.executable)
-                if getattr(_sys, 'frozen', False)
+                if (getattr(_sys, 'frozen', False) or "__compiled__" in globals())
                 else _os.path.dirname(_os.path.abspath(_sys.argv[0])))
         with open(_os.path.join(base, 'fafe_crash.log'), 'a',
                   encoding='utf-8') as f:
@@ -53,8 +53,9 @@ try:
 except Exception:
     pass
 
-# ── Path setup for frozen exe and dev ────────────────────────
-if getattr(sys, 'frozen', False):
+# ── Path setup for frozen exe and dev (PyInstaller sets sys.frozen; Nuitka
+#    sets __compiled__) ─────────────────────────────────────────
+if getattr(sys, 'frozen', False) or "__compiled__" in globals():
     # --onedir: exe and all files are in the same folder
     BASE = os.path.dirname(sys.executable)
     sys.path.insert(0, BASE)
