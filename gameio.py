@@ -49,6 +49,15 @@ _EXTENDED_VKS = frozenset({0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
 # WM_ACTIVATE/SETFOCUS bursts that dropped keystrokes during menu navigation).
 _KEEPALIVE_INTERVAL = 0.5
 
+# After any discrete injected input (key tap, click, scroll, key release), keep
+# the activation re-assert SILENT this long, so its WM_ACTIVATE/SETFOCUS burst
+# can't collide with the input the game is mid-processing. The collision was
+# the "focus flicker breaks it" cause — most visible during the race countdown,
+# but it disrupts menu taps/clicks in every function. NOT bumped by hold_press:
+# the sustained race throttle needs keep-alive running for the minutes-long,
+# unfocused race or the game auto-pauses.
+_KA_QUIET_INPUT = 0.35
+
 # When True, a longer-lived session (Full Auto) owns the per-app mute for the
 # whole run, so per-step GameIO.mute()/unmute() are no-ops (prevents the game
 # un-muting for a moment between chained functions). Set via set_mute_held().
@@ -135,6 +144,7 @@ class GameIO:
         self.monitor_index = cfg.get("monitor_index", 1)
         self._cap_method = cfg.get("background_capture", "window")
         self._ka_stop = threading.Event()
+        self._ka_quiet_until = 0.0   # keep-alive skips activation until this time
         self._held = {}          # key -> True once first keydown sent (repeat bit)
         self._muted_pid = None
 
@@ -240,6 +250,7 @@ class GameIO:
     def press(self, key, post_wait=0.0, scancode=False):
         """Tap a key. Background → PostMessage to the window; foreground →
         SendInput (dual VK+scan, or scancode-only for grid/gameplay keys)."""
+        self.quiet_keepalive()
         if self.bg:
             vk = _vk(key)
             if vk is not None:
@@ -275,6 +286,7 @@ class GameIO:
     def release(self, key):
         """Release a held key. Background posts the keyup straight to the window
         (no focus change needed). Foreground sends VK + scancode keyups."""
+        self.quiet_keepalive()
         if self.bg:
             vk = _vk(key)
             if vk is not None:
@@ -290,6 +302,7 @@ class GameIO:
         """Left-click at FRAME-LOCAL (fx, fy) (i.e. MatchResult.location). In
         window-capture mode the frame IS the client area, so we post client
         coords directly (independent of the window's screen position)."""
+        self.quiet_keepalive()
         # Record the click (in detection-frame coords) for the debug overlay /
         # F12 report — fx,fy match the frame the detector draws on. Best-effort.
         try:
@@ -311,6 +324,7 @@ class GameIO:
             capture.mouse_click(fx, fy, self.cap_left, self.cap_top, post_wait)
 
     def scroll(self, notches, post_wait=0.1):
+        self.quiet_keepalive()
         if self.bg:
             capture.post_scroll(self.hwnd, notches, post_wait)
         else:
@@ -325,9 +339,17 @@ class GameIO:
         self._log(_at("log_bg_keep_active", self._lang))
         def _loop():
             while not self._ka_stop.is_set() and not stop_cb():
-                capture.set_window_active(self.hwnd)
+                if time.time() >= self._ka_quiet_until:
+                    capture.set_window_active(self.hwnd)
                 time.sleep(_KEEPALIVE_INTERVAL)
         threading.Thread(target=_loop, daemon=True).start()
+
+    def quiet_keepalive(self, secs: float = _KA_QUIET_INPUT):
+        """Silence the activation re-assert for `secs` from now (extends, never
+        shortens). Input methods bump this so the keep-alive burst can't collide
+        with the input; callers can pass a longer window for input-free but
+        still-sensitive gaps (e.g. the race start countdown)."""
+        self._ka_quiet_until = max(self._ka_quiet_until, time.time() + secs)
 
     def stop_keepalive(self):
         self._ka_stop.set()

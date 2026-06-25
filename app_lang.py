@@ -40,8 +40,8 @@ STRINGS = {
         "zh-tw": "⭐  自動解鎖22B轉輪",
     },
     "mastery_description": {
-        "en":    "Unlocks the mastery tree on every 22B-STi in your garage, one car at a time.\n\nBefore you start:\n•  Be in your My Home garage (not the Horizon Festival map menu).\n•  Make sure the newest 22B in the top-left is brand new.\n\nThe tool snakes downward through the grid, processing each car automatically.",
-        "zh-tw": "自動為車庫中每一輛 22B-STi 解鎖熟練度樹，一輛接一輛。\n\n開始前：\n•  停在我的住所裡的車庫（非大世界選單）。\n•  確認左上角最新的 22B 是全新的。\n\n程式會以蛇行方式往下遍歷整個車庫，自動處理每一輛車。",
+        "en":    "Unlocks the mastery tree on your 22B-STis, one car at a time, across the range you choose.\n\nBefore you start:\n•  Be in your My Home garage (not the Horizon Festival map menu).\n•  Make sure the newest 22B in the top-left is brand new.\n•  Set the unlock path in the grid and the car range in the garage block below.\n\nThe tool walks the cars top to bottom, column by column, processing each automatically.",
+        "zh-tw": "自動為車庫中的 22B-STi 解鎖熟練度樹，一輛接一輛，依你選定的範圍處理。\n\n開始前：\n•  停在我的住所裡的車庫（非大世界選單）。\n•  確認左上角最新的 22B 是全新的。\n•  在下方格狀圖設定解鎖路徑，並用車庫格選擇車輛範圍。\n\n程式會由上而下、整欄逐車處理，自動完成每一輛。",
     },
 
     "tab_buy": {
@@ -49,8 +49,8 @@ STRINGS = {
         "zh-tw": "🛒  自動購買22B-STi",
     },
     "buy_description": {
-        "en":    "Purpose-built to farm the Subaru Impreza 22B-STi.\n\nStay on the main menu and FAFE navigates there on its own:\nCollection Journal → Discover Japan / Master Explorer → Car Collection → Subaru → 22B-STi\nIt buys the set number of times, then returns to the main menu.\n\nYou can also position on the 22B-STi yourself and press Start — the buy macro runs from wherever you are.",
-        "zh-tw": "專為刷取 Subaru Impreza 22B-STi 設計。\n\n停在主選單即可，FAFE 會自動前往：\n收藏日記 → 探索大師 → 車輛收藏 → Subaru → 22B-STi\n購買指定次數後返回主選單。\n\n你也可以自行停在 22B-STi 畫面再按開始，購買巨集會在目前畫面執行。",
+        "en":    "Purpose-built to farm the Subaru Impreza 22B-STi.\n\nStay on the main menu and FAFE navigates there on its own:\nCollection Journal → Discover Japan / Master Explorer → Car Collection → Subaru → 22B-STi\nIt buys the set number of times, then returns to the main menu.\n\nYou can also position on any car yourself and press Start — the buy macro runs on whatever car is on screen.",
+        "zh-tw": "專為刷取 Subaru Impreza 22B-STi 設計。\n\n停在主選單即可，FAFE 會自動前往：\n收藏日記 → 探索大師 → 車輛收藏 → Subaru → 22B-STi\n購買指定次數後返回主選單。\n\n你也可以自行停在任何車輛的畫面再按開始，購買巨集會在目前畫面執行。",
     },
     "status_starting_buy": {
         "en":    "Starting Auto Buy...",
@@ -86,6 +86,14 @@ STRINGS = {
         "en":    "Target car tile (e.g. Impreza 22B-STi)",
         "zh-tw": "目標車輛圖塊（例：Impreza 22B-STi）",
     },
+    "buy_tpl_confirm": {
+        "en":    "\"Buy Car\" confirmation popup (capture the solid header bar)",
+        "zh-tw": "「購買車輛」確認彈窗（請擷取實心標題列）",
+    },
+    "buy_tpl_detail": {
+        "en":    "Car detail view anchor (price / Buy button — for retry recovery)",
+        "zh-tw": "車輛詳情畫面錨點（價格／購買按鈕 — 供重試復原用）",
+    },
     # ── Buy menu-navigation log messages ──────────────────────
     "log_buy_nav_begin": {
         "en":    "Main menu detected — navigating to the Car Collection…",
@@ -102,6 +110,12 @@ STRINGS = {
     "log_buy_nav_click": {
         "en":    "  → click {label}",
         "zh-tw": "  → 點擊 {label}",
+    },
+    # Shared nav failsafe: the click didn't advance the menu and the element is
+    # still there → the click was dropped/ignored, re-clicking. Used by all funcs.
+    "log_nav_reclick": {
+        "en":    "  ↻ {label} didn't advance — re-clicking (try {n})",
+        "zh-tw": "  ↻ {label} 未跳轉 — 重新點擊（第 {n} 次）",
     },
     "log_buy_nav_key": {
         "en":    "  → {keys}: {label}",
@@ -126,6 +140,27 @@ STRINGS = {
     "log_buy_macro_start": {
         "en":    "Target car focused — starting the buy macro.",
         "zh-tw": "已聚焦目標車輛 — 開始購買巨集。",
+    },
+    # ── Buy gating (confirmed/retrying loop) ──────────────────
+    "log_buy_gated_on": {
+        "en":    "  (purchase confirmation enabled — each buy is verified)",
+        "zh-tw": "  （已啟用購買確認 — 每次購買都會驗證）",
+    },
+    "log_buy_confirmed": {
+        "en":    "  ✓ Buy confirmed ({conf}) — {n} bought.",
+        "zh-tw": "  ✓ 已確認購買（{conf}）— 已購買 {n} 台。",
+    },
+    "log_buy_retry": {
+        "en":    "  ✗ No confirmation — Esc back to the car, retry {a}/{m}.",
+        "zh-tw": "  ✗ 未出現確認 — 按 Esc 返回車輛，重試 {a}/{m}。",
+    },
+    "log_buy_recover_fail": {
+        "en":    "  ✗ Couldn't return to the car detail view after Esc — aborting to avoid mis-clicks.",
+        "zh-tw": "  ✗ 按 Esc 後仍無法回到車輛詳情畫面 — 為避免誤點而中止。",
+    },
+    "log_buy_attempts_exhausted": {
+        "en":    "  ✗ Buy failed {m}× in a row — aborting.",
+        "zh-tw": "  ✗ 連續 {m} 次購買失敗 — 中止。",
     },
     "log_buy_exit_begin": {
         "en":    "Returning to the main menu…",
@@ -195,6 +230,454 @@ STRINGS = {
         "en":    "Auto Spin Wheel",
         "zh-tw": "自動轉輪",
     },
+    "nav_full_auto": {
+        "en":    "Full Auto",
+        "zh-tw": "全自動",
+    },
+    "page_title_full_auto": {
+        "en":    "Full Auto",
+        "zh-tw": "全自動",
+    },
+    # ── Full Auto (chained orchestrator) ──────────────────────
+    "full_auto_description": {
+        "en":    "Chains everything into one farm loop:\nAFK race (for mastery points) → buy 33 cars → unlock their mastery trees → sell them → repeat.\n\nSet the races per cycle and whether to spin wheels each cycle. Each step needs its own templates captured (race nav, buy nav). Runs until you press Stop / F9.",
+        "zh-tw": "將所有功能串成一個循環：\n賽事掛機（賺取熟練點數）→ 購買 33 輛車 → 解鎖熟練樹 → 賣出 → 重複。\n\n設定每循環的賽事數，以及是否每循環轉輪。各步驟需先擷取各自的樣本（賽事導航、購買導航）。會持續執行直到你按下停止／F9。",
+    },
+    "full_auto_count_label": {
+        "en":    "Races per cycle (mastery points):",
+        "zh-tw": "每循環賽事數（熟練點數）：",
+    },
+    "full_auto_start_label": {
+        "en":    "Start cycle from:",
+        "zh-tw": "循環起始於：",
+    },
+    "full_auto_start_race": {
+        "en":    "Race (full cycle)",
+        "zh-tw": "賽事（完整循環）",
+    },
+    "full_auto_start_buy": {
+        "en":    "Buy cars",
+        "zh-tw": "購買車輛",
+    },
+    "full_auto_start_mastery": {
+        "en":    "Unlock mastery",
+        "zh-tw": "解鎖熟練",
+    },
+    "full_auto_start_sell": {
+        "en":    "Sell cars",
+        "zh-tw": "賣出車輛",
+    },
+    "full_auto_start_spin": {
+        "en":    "Spin Wheel",
+        "zh-tw": "轉輪",
+    },
+    "full_auto_kicker": {
+        "en":    "PRO · CHAINED FARM",
+        "zh-tw": "PRO · 連鎖農場",
+    },
+    "full_auto_licensed_pill": {
+        "en":    "LICENSED",
+        "zh-tw": "已啟用",
+    },
+    "full_auto_title": {
+        "en":    "Full Auto",
+        "zh-tw": "全自動",
+    },
+    "full_auto_tagline": {
+        "en":    "Chain all functions into a single fully-AFK loop — race, buy, "
+                 "unlock, sell, and choose whether to include wheelspins. Set it "
+                 "running and walk away.",
+        "zh-tw": "將所有功能串成一個完全掛機的循環——跑賽、購車、解鎖、賣車，"
+                 "並可選擇是否加入轉輪。設定好就能放著跑。",
+    },
+    "full_auto_howto": {
+        "en":    "How it works",
+        "zh-tw": "運作方式",
+    },
+    "full_auto_loop_label": {
+        "en":    "THE LOOP",
+        "zh-tw": "循環",
+    },
+    "full_auto_loop_repeat": {
+        "en":    "↻ repeats until Stop / F9",
+        "zh-tw": "↻ 重複直到停止 / F9",
+    },
+    "fa_chain_afk_race":   {"en": "AFK Race", "zh-tw": "賽事掛機"},
+    "fa_chain_buy":        {"en": "Buy",      "zh-tw": "購買"},
+    "fa_chain_unlock":     {"en": "Unlock",   "zh-tw": "解鎖"},
+    "fa_chain_sell":       {"en": "Sell",     "zh-tw": "賣出"},
+    "fa_chain_race_again": {"en": "Race again", "zh-tw": "再賽事"},
+    "fa_chain_wheelspin":  {"en": "Wheelspin", "zh-tw": "轉輪"},
+    "full_auto_grind_label": {
+        "en":    "What to farm:",
+        "zh-tw": "農場目標：",
+    },
+    "full_auto_grind_wheelspin": {
+        "en":    "Wheelspin",
+        "zh-tw": "輪盤",
+    },
+    "full_auto_grind_money": {
+        "en":    "Money",
+        "zh-tw": "金錢",
+    },
+    "full_auto_grind_mixed": {
+        "en":    "Mixed",
+        "zh-tw": "混合",
+    },
+    "full_auto_branch_label": {
+        "en":    "After selling:",
+        "zh-tw": "賣出後：",
+    },
+    "full_auto_branch_note": {
+        "en":    "Only affects Wheelspin grind.",
+        "zh-tw": "僅影響輪盤農場模式。",
+    },
+    "full_auto_branch_wheelspin": {
+        "en":    "Spin wheels",
+        "zh-tw": "轉動輪盤",
+    },
+    "full_auto_branch_racing": {
+        "en":    "Back to racing",
+        "zh-tw": "回到賽事",
+    },
+    "status_starting_full_auto": {
+        "en":    "Starting Full Auto...",
+        "zh-tw": "正在啟動全自動...",
+    },
+    # Full Auto pre-flight checklist (Start gated until all are ticked)
+    "fa_check_title": {
+        "en":    "Before you start — confirm all of these:",
+        "zh-tw": "開始前 — 請確認以下所有項目：",
+    },
+    "fa_check_driving": {
+        "en":    "I'm driving the car I want to grind with.",
+        "zh-tw": "我正在駕駛要用來刷的車。",
+    },
+    "fa_check_map": {
+        "en":    "The map I want to AFK on is my last-played event.",
+        "zh-tw": "我要掛機的地圖是上次遊玩的賽事。",
+    },
+    "fa_check_neighbor": {
+        "en":    "Once in Garage, the car to the right of my current car is not new. (one-time setup)",
+        "zh-tw": "進入車庫後，我目前車輛右側的那輛車不是全新車。（一次性設定）",
+    },
+    "fa_check_favorite": {
+        "en":    "Only ONE Subaru 22B-STI is marked as Favorite. (one-time setup — more than one breaks grind-car selection)",
+        "zh-tw": "只有「一輛」Subaru 22B-STI 被標記為我的最愛。（一次性設定 — 超過一輛會導致練車選取失敗）",
+    },
+    "fa_check_stock_paint": {
+        "en":    "The car I'm using to AFK is a 22B-STI with a stock paint job. (one-time setup — a custom livery breaks grind-car detection)",
+        "zh-tw": "我用來掛機的車是「原廠塗裝」的 22B-STI。（一次性設定 — 自訂塗裝會導致練車偵測失敗）",
+    },
+
+    "status_fa_checklist": {
+        "en":    "Full Auto: tick all the checklist items first.",
+        "zh-tw": "全自動：請先勾選所有檢查清單項目。",
+    },
+    "log_fa_checklist_block": {
+        "en":    "Can't start Full Auto — tick every box in the pre-flight checklist first.",
+        "zh-tw": "無法啟動全自動 — 請先勾選檢查清單中的每一項。",
+    },
+    "status_delete_confirm": {
+        "en":    "Delete Cars: tick the confirmation box first.",
+        "zh-tw": "刪除車輛：請先勾選確認框。",
+    },
+    "log_delete_confirm_block": {
+        "en":    "Can't start — tick the box confirming all cars between the first and last will be deleted.",
+        "zh-tw": "無法啟動 — 請先勾選確認框，確認第一輛與最後一輛之間的所有車輛都會被刪除。",
+    },
+    "log_fa_started": {
+        "en":    "Full Auto started.",
+        "zh-tw": "全自動已啟動。",
+    },
+    "log_fa_muted": {
+        "en":    "🔇 Game muted for the Full Auto session (unmutes on stop).",
+        "zh-tw": "🔇 全自動期間靜音遊戲（停止時取消靜音）。",
+    },
+    "log_fa_race_count_warn": {
+        "en":    "  ⚠ Races per cycle is 0 (unlimited) — the cycle can't advance past racing. Set a positive number.",
+        "zh-tw": "  ⚠ 每循環賽事數為 0（無限）— 循環將卡在賽事無法繼續。請設定正整數。",
+    },
+    "log_fa_cycle": {
+        "en":    "==== Full Auto — cycle #{n} ====",
+        "zh-tw": "==== 全自動 — 第 {n} 循環 ====",
+    },
+    "log_fa_grind_cycle": {
+        "en":    "Grind: {grind}",
+        "zh-tw": "農場類型：{grind}",
+    },
+    "log_fa_money_brand": {
+        "en":    "  ✓ Dodge brand ({conf})",
+        "zh-tw": "  ✓ Dodge 車廠（{conf}）",
+    },
+    "log_fa_money_brand_fail": {
+        "en":    "  ✗ Dodge brand not found (OCR) — aborting buy.",
+        "zh-tw": "  ✗ 找不到 Dodge 車廠（OCR）— 中止購買。",
+    },
+    "log_fa_money_car": {
+        "en":    "  ✓ Viper GTS ACR tile ({conf})",
+        "zh-tw": "  ✓ Viper GTS ACR 車輛（{conf}）",
+    },
+    "log_fa_money_car_fail": {
+        "en":    "  ✗ Viper GTS ACR tile not found — aborting buy.",
+        "zh-tw": "  ✗ 找不到 Viper GTS ACR 車輛 — 中止購買。",
+    },
+    "log_fa_money_tpl_missing": {
+        "en":    "  ✗ GTS ACR car template not captured — capture it in the Full Auto setup panel.",
+        "zh-tw": "  ✗ 尚未擷取 GTS ACR 車輛樣本 — 請在全自動設定面板擷取。",
+    },
+    "log_fa_step_race": {
+        "en":    "[1/5] AFK race…",
+        "zh-tw": "[1/5] 賽事掛機…",
+    },
+    "log_fa_step_buy": {
+        "en":    "[2/5] Buy {n} cars…",
+        "zh-tw": "[2/5] 購買 {n} 輛車…",
+    },
+    "log_fa_step_mastery_todo": {
+        "en":    "[3/5] Mastery {n} cars — NOT YET WIRED (skipped).",
+        "zh-tw": "[3/5] 熟練 {n} 輛車 — 尚未接入（略過）。",
+    },
+    "log_fa_step_sell_todo": {
+        "en":    "[4/5] Sell {n} cars — NOT YET WIRED (skipped).",
+        "zh-tw": "[4/5] 賣出 {n} 輛車 — 尚未接入（略過）。",
+    },
+    "log_fa_step_sell": {
+        "en":    "[4/5] Sell {n} cars…",
+        "zh-tw": "[4/5] 賣出 {n} 輛車…",
+    },
+    "log_fa_step_spin_todo": {
+        "en":    "[5/5] Wheelspin branch — NOT YET WIRED (skipped).",
+        "zh-tw": "[5/5] 轉輪分支 — 尚未接入（略過）。",
+    },
+    "log_fa_step_spin": {
+        "en":    "[5/5] Wheelspin ×{n}…",
+        "zh-tw": "[5/5] 轉輪 ×{n}…",
+    },
+    "log_fa_step_mastery": {
+        "en":    "[3/5] Mastery {n} cars…",
+        "zh-tw": "[3/5] 熟練 {n} 輛車…",
+    },
+    # Full Auto — mastery positioning nav (main menu → My Cars → newest car)
+    "log_fa_mastery_nav_begin": {
+        "en":    "  Mastery: navigating main menu → My Cars…",
+        "zh-tw": "  熟練：從主選單導航至車庫…",
+    },
+    "log_fa_mastery_nav_detected": {
+        "en":    "  ✓ {label} detected ({conf}) — {secs}s",
+        "zh-tw": "  ✓ 偵測到 {label}（{conf}）— {secs}s",
+    },
+    "log_fa_mastery_nav_click": {
+        "en":    "  → click {label}",
+        "zh-tw": "  → 點擊 {label}",
+    },
+    "log_fa_mastery_tab_right": {
+        "en":    "  → switch to CARS tab (D ×2)",
+        "zh-tw": "  → 切換到 車輛 分頁（D ×2）",
+    },
+    "log_fa_mastery_mycars": {
+        "en":    "  → Enter → My Cars grid",
+        "zh-tw": "  → Enter → 我的車輛 列表",
+    },
+    "log_fa_mastery_sort": {
+        "en":    "  → X → open sort menu",
+        "zh-tw": "  → X → 開啟排序選單",
+    },
+    "log_fa_key_retry": {
+        "en":    "  ↻ menu didn't open — re-pressing {key} (try {n})",
+        "zh-tw": "  ↻ 選單未開啟 — 重新按 {key}（第 {n} 次）",
+    },
+    "log_fa_mastery_nav_fail": {
+        "en":    "  ✗ {label} not found in {secs}s — aborting mastery nav.",
+        "zh-tw": "  ✗ {secs}s 內找不到 {label} — 中止熟練導航。",
+    },
+    "log_fa_mastery_at_grid": {
+        "en":    "  ✓ at My Cars, positioned on the newest car.",
+        "zh-tw": "  ✓ 已在車庫，定位至最新車輛。",
+    },
+    "log_fa_mastery_nav_skip": {
+        "en":    "  Mastery nav templates not captured — skipping mastery step.",
+        "zh-tw": "  熟練導航模板尚未擷取 — 略過熟練步驟。",
+    },
+    # Full Auto — sell step (ride non-target → re-sort → walk to Nth car → sell)
+    "log_fa_sell_begin": {
+        "en":    "  Sell: preparing to sell {n} cars…",
+        "zh-tw": "  賣車：準備賣出 {n} 輛車…",
+    },
+    "log_fa_sell_ride": {
+        "en":    "  → ride a non-target car (Right → Enter → Enter) so it's excluded from the sale",
+        "zh-tw": "  → 騎乘一輛非目標車（Right → Enter → Enter），使其排除於賣出之外",
+    },
+    "log_fa_sell_find_car": {
+        "en":    "  → re-select grind car: Y → Favorites → Backspace → brand → car (excludes it from the sale + drives it next race)",
+        "zh-tw": "  → 重新選擇練車：Y → 我的最愛 → Backspace → 品牌 → 車輛（排除於賣出之外，並作為下一場比賽用車）",
+    },
+    "log_fa_sell_wait_grid": {
+        "en":    "  → waiting for the My Cars grid to load (header)…",
+        "zh-tw": "  → 等待我的車輛列表載入（標題）…",
+    },
+    "log_fa_sell_get_in": {
+        "en":    "  → Select An Action menu detected — Get In Car (Enter)",
+        "zh-tw": "  → 偵測到「選擇動作」選單 — 進入車輛（Enter）",
+    },
+    "log_fa_sell_car_retry": {
+        "en":    "  ! Select An Action didn't open — re-clicking grind car (retry #{n})",
+        "zh-tw": "  ! 「選擇動作」未開啟 — 重新點擊練車（重試 #{n}）",
+    },
+    "log_fa_sell_sort": {
+        "en":    "  → X → Recently Added → Backspace → Enter (jump to newest car)",
+        "zh-tw": "  → X → 最近新增 → Backspace → Enter（跳至最新車輛）",
+    },
+    "log_fa_sell_position": {
+        "en":    "  → position on car #{n}: Right ×{r}, Down ×{d}",
+        "zh-tw": "  → 定位至第 {n} 輛車：Right ×{r}，Down ×{d}",
+    },
+    "log_fa_sell_macro": {
+        "en":    "  → selling {n} cars (Enter → Down×4 → Enter → Down → Enter each)…",
+        "zh-tw": "  → 賣出 {n} 輛車（每輛 Enter → Down×4 → Enter → Down → Enter）…",
+    },
+    "log_fa_sell_car": {
+        "en":    "    ✓ sold {i}/{n}",
+        "zh-tw": "    ✓ 已賣 {i}/{n}",
+    },
+    "log_fa_sell_exit": {
+        "en":    "  → exiting to main menu: ESC → home → ESC → open world → ESC → main",
+        "zh-tw": "  → 返回主選單：ESC → 住宅 → ESC → 開放世界 → ESC → 主選單",
+    },
+    "log_fa_sell_wait_world": {
+        "en":    "  → waiting for open world (home icon)…",
+        "zh-tw": "  → 等待開放世界（住宅圖示）…",
+    },
+    "log_fa_sell_at_menu": {
+        "en":    "  ✓ cars sold, back at the main menu.",
+        "zh-tw": "  ✓ 已賣出車輛，返回主選單。",
+    },
+    "log_fa_sell_fail": {
+        "en":    "  ✗ {label} not found in {secs}s — aborting sell.",
+        "zh-tw": "  ✗ {secs}s 內找不到 {label} — 中止賣車。",
+    },
+    "log_fa_sell_skip": {
+        "en":    "  Sell templates not captured — skipping sell step.",
+        "zh-tw": "  賣車模板尚未擷取 — 略過賣車步驟。",
+    },
+    # Full Auto template setup — categories + labels
+    "fa_cat_mastery": {
+        "en":    "Mastery (main menu → My Cars)",
+        "zh-tw": "熟練（主選單 → 車庫）",
+    },
+    "fa_cat_sell": {
+        "en":    "Sell (My Cars → sell block)",
+        "zh-tw": "賣車（車庫 → 賣出區塊）",
+    },
+    "fa_cat_points": {
+        "en":    "Car count",
+        "zh-tw": "車輛計數",
+    },
+    "fa_tpl_cars_top_tab": {
+        "en":    "CARS top-nav tab (車輛, main menu)",
+        "zh-tw": "上方「車輛」分頁（主選單）",
+    },
+    "fa_tpl_story_top_tab": {
+        "en":    "STORY top-nav tab (劇情, to go back)",
+        "zh-tw": "上方「劇情」分頁（返回用）",
+    },
+    "fa_tpl_tech_points": {
+        "en":    "Available tech-points line (XXX點可用的技術點數)",
+        "zh-tw": "可用技術點數那行（XXX點可用的技術點數）",
+    },
+    "fa_cat_money": {
+        "en":    "Money grind (Dodge Viper GTS ACR)",
+        "zh-tw": "金錢農場（Dodge Viper GTS ACR）",
+    },
+    "fa_tpl_dodge": {
+        "en":    "Dodge brand tile (brand list, after Backspace)",
+        "zh-tw": "Dodge 車廠（按 Backspace 後的車廠清單）",
+    },
+    "fa_tpl_gts_acr": {
+        "en":    "Black Viper GTS ACR tile (buy collection; after scroll; NOT the FE)",
+        "zh-tw": "黑色 Viper GTS ACR 車輛（購買收藏；捲動後；非 FE）",
+    },
+    # Auto-count chain log lines.
+    "log_fa_points_nav_skip": {
+        "en":    "  (auto-count templates not captured — skipping the points read)",
+        "zh-tw": "  （未擷取自動數量樣本 — 略過點數讀取）",
+    },
+    "log_fa_points_begin": {
+        "en":    "Reading available tech points…",
+        "zh-tw": "正在讀取可用技術點數…",
+    },
+    "log_fa_points_tab_fail": {
+        "en":    "  ✗ Couldn't reach the CARS tab to read points — aborting.",
+        "zh-tw": "  ✗ 無法進入車輛分頁讀取點數 — 中止。",
+    },
+    "log_fa_points_read_fail": {
+        "en":    "  ✗ Couldn't read the tech-points number — aborting.",
+        "zh-tw": "  ✗ 無法讀取技術點數 — 中止。",
+    },
+    "log_fa_points_read": {
+        "en":    "  ✓ Tech points: {p}",
+        "zh-tw": "  ✓ 技術點數：{p}",
+    },
+    "log_fa_points_count": {
+        "en":    "  Auto-count: {p} points → processing {n} cars this cycle.",
+        "zh-tw": "  自動數量：{p} 點 → 本輪處理 {n} 台車。",
+    },
+    "log_fa_points_too_few": {
+        "en":    "  Only {p} points (< 30) — racing again to earn more.",
+        "zh-tw": "  僅有 {p} 點（少於 30）— 再次跑圖以累積。",
+    },
+    "log_fa_points_no_progress": {
+        "en":    "  ✗ Points didn't increase after racing — aborting (race not earning).",
+        "zh-tw": "  ✗ 跑圖後點數沒有增加 — 中止（跑圖未獲得點數）。",
+    },
+    "fa_tpl_my_cars": {
+        "en":    "My Cars (after riding)",
+        "zh-tw": "我的車輛（騎乘後）",
+    },
+    "fa_tpl_my_cars_header": {
+        "en":    "My Cars header (top-left)",
+        "zh-tw": "我的車輛 標題（左上角）",
+    },
+    "fa_tpl_anna": {
+        "en":    "Home icon (appears when leaving the home menu)",
+        "zh-tw": "住宅圖示（離開住宅選單時出現）",
+    },
+    "fa_tpl_grind_brand": {
+        "en":    "Grind car brand (Manufacturer menu)",
+        "zh-tw": "練車品牌（製造商選單）",
+    },
+    "fa_tpl_grind_car": {
+        "en":    "Grind car tile (brand list)",
+        "zh-tw": "練車車輛（品牌列表）",
+    },
+    "fa_tpl_select_action": {
+        "en":    "\"Select An Action\" menu (after clicking the car)",
+        "zh-tw": "「選擇動作」選單（點擊車輛後）",
+    },
+    "fa_tpl_return_home": {
+        "en":    "Return Home tile",
+        "zh-tw": "返回住宅 圖塊",
+    },
+    "fa_tpl_cars_tab": {
+        "en":    "CARS tab",
+        "zh-tw": "車輛 分頁",
+    },
+    "fa_tpl_cars_tab_sell": {
+        "en":    "CARS tab (sell exit)",
+        "zh-tw": "車輛 分頁（賣車返回）",
+    },
+    "fa_tpl_recently_added": {
+        "en":    "Recently Added (sort)",
+        "zh-tw": "最近新增（排序）",
+    },
+    "log_fa_stopped": {
+        "en":    "Full Auto stopped.",
+        "zh-tw": "全自動已停止。",
+    },
+    "log_fa_aborted": {
+        "en":    "Full Auto stopped — a step could not proceed (not advancing to the next cycle).",
+        "zh-tw": "全自動已停止 — 某步驟無法繼續（不進入下一循環）。",
+    },
     "label_activity": {
         "en":    "Activity",
         "zh-tw": "活動記錄",
@@ -256,21 +739,13 @@ STRINGS = {
         "en":    "Normal (1 prize)",
         "zh-tw": "一般（1 獎）",
     },
-    "spin_mode_label": {
-        "en":    "Duplicate handling:",
-        "zh-tw": "重複獎勵處理：",
+    "spin_keep_fe_label": {
+        "en":    "Keep Forza Edition (FE) cars",
+        "zh-tw": "保留 Forza Edition (FE) 車輛",
     },
-    "spin_mode_garage": {
-        "en":    "Add to Garage",
-        "zh-tw": "加入車庫",
-    },
-    "spin_mode_sell": {
-        "en":    "Sell Car",
-        "zh-tw": "賣出車輛",
-    },
-    "spin_mode_hint": {
-        "en":    "Sell mode sells duplicates automatically — see the warning above.",
-        "zh-tw": "賣出模式會自動賣掉重複車輛 — 請見上方警告。",
+    "spin_keep_fe_hint": {
+        "en":    "Sell mode only — routes FE duplicates to Add to Garage.",
+        "zh-tw": "僅賣出模式 — 將 FE 重複車輛改為加入車庫。",
     },
     "spin_tpl_my_horizon": {
         "en":    "My Horizon tab (top nav)",
@@ -317,8 +792,16 @@ STRINGS = {
         "zh-tw": "自動轉輪已啟動 — 將轉動 {n} 次。",
     },
     "log_spin_sell_warn": {
-        "en":    "SELL mode: duplicate cars will be sold automatically and unattended.",
-        "zh-tw": "賣出模式：重複車輛將被自動且無人看管地賣出。",
+        "en":    "Duplicate cars will be SOLD automatically and unattended (unless kept below).",
+        "zh-tw": "重複車輛將被自動且無人看管地賣出（除非符合下列保留條件）。",
+    },
+    "log_spin_keep_fe_on": {
+        "en":    "  keeping: Forza Edition (FE) cars",
+        "zh-tw": "  保留：Forza Edition（FE）車輛",
+    },
+    "log_spin_keep_price_on": {
+        "en":    "  keeping: cars with sell price >= {price}",
+        "zh-tw": "  保留：售價 >= {price} 的車輛",
     },
     "log_spin_select_mh_tab": {
         "en":    "Selecting the My Horizon tab (starting from the main menu)...",
@@ -393,12 +876,12 @@ STRINGS = {
         "zh-tw": "  ✓ 偵測到{label}（{conf}）— {secs} 秒",
     },
     "log_spin_wait_dup": {
-        "en":    "  → waiting for duplicate menu or next spin",
-        "zh-tw": "  → 等待重複選單或下一次轉動",
+        "en":    "  → watching for duplicate menu",
+        "zh-tw": "  → 偵測重複選單中",
     },
     "log_spin_no_dup": {
-        "en":    "  ✓ no more duplicates — next spin ({secs}s)",
-        "zh-tw": "  ✓ 沒有更多重複 — 下一次轉動（{secs} 秒）",
+        "en":    "  ✓ no more duplicates ({secs}s)",
+        "zh-tw": "  ✓ 沒有更多重複（{secs} 秒）",
     },
     "log_spin_back_menu": {
         "en":    "  ✓ no more duplicates — back at the My Horizon menu ({secs}s)",
@@ -412,9 +895,25 @@ STRINGS = {
         "en":    "  → duplicate #{n}: Sell (Down×2 → Enter)",
         "zh-tw": "  → 重複 #{n}：賣出（Down×2 → Enter）",
     },
+    "log_spin_dup_keep_fe": {
+        "en":    "  → duplicate #{n}: Forza Edition ({name}) — keeping (Add to Garage)",
+        "zh-tw": "  → 重複 #{n}：Forza Edition（{name}）— 保留（加入車庫）",
+    },
+    "log_spin_dup_keep_price": {
+        "en":    "  → duplicate #{n}: sell price {price} >= threshold — keeping (Add to Garage)",
+        "zh-tw": "  → 重複 #{n}：售價 {price} >= 門檻 — 保留（加入車庫）",
+    },
+    "log_spin_dup_keep_price_unknown": {
+        "en":    "  → duplicate #{n}: sell price unreadable — keeping (Add to Garage)",
+        "zh-tw": "  → 重複 #{n}：無法讀取售價 — 保留（加入車庫）",
+    },
     "log_spin_limit_reached": {
         "en":    "Reached target of {n} spins. Stopping.",
         "zh-tw": "已完成目標 {n} 次轉動，自動停止。",
+    },
+    "log_spin_ran_out": {
+        "en":    "Account out of Wheelspins after {n}. Collected and stopping.",
+        "zh-tw": "帳號的轉盤已用完（已完成 {n} 次），領取後自動停止。",
     },
     "log_spin_stopped": {
         "en":    "Auto Spin Wheel stopped.",
@@ -618,6 +1117,96 @@ STRINGS = {
         "en":    "off = lighter on CPU (fixes game stutter)",
         "zh-tw": "關閉 = 較省 CPU（修正遊戲卡頓）",
     },
+    "setting_debug": {
+        "en":    "Debug snapshots:",
+        "zh-tw": "除錯快照：",
+    },
+    "setting_debug_hint": {
+        "en":    "save annotated detection PNGs to debug/ (applies next run)",
+        "zh-tw": "將標註後的偵測 PNG 存到 debug/（下次執行生效）",
+    },
+    "settings_license_section": {
+        "en":    "Full Auto License",
+        "zh-tw": "Full Auto 授權",
+    },
+    "license_key_placeholder": {
+        "en":    "Paste license key",
+        "zh-tw": "貼上授權金鑰",
+    },
+    "license_activate_btn": {
+        "en":    "Activate",
+        "zh-tw": "啟用",
+    },
+    "license_deactivate_btn": {
+        "en":    "Deactivate",
+        "zh-tw": "停用",
+    },
+    "license_buy_btn": {
+        "en":    "Buy Full Auto",
+        "zh-tw": "購買 Full Auto",
+    },
+    "license_activating": {
+        "en":    "Activating…",
+        "zh-tw": "啟用中…",
+    },
+    "license_machine_id": {
+        "en":    "Machine ID: {id}",
+        "zh-tw": "機器 ID：{id}",
+    },
+    "license_status_unlicensed": {
+        "en":    "Not activated — enter your key to unlock Full Auto",
+        "zh-tw": "尚未啟用 — 請輸入金鑰以解鎖 Full Auto",
+    },
+    "license_status_licensed": {
+        "en":    "Active ✓",
+        "zh-tw": "已啟用 ✓",
+    },
+    "license_status_grace_expired": {
+        "en":    "Offline too long — reconnect to re-validate",
+        "zh-tw": "離線過久 — 請連網重新驗證",
+    },
+    "license_status_invalid": {
+        "en":    "Key invalid or revoked",
+        "zh-tw": "金鑰無效或已撤銷",
+    },
+    "status_license_required": {
+        "en":    "Full Auto requires an active license",
+        "zh-tw": "Full Auto 需要有效授權",
+    },
+    "fa_lock_title": {
+        "en":    "Full Auto — Premium",
+        "zh-tw": "Full Auto — 進階功能",
+    },
+    "fa_lock_desc": {
+        "en":    "Full Auto chains every farm step into one hands-off loop: AFK "
+                 "race for mastery points, buy cars, unlock their mastery, sell "
+                 "them, then loop — wheelspins or straight back to racing. Set it "
+                 "running and walk away.\n\nUnlock it with a one-time purchase. "
+                 "Your license activates on up to 2 machines.",
+        "zh-tw": "Full Auto 將所有刷取步驟串成一個全自動循環：掛機跑競賽賺精通點數、"
+                 "購車、解鎖精通、賣車，然後重複 — 可選轉輪盤或直接回到競賽。設定好就能放著跑。"
+                 "\n\n一次性購買即可解鎖。授權可在最多 2 台機器上啟用。",
+    },
+    "fa_lock_buy_btn": {
+        "en":    "Buy Full Auto",
+        "zh-tw": "購買 Full Auto",
+    },
+    "fa_lock_have_key": {
+        "en":    "Already have a license key?",
+        "zh-tw": "已經有授權金鑰？",
+    },
+    "fa_lock_settings_btn": {
+        "en":    "Enter key in Settings",
+        "zh-tw": "在設定中輸入金鑰",
+    },
+    "fa_lock_soon": {
+        "en":    "Store link coming soon — purchasing is not live yet.",
+        "zh-tw": "商店連結即將推出 — 購買尚未開放。",
+    },
+    "log_license_required": {
+        "en":    "Full Auto is locked — activate a license in Settings.",
+        "zh-tw": "Full Auto 已鎖定 — 請在設定中啟用授權。",
+    },
     "overlay_indicator": {
         "en":    "Overlay",
         "zh-tw": "浮層",
@@ -734,6 +1323,10 @@ STRINGS = {
     "template_saved": {
         "en":    "  Template '{key}' saved.",
         "zh-tw": "  樣本 '{key}' 已儲存。",
+    },
+    "tpl_too_small": {
+        "en":    "  ⚠ '{key}' is small (~{w}x{h}px at 1080p) — may fail on 1080p/handheld screens. Capture a larger, taller crop (include the surrounding bar/button).",
+        "zh-tw": "  ⚠ '{key}' 偏小（1080p 下約 {w}x{h}px）— 在 1080p／掌機螢幕可能偵測失敗，建議擷取更大、更高的範圍（連同周圍的列／按鈕一起框）。",
     },
     "set_roi_instruction": {
         "en":    "Set DETECTION AREA for {label}: drag the region the template should be searched in (saves no image)",
@@ -912,6 +1505,10 @@ STRINGS = {
     "startup_running": {
         "en":    "  Running!",
         "zh-tw": "  開始執行！",
+    },
+    "log_ocr_enabled": {
+        "en":    "  OCR confirmation: ON (text-match assist)",
+        "zh-tw": "  OCR 確認：開啟（文字比對輔助）",
     },
     "log_placeholder": {
 
@@ -1241,8 +1838,16 @@ STRINGS = {
         "zh-tw": "畫面與樣本的相符程度，達到此值才視為偵測成功。\n數值越高越嚴格，越低則越寬鬆但可能誤判。",
     },
     "tip_mastery_cutscene_wait": {
-        "en":    "How long to wait for the 'Ride This Car' cutscene before pressing ESC (in seconds).\nDefault 11. Increase if the cutscene runs longer on your machine.",
-        "zh-tw": "按下 ESC 前等待「乘坐這輛車」過場動畫的時間（秒）。\n預設 11。若你的電腦過場動畫較長，請增加此數值。",
+        "en":    "How long to wait for the 'Ride This Car' cutscene before pressing ESC (in seconds).\nDefault 11. Increase if the cutscene runs longer on your machine. The slider min is 11, but if you use a mod that skips the cutscene you can set a lower value by editing mastery_cutscene_wait in config.json.",
+        "zh-tw": "按下 ESC 前等待「乘坐這輛車」過場動畫的時間（秒）。\n預設 11。若你的電腦過場動畫較長，請增加。滑桿最低為 11；若你使用了略過過場動畫的模組，可直接編輯 config.json 的 mastery_cutscene_wait 設為更低的值。",
+    },
+    "tip_mastery_grid_unlock_wait": {
+        "en":    "How long to wait after unlocking each mastery-tree node before moving to the next (in seconds).\nDefault 1.25. Increase on weaker hardware if nodes don't register before the cursor moves on.",
+        "zh-tw": "解鎖每個熟練度樹節點後、移動到下一個之前的等待時間（秒）。\n預設 1.25。若硬體較弱、節點尚未生效游標就移動，請調高。",
+    },
+    "tip_menu_tap_wait": {
+        "en":    "Delay after each menu cursor tap (Up/Down arrows) in Mastery and Delete Cars (in seconds).\nDefault 0.25. Increase on weaker hardware if menu taps don't register before the next press.",
+        "zh-tw": "熟練度與刪除車輛中，每次選單游標點按（上/下方向鍵）後的延遲（秒）。\n預設 0.25。若硬體較弱、點按尚未生效就按下一鍵，請調高。",
     },
     "tip_mastery_grid_unlock_wait": {
         "en":    "How long to wait after unlocking each mastery-tree node before moving to the next (in seconds).\nDefault 1.25. Increase on weaker hardware if nodes don't register before the cursor moves on.",

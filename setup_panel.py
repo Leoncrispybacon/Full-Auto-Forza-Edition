@@ -13,7 +13,7 @@ from capture import (CaptureSession, NodeSession,
 from config import (RESOLUTION_SETS, get_examples_dir,
                     get_race_templates, get_mastery_templates,
                     get_wheelspin_templates, get_buy_templates,
-                    get_nodes_file)
+                    get_full_auto_templates, get_nodes_file)
 import config
 import theme
 
@@ -198,6 +198,8 @@ class SetupPanel(ctk.CTkFrame):
             return get_wheelspin_templates(self._resolution, self._tpl_lang)
         if self._mode == 'buy':
             return get_buy_templates(self._resolution, self._tpl_lang)
+        if self._mode == 'full_auto':
+            return get_full_auto_templates(self._resolution, self._tpl_lang)
         return get_mastery_templates(self._resolution, self._tpl_lang)
 
     def _get_nodes_file(self):
@@ -485,6 +487,18 @@ class SetupPanel(ctk.CTkFrame):
 
     def _on_captured(self, key, crop, screen_w, screen_h, box=None):
         save_template(self.folder, key, crop, screen_w, screen_h, box=box)
+        # Warn if the crop is so small it won't survive downscaling to a common
+        # low resolution (1080p handhelds) — the cause of weak ~60% matches.
+        # Templates scale by HEIGHT, so the 1080p size is box * (1080/screen_h).
+        try:
+            if box and screen_h:
+                f = 1080.0 / float(screen_h)
+                w1, h1 = int(box[2] * f), int(box[3] * f)
+                if w1 < 100 or h1 < 28:
+                    self.log_cb(_at("tpl_too_small", self._lang,
+                                    key=key, w=w1, h=h1))
+        except Exception:
+            pass
         self.after(0, lambda: self._post_capture(key))
 
     def _post_capture(self, key):

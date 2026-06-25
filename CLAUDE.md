@@ -122,3 +122,8 @@ New APP/
 
 ## Build
 Run `build_app.bat` — produces `FAFE_dist/` with `FAFE.exe`, `_internal/`, `config.json`. The release zip is the full `FAFE_dist/` contents. The build bundles `rapidocr_onnxruntime` (the ONNX models add ~50 MB) so OCR works if enabled, and `templates/` is copied next to the exe.
+
+<!-- Full Auto + licensing/paywall design notes live in PAID_FUNCTION.md, which is
+     gitignored and only on the private Full-auto branch (kept out of CLAUDE.md so
+     CLAUDE.md is safe to merge to the public main). -->
+

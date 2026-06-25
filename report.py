@@ -91,6 +91,16 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
                 f.write(f"\n=== {name} ===\n")
                 f.write("\n".join(lines) if lines else "(empty)")
                 f.write("\n")
+            # fafe_diag.log carries persistent diagnostics incl. the OCR backend
+            # load result — useful for "did OCR load?" in compiled builds.
+            f.write("\n\n----- fafe_diag.log -----\n")
+            try:
+                import config as _c
+                _dp = os.path.join(_c.BASE_DIR, "fafe_diag.log")
+                f.write(open(_dp, encoding="utf-8").read()
+                        if os.path.exists(_dp) else "(none)")
+            except Exception as _e:
+                f.write(f"(unavailable: {_e!r})")
     except Exception as e:
         log(f"report: log.txt failed: {e!r}")
 

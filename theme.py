@@ -244,34 +244,36 @@ THEME_TOKENS = [
 ]
 
 THEME_PRESETS: dict[str, dict] = {
-    # Current look — dark, blue accent, CTk-default surfaces. Values match the
-    # existing hardcoded colors so nothing regresses.
+    # FAFE design system (dark navy-blue). Tokens from DESIGN.md / the Full Auto
+    # design handoff. Start is now the ACCENT blue (primary action), not green —
+    # green is reserved for the status dot. Applied app-wide (apply_preset pushes
+    # these into CTk's ThemeManager for every preset, default included).
     "default": {
-        "bg":           "#242424",
-        "surface":      "#2b2b2b",
-        "surface_alt":  "#333333",
-        "sidebar_bg":   "#1e1e1e",
-        "border":       "#404040",
-        "accent":       "#3B82F6",
-        "accent_hover": "#2563EB",
+        "bg":           "#0A0E14",   # app background (darkest)
+        "surface":      "#121A28",   # cards / panels
+        "surface_alt":  "#161E28",   # elevated controls (entries, dropdowns, log)
+        "sidebar_bg":   "#0D131E",   # left nav (subtly raised from bg)
+        "border":       "#243044",
+        "accent":       "#2563EB",
+        "accent_hover": "#1D4FD7",
         "accent_text":  "#ffffff",
-        "text":         "#e5e5e5",
-        "text_muted":   "#9aa0a6",
-        "start":        "#10B981",
-        "start_hover":  "#059669",
+        "text":         "#F4F8FD",
+        "text_muted":   "#82A0B2",   # secondary text (deeper #5f7488 used inline)
+        "start":        "#2563EB",   # primary action = accent (per the design)
+        "start_hover":  "#1D4FD7",
         "start_text":   "#ffffff",
-        "stop":         "#EF4444",
-        "stop_hover":   "#DC2626",
+        "stop":         "#DC2626",
+        "stop_hover":   "#B91C1C",
         "stop_text":    "#ffffff",
-        "warn":         "#ff4444",
-        "log_text":     "#dcdcdc",
-        "log_accent":   "#3B82F6",
-        "status_dot":   "#22c55e",
-        "support_fill": "#0070ba",
-        "support_hover": "#005ea6",
+        "warn":         "#FF7A7A",
+        "log_text":     "#cdd9e5",
+        "log_accent":   "#7DB2FF",
+        "status_dot":   "#22C55E",
+        "support_fill": "#2563EB",   # Support Me = filled accent
+        "support_hover": "#1D4FD7",
         "support_text": "#ffffff",
-        "corner":       6,
-        "corner_sm":    4,
+        "corner":       8,
+        "corner_sm":    6,
     },
     # Showcase — dark navy/purple with a cyan accent and rounder corners.
     "midnight_neon": {
@@ -409,13 +411,15 @@ def apply_preset(name: str, root=None) -> dict:
     STOP_FG        = t["stop"]
     STOP_HOVER     = t["stop_hover"]
     STATUS_RUNNING = t["status_dot"]
-    if name != DEFAULT_PRESET:
-        try:
-            import customtkinter as ctk
-            ctk.set_appearance_mode("dark")
-        except Exception:
-            pass
-        _apply_ctk_overrides(t)
+    # Push the palette into CustomTkinter's ThemeManager for EVERY preset
+    # (default included) — the FAFE design is now the default look, so even the
+    # un-tokened generic widgets must pick it up. The app is dark-only.
+    try:
+        import customtkinter as ctk
+        ctk.set_appearance_mode("dark")
+    except Exception:
+        pass
+    _apply_ctk_overrides(t)
     return t
 
 

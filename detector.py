@@ -45,7 +45,11 @@ REF_ASPECT = 16.0 / 9.0
 # to the content box, e.g. menus). Everything else uses a full-axis band because
 # in-game HUD elements anchor to the screen edges. start_menu specifically needs
 # the box — on a full-width band it false-matched the loading screen (~85%).
-_ROI_BOX_KEYS = frozenset({"start_menu"})
+_ROI_BOX_KEYS = frozenset({"start_menu",
+                           # duplicate modal is a centred dialog → map its OCR
+                           # bands into the centred 16:9 box (NOT a full-width
+                           # band) so they stay tight on ultrawide.
+                           "wheelspin_dup_name", "wheelspin_dup_price"})
 
 
 @dataclass
@@ -83,6 +87,17 @@ DEFAULT_ROIS: dict[str, Rect] = {
     "wheelspin_skip":       (0.00, 0.86, 0.40, 0.14),  # bottom-left button prompt
     "wheelspin_collect":    (0.00, 0.86, 0.40, 0.14),  # bottom-left button prompt
     "wheelspin_collect_final": (0.00, 0.86, 0.40, 0.14),  # final-spin single "Collect Prize"
+    # Duplicate-menu OCR bands (read, not pixel-matched). Split so each is tight:
+    #   _name  — the green car-name line (FE suffix test)
+    #   _price — the "Sell for CR N" row only (sell-price read; no stray numbers)
+    # x stays generous (0.30-0.70) so the centred modal fits 16:9 AND ultrawide;
+    # y is tight per line (the modal is height-scaled + vertically centred, so the
+    # per-line y-fractions are stable across resolutions).
+    "wheelspin_dup_name":   (0.30, 0.60, 0.40, 0.09),
+    # Tall enough for reliable OCR — a too-thin strip starves RapidOCR (reads
+    # nothing). Includes the "Send as a Gift" row, but that has no digits so it
+    # never affects the parsed price (largest >=4-digit run = the sell price).
+    "wheelspin_dup_price":  (0.30, 0.74, 0.40, 0.11),
     # ── Race menu navigation (main menu → EventLab → MY HISTORY → Start) ──
     # Fallback ROIs only; user captures carry a geometry box that supplies the
     # real ROI. Generous bands here so a no-box capture still detects.
@@ -100,10 +115,39 @@ DEFAULT_ROIS: dict[str, Rect] = {
     "car_collection":       (0.00, 0.55, 0.45, 0.40),  # 車輛收藏 tile, bottom-left of grid
     "subaru":               (0.00, 0.45, 1.00, 0.55),  # Subaru brand tile (brand view, bottom)
     "buy_target_car":       (0.40, 0.45, 0.60, 0.55),  # target car tile (after 1-notch scroll)
+    # Buy gating: "Buy Car" confirmation popup (solid lime header, centred) =
+    # the success signal; buy_detail = a stable car-detail-view element (price /
+    # Buy button) used as the safe-to-retry anchor after an Esc recovery.
+    "buy_confirm":          (0.20, 0.35, 0.60, 0.30),  # centred "Buy Car" header
+    "buy_detail":           (0.00, 0.55, 1.00, 0.45),  # detail-view price/Buy band
+    # Full Auto auto-count (read available tech points from the main-menu CARS
+    # tab). Placeholder ROIs — user captures carry a geometry box that overrides.
+    "cars_top_tab":         (0.28, 0.12, 0.22, 0.14),  # 車輛 top-nav tab (click)
+    "story_top_tab":        (0.20, 0.12, 0.20, 0.14),  # 劇情 top-nav tab (back)
+    "tech_points":          (0.00, 0.10, 0.65, 0.20),  # "XXX點可用的技術點數" line (OCR)
     # ── Race exit (results → main menu) ──
     # The recommended "What's Next" menu shown after Continue. Capture the
     # fixed top-left "接下來做什麼" / "What's Next" heading (invariant position).
     "next_activity":        (0.00, 0.00, 0.45, 0.20),  # top-left heading
+    # ── Full Auto: mastery positioning (main menu → My Horizon → My Cars) ──
+    # Fallback ROIs only; user captures carry a geometry box. Generous bands.
+    "return_home":          (0.20, 0.10, 0.55, 0.60),  # "Return Home" tile, My Horizon
+    "cars_tab":             (0.00, 0.00, 1.00, 0.15),  # top-nav CARS tab (home menu, INACTIVE)
+    "cars_tab_sell":        (0.00, 0.00, 1.00, 0.15),  # top-nav CARS tab — sell exit (車輛 ACTIVE/highlighted; different bg)
+    "recently_added":       (0.20, 0.05, 0.60, 0.30),  # "Recently Added" sort header/option
+    # ── Full Auto: sell re-select grind car (Filter → brand jump → car) ──
+    # These elements MOVE (the Manufacturer menu grows/shrinks with the player's
+    # favourited brands; the car's row varies), so they use a LARGE confined ROI
+    # — NOT a tight geometry box (full_auto skips set_template_geometry for them).
+    "grind_brand":          (0.05, 0.05, 0.90, 0.60),  # brand button in Jump-to-Manufacturer menu
+    "grind_car":            (0.20, 0.15, 0.80, 0.80),  # car tile in the brand list (visible 3 rows)
+    "select_action":        (0.45, 0.10, 0.55, 0.55),  # "Select An Action" menu after clicking the car tile
+    # ── Full Auto: sell fallbacks. These templates normally detect via their
+    # capture box (geometry ROI); these generous bands are only a SAFETY NET if a
+    # re-capture ever lacks a box (otherwise the ROI would be None → full-frame).
+    "anna":                 (0.00, 0.82, 0.35, 0.18),  # home icon shown when leaving the home menu (fallback band)
+    "my_cars":              (0.00, 0.25, 0.35, 0.55),  # My Cars item, left menu column
+    "my_cars_header":       (0.00, 0.00, 0.40, 0.22),  # My Cars page header, top-left
 }
 
 
@@ -111,7 +155,10 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     # Hints are substring-matched against OCR output (case-insensitive).
     # Avoid hints that are too short or too generic — they false-positive on
     # unrelated UI text when OCR is the primary detection signal.
-    "start_menu": ("start", "race", "開始", "開始賽事", "开始"),
+    # Each CJK hint carries BOTH traditional and simplified forms, so OCR confirm
+    # works whether the game runs in 繁中 OR 简中 (and RapidOCR may emit a
+    # simplified codepoint for a traditional glyph on screen, or vice-versa).
+    "start_menu": ("start", "race", "開始", "開始賽事", "开始", "开始赛事"),
     "racing": ("時間", "时间", "time"),
     "restart_menu": ("restart", "重新開始", "重新开始"),
     "confirm": ("確定", "确定", "重新開始賽事", "重新开始赛事", "confirm"),
@@ -129,36 +176,89 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     # kept as fallback for any capture still on the body text.
     "wheelspin_duplicate": ("already owned", "owned", "already",
                             "這輛車", "什麼操作", "this car", "what would",
-                            "garage", "sell", "車庫", "賣出", "贈送"),
-    "my_horizon_tab": ("my horizon", "horizon", "我的地平線", "地平線", "地平线"),
-    "super_wheelspin": ("super", "wheelspin", "horizon", "超級", "輪盤"),
-    "normal_wheelspin": ("wheelspin", "wheel spin", "horizon", "輪盤", "轉輪"),
-    "wheelspin_skip": ("略過", "skip", "跳過"),
-    "wheelspin_collect": ("collect prize", "spin again", "collect", "prize",
-                          "reward", "取得", "獎勵", "抽獎", "再次"),
+                            "garage", "sell", "車庫", "賣出", "贈送",
+                            "这辆车", "什么操作", "车库", "卖出", "赠送"),
+    "my_horizon_tab": ("my horizon", "horizon", "我的 horizon", "我的"),  # FH6 renders this tab as "我的 HORIZON" (HORIZON in Latin), not 地平線
+    # Tiles render the word "Wheelspin" in Latin even in 繁中 (user-confirmed).
+    "super_wheelspin": ("super wheelspin", "wheelspin", "wheel spin"),
+    "normal_wheelspin": ("wheelspin", "wheel spin"),
+    "wheelspin_skip": ("略過", "skip", "跳過", "略过", "跳过"),
+    # Hints MUST be the distinguishing "spin again" text only — NOT the shared
+    # "collect prize"/"取得獎勵", which is also the whole of wheelspin_collect_final
+    # (a text subset). Including the shared part made the final prompt mis-confirm
+    # as this one. The "…and Spin Again" part is what only the non-final prompt has.
+    # Both traditional AND simplified forms — RapidOCR sometimes emits the
+    # simplified codepoint (奖/励/并) for a traditional glyph (獎/勵/並) on screen.
+    "wheelspin_collect": ("collect prize and spin again", "and spin again",
+                          "spin again",
+                          # OCR reliably reads the spin-again STEM "再次抽" but
+                          # often DROPS the trailing 獎/奖 (real reads: "取得樊亞
+                          # 再次抽"), so match the stem. It's identical in trad &
+                          # simp (抽), and still ABSENT from the final prompt
+                          # ("取得獎勵") — so it stays a safe collect-vs-final
+                          # distinguisher (collect is checked before final).
+                          "再次抽",
+                          "取得獎勵並再次抽獎", "並再次抽獎", "再次抽獎",      # traditional
+                          "取得奖励并再次抽奖", "并再次抽奖", "再次抽奖"),     # simplified
     "wheelspin_collect_final": ("collect prize", "collect", "prize",
-                                "取得獎勵", "取得", "獎勵"),
+                                "取得獎勵", "取得", "獎勵",                    # traditional
+                                "取得奖励", "奖励"),                          # simplified
     # Race menu navigation. Hints are best-effort confirms; at native capture
     # resolution the pixel match is strong enough that OCR is usually skipped.
-    "creative_hub": ("creative hub", "creative", "hub", "創意中心", "創意"),
-    "eventlab": ("eventlab", "event lab", "create", "browse", "創作"),
-    "play_event": ("play event", "play", "event", "遊玩"),
+    "creative_hub": ("creative hub", "creative", "hub", "創意中心", "創意",
+                     "创意中心", "创意"),
+    "eventlab": ("eventlab", "event lab", "create", "browse", "創作", "创作"),
+    "play_event": ("play event", "play", "event", "遊玩", "游玩"),
     "events_arrow": (),  # symbol, no text to confirm
-    "my_history": ("my history", "history", "歷史", "我的歷史"),
-    "choose_race_type": ("choose race type", "race type", "choose how", "賽事類型"),
+    "my_history": ("my history", "history", "歷史", "我的歷史", "历史", "我的历史"),
+    "choose_race_type": ("choose race type", "race type", "choose how",
+                         "賽事類型", "赛事类型"),
     "car_select": ("current car", "current", "choose", "car", "vehicle",
-                   "目前車輛", "選擇", "車輛"),
+                   "目前車輛", "選擇", "車輛", "目前车辆", "选择", "车辆"),
     "next_activity": ("what's next", "whats next", "what next", "next",
-                      "接下來做什麼", "接下來", "做什麼"),
+                      "接下來做什麼", "接下來", "做什麼",
+                      "接下来做什么", "接下来", "做什么"),
     # Buy navigation. Hints best-effort; at native capture the pixel match is
     # usually strong enough that OCR is skipped.
     "collection_log": ("collection journal", "collection", "journal",
-                       "收藏日記", "收藏日誌", "收藏"),
+                       "收藏日記", "收藏日誌", "收藏", "收藏日记", "收藏日志"),
     "discover_japan": ("discover japan", "discover", "japan",
-                       "master explorer", "explorer", "探索大師", "探索"),
-    "car_collection": ("car collection", "collection", "車輛收藏", "車輛", "收藏"),
-    "subaru": ("subaru", "速霸陸", "速霸陆"),  # brand tile (logo may have no text)
+                       "master explorer", "explorer", "探索大師", "探索",
+                       "探索大师"),
+    "car_collection": ("car collection", "collection", "車輛收藏", "車輛", "收藏",
+                       "车辆收藏", "车辆"),
+    "subaru": ("subaru",),  # brand tile; "Subaru" in 繁中 too (user-confirmed)
     "buy_target_car": (),  # a specific car tile (image), no reliable text hint
+    # "Buy Car" / "Car has been added to your garage" confirmation popup.
+    "buy_confirm": ("buy car", "added to your garage", "garage", "added",
+                    "購買車輛", "已加入車庫", "車庫",
+                    "购买车辆", "已加入车库", "车库"),
+    "buy_detail": (),  # user-chosen detail-view element; no assumed text hint
+    # Full Auto auto-count (main-menu CARS tab). FA-only — scrub on port to main.
+    "tech_points": ("mastery points", "skill points", "points",
+                    "可用的技術點數", "技術點數", "點數", "可用",
+                    "可用的技术点数", "技术点数", "点数"),
+    "cars_top_tab": ("cars", "car", "車輛", "车辆"),
+    "story_top_tab": ("campaign", "story", "劇情", "剧情"),
+    # Full Auto mastery positioning nav.
+    "return_home": ("return home", "home", "fast travel", "返回住宅", "返回", "回家"),
+    "cars_tab": ("cars", "car", "車輛", "汽車", "车辆", "汽车"),
+    "cars_tab_sell": ("cars", "car", "車輛", "汽車", "车辆", "汽车"),
+    "recently_added": ("recently added", "recently", "recent", "added",
+                       "最近新增", "最近", "新增"),
+    # The brand is fixed (Subaru — the name is "Subaru" in Chinese too) so it
+    # has a reliable text hint; the car tile varies in framing per capture so it
+    # stays pixel-only. (full_auto custom mode disables OCR anyway; these matter
+    # only if OCR is on.)
+    "grind_brand": ("subaru",),
+    "grind_car": (),
+    "select_action": ("select an action", "select", "action",
+                      "選擇動作", "選擇", "動作", "选择动作", "选择", "动作"),
+    # Sell fallbacks (full_auto custom mode disables OCR, so these only matter
+    # if these keys are ever detected in a preset/OCR run).
+    "anna": (),  # home icon — no text to confirm
+    "my_cars": ("my cars", "我的車輛", "車庫", "车库", "我的车辆"),
+    "my_cars_header": ("my cars", "我的車輛", "車庫", "我的车辆", "车库"),
 }
 
 # All template images capture text UI elements. Edge matching on text is
@@ -219,6 +319,11 @@ def _clip_roi(frame: np.ndarray, roi: Optional[Rect]) -> tuple[np.ndarray, int, 
 # Module-level so the marker survives across the per-run detector instance and
 # is readable from the F12 report's own thread.
 _LAST_DETECT = None    # (frame, key, roi, MatchResult, soft_threshold, time)
+# Per-key recent detections (roi/result only — NO frame, to avoid holding a big
+# frame per template) so the F12 report can show EVERY template a wait is
+# checking, not just the last one. Drawn on the single latest frame.
+_RECENT_DETECT = {}    # key -> (roi, MatchResult, soft_threshold, time)
+_REPORT_WINDOW = 3.0   # draw every template checked within this many seconds
 _LAST_CLICK = None     # (x, y, time) in detection-frame (cropped client) coords
 _CLICK_DRAW_AGE = 15.0  # only mark a click on a snapshot if it's this recent
 
@@ -236,7 +341,51 @@ def record_click(x: int, y: int) -> None:
 
 def _record_detect(frame, key, roi, result, soft) -> None:
     global _LAST_DETECT
-    _LAST_DETECT = (frame, key, roi, result, soft, time.time())
+    t = time.time()
+    _LAST_DETECT = (frame, key, roi, result, soft, t)
+    _RECENT_DETECT[key] = (roi, result, soft, t)
+
+
+_CJK_FONT = None
+_CJK_FONT_TRIED = False
+
+
+def _cjk_font():
+    """A cached truetype font that covers CJK, or None. cv2.putText can't draw
+    Chinese (renders '?'), so the debug header's OCR text needs PIL + a real font."""
+    global _CJK_FONT, _CJK_FONT_TRIED
+    if _CJK_FONT_TRIED:
+        return _CJK_FONT
+    _CJK_FONT_TRIED = True
+    try:
+        from PIL import ImageFont
+        for fp in (r"C:\Windows\Fonts\msjh.ttc", r"C:\Windows\Fonts\msyh.ttc",
+                   r"C:\Windows\Fonts\simhei.ttf", r"C:\Windows\Fonts\segoeui.ttf"):
+            if os.path.exists(fp):
+                _CJK_FONT = ImageFont.truetype(fp, 26)
+                break
+    except Exception:
+        _CJK_FONT = None
+    return _CJK_FONT
+
+
+def _draw_header_text(img, text, org, color_bgr) -> None:
+    """Draw header `text` (may contain CJK) onto BGR `img` in place. PIL+truetype
+    so Chinese renders; falls back to cv2.putText for pure-ASCII or if no font."""
+    font = _cjk_font()
+    if font is None or all(ord(c) < 128 for c in text):
+        cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                    color_bgr, 2, cv2.LINE_AA)
+        return
+    try:
+        from PIL import Image, ImageDraw
+        pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        ImageDraw.Draw(pil).text((org[0], org[1] - 22), text, font=font,
+                                 fill=(color_bgr[2], color_bgr[1], color_bgr[0]))
+        img[:] = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+    except Exception:
+        cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                    color_bgr, 2, cv2.LINE_AA)
 
 
 def _draw_debug(img, key, roi, result, soft_threshold) -> None:
@@ -267,24 +416,65 @@ def _draw_debug(img, key, roi, result, soft_threshold) -> None:
     if result.ocr_text:
         label += f"  OCR:'{result.ocr_text[:30]}'"
     cv2.rectangle(img, (0, 0), (w, 48), (0, 0, 0), -1)
-    cv2.putText(img, label, (12, 34), cv2.FONT_HERSHEY_SIMPLEX,
-                0.8, col, 2, cv2.LINE_AA)
+    _draw_header_text(img, label, (12, 34), col)
+
+
+def _draw_match(img, roi, result) -> None:
+    """Draw one template's searched ROI (yellow box) + best-match cross
+    (green matched / red miss) onto `img`. No header/click — see render_report_image."""
+    h, w = img.shape[:2]
+    col = (0, 200, 0) if result.matched else (0, 90, 255)
+    if roi:
+        rx, ry = int(roi[0] * w), int(roi[1] * h)
+        rw, rh = int(roi[2] * w), int(roi[3] * h)
+        cv2.rectangle(img, (rx, ry), (rx + rw, ry + rh), (0, 220, 220), 3)
+    if result.location:
+        lx, ly = int(result.location[0]), int(result.location[1])
+        cv2.drawMarker(img, (lx, ly), col, cv2.MARKER_CROSS, 44, 3)
+        cv2.circle(img, (lx, ly), 16, col, 3)
 
 
 def render_report_image(max_age: float = 30.0):
-    """Annotated debug image for the F12 report, built from the most recent
-    detection (the frame FAFE last looked at + its ROI/match + last click).
-    Returns a BGR ndarray, or None if there's no recent detection (the caller
-    then falls back to a plain screenshot)."""
+    """Annotated debug image for the F12 report. Draws EVERY template checked in
+    the last `_REPORT_WINDOW` seconds (so a wait that polls multiple templates —
+    e.g. My Horizon tab + Super Wheelspin tile — shows all of them), overlaid on
+    the single latest frame, plus the last click. Returns a BGR ndarray, or None
+    if there's no recent detection (caller falls back to a plain screenshot)."""
     last = _LAST_DETECT
     if not last:
         return None
-    frame, key, roi, result, soft, t = last
-    if frame is None or getattr(frame, "size", 0) == 0 or time.time() - t > max_age:
+    frame, _lk, _lroi, _lres, _lsoft, t0 = last
+    now = time.time()
+    if frame is None or getattr(frame, "size", 0) == 0 or now - t0 > max_age:
         return None
+    # the concurrent search set (every template checked in the recent window);
+    # fall back to just the last detection if nothing is within the window.
+    recent = [(k, roi, res, soft) for k, (roi, res, soft, t) in _RECENT_DETECT.items()
+              if now - t <= _REPORT_WINDOW]
+    if not recent:
+        recent = [(_lk, _lroi, _lres, _lsoft)]
     try:
         img = frame.copy()
-        _draw_debug(img, key, roi, result, soft)
+        h, w = img.shape[:2]
+        for (_k, roi, res, _s) in recent:
+            _draw_match(img, roi, res)
+        # header: one line per template (newest first), each coloured by match
+        recent.sort(key=lambda e: (0 if e[2].matched else 1, e[0]))
+        bar_h = 12 + 22 * len(recent)
+        cv2.rectangle(img, (0, 0), (w, bar_h), (0, 0, 0), -1)
+        for i, (k, _roi, res, soft) in enumerate(recent):
+            col = (0, 200, 0) if res.matched else (0, 90, 255)
+            line = (f"{k}  {res.score:.0%} (>={soft:.0%})  {res.source}  "
+                    f"{'MATCH' if res.matched else 'miss'}")
+            if res.ocr_text:
+                line += f"  OCR:'{res.ocr_text[:24]}'"
+            _draw_header_text(img, line, (12, 28 + i * 22), col)
+        click = _LAST_CLICK
+        if click and now - click[2] <= _CLICK_DRAW_AGE:
+            cx, cy = click[0], click[1]
+            cv2.circle(img, (cx, cy), 18, (255, 0, 255), 3)
+            cv2.line(img, (cx - 28, cy), (cx + 28, cy), (255, 0, 255), 2)
+            cv2.line(img, (cx, cy - 28), (cx, cy + 28), (255, 0, 255), 2)
         return img
     except Exception:
         return None
@@ -332,7 +522,62 @@ def _best_template_match(screen: np.ndarray, template: np.ndarray,
 
 
 def _normalize_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text.casefold()).strip()
+    # Remove ALL whitespace (not merely collapse it). RapidOCR often returns CJK
+    # as separate boxes joined with spaces — or with spaces between glyphs — so a
+    # contiguous hint like '再次抽獎' wouldn't substring-match '再次 抽獎'. Stripping
+    # whitespace from BOTH the OCR text and the hint fixes CJK matching; English
+    # hints still match (their spaces are removed on both sides too).
+    return re.sub(r"\s+", "", text.casefold())
+
+
+# OCR small-text rescue. The built-in templates are authored at 4K; on a 1080p
+# capture the on-screen text (esp. thin CJK button prompts like the wheelspin
+# collect line) is tiny, and RapidOCR garbles tiny glyphs. Interpolation adds no
+# real detail, but OCR models read an UPSCALED crop far better — so we enlarge
+# the ROI crop toward a legible height before recognition. Capped so an already-
+# large crop isn't needlessly blown up. (Pixel matching is untouched — resampling
+# wouldn't help correlation, only OCR's learned reconstruction benefits.)
+_OCR_TARGET_H = 640
+_OCR_MAX_SCALE = 3.0
+
+
+def _upscale_for_ocr(img: np.ndarray) -> np.ndarray:
+    try:
+        h, w = img.shape[:2]
+        if h <= 0 or w <= 0:
+            return img
+        scale = min(_OCR_MAX_SCALE, max(1.0, _OCR_TARGET_H / float(h)))
+        if scale > 1.01:
+            img = cv2.resize(img, (int(w * scale), int(h * scale)),
+                             interpolation=cv2.INTER_CUBIC)
+    except Exception:
+        pass
+    return img
+
+
+def _box_center(box):
+    """Centre (cx, cy) of an OCR quad (4 [x,y] points), or None."""
+    try:
+        xs = [float(p[0]) for p in box]
+        ys = [float(p[1]) for p in box]
+        if not xs:
+            return None
+        return (sum(xs) / len(xs), sum(ys) / len(ys))
+    except Exception:
+        return None
+
+
+def _diag_log(msg: str) -> None:
+    """Best-effort one-line append to fafe_diag.log — used to surface the OCR
+    backend load result (esp. in compiled builds where the import can fail
+    silently). Wrapped so it never affects detection."""
+    try:
+        import config as _c
+        with open(os.path.join(_c.BASE_DIR, "fafe_diag.log"), "a",
+                  encoding="utf-8") as f:
+            f.write(msg + "\n")
+    except Exception:
+        pass
 
 
 class OptionalOCR:
@@ -346,6 +591,12 @@ class OptionalOCR:
     def __init__(self):
         self._loaded = False
         self._reader: Optional[Callable[[np.ndarray], str]] = None
+        # Box-aware reader: img -> list of (text, (cx, cy)) in img-pixel coords.
+        # Used to LOCATE a hint (e.g. the Subaru tile in a varying brand list),
+        # not just confirm it. None if the backend can't return boxes (tesseract).
+        self._reader_items: Optional[Callable[[np.ndarray], list]] = None
+        self.backend: Optional[str] = None       # which OCR backend loaded
+        self.load_error: Optional[str] = None    # why all backends failed
 
     def available(self) -> bool:
         self._ensure_loaded()
@@ -356,14 +607,27 @@ class OptionalOCR:
         if self._reader is None:
             return ""
         try:
-            return self._reader(img)
+            return self._reader(_upscale_for_ocr(img))
         except Exception:
             return ""
+
+    def read_items(self, img: np.ndarray) -> list:
+        """OCR → [(text, (cx, cy)), …] with each text's box CENTRE in `img` pixel
+        coords. Does NOT upscale (the caller controls scaling so it can map the
+        centres back). [] if no box-aware backend or on failure."""
+        self._ensure_loaded()
+        if self._reader_items is None:
+            return []
+        try:
+            return self._reader_items(img)
+        except Exception:
+            return []
 
     def _ensure_loaded(self):
         if self._loaded:
             return
         self._loaded = True
+        errors = []
         try:
             from rapidocr_onnxruntime import RapidOCR
             # Cap onnxruntime's intra-op threads — it defaults to ALL cores and
@@ -380,10 +644,23 @@ class OptionalOCR:
                     return ""
                 return " ".join(str(item[1]) for item in result if len(item) > 1)
 
+            def _read_items(img):
+                result, _ = engine(img)
+                out = []
+                for item in (result or []):
+                    if len(item) >= 2:
+                        c = _box_center(item[0])
+                        if c is not None:
+                            out.append((str(item[1]), c))
+                return out
+
             self._reader = _read
+            self._reader_items = _read_items
+            self.backend = "rapidocr_onnxruntime"
+            _diag_log(f"[OCR] backend loaded: {self.backend}")
             return
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"rapidocr_onnxruntime: {e!r}")
         try:
             from rapidocr import RapidOCR
             try:
@@ -400,15 +677,44 @@ class OptionalOCR:
                     return ""
                 return " ".join(str(item[1]) for item in result if len(item) > 1)
 
+            def _read_items(img):
+                result = engine(img)
+                boxes = getattr(result, "boxes", None)
+                txts = getattr(result, "txts", None)
+                out = []
+                if boxes is not None and txts is not None:
+                    for box, text in zip(boxes, txts):
+                        c = _box_center(box)
+                        if c is not None:
+                            out.append((str(text), c))
+                    return out
+                for item in (result or []):
+                    if len(item) >= 2:
+                        c = _box_center(item[0])
+                        if c is not None:
+                            out.append((str(item[1]), c))
+                return out
+
             self._reader = _read
+            self._reader_items = _read_items
+            self.backend = "rapidocr"
+            _diag_log(f"[OCR] backend loaded: {self.backend}")
             return
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"rapidocr: {e!r}")
         try:
             import pytesseract
             self._reader = lambda img: pytesseract.image_to_string(img)
-        except Exception:
-            self._reader = None
+            self._reader_items = None   # no box output → locate_text unavailable
+            self.backend = "pytesseract"
+            _diag_log(f"[OCR] backend loaded: {self.backend}")
+            return
+        except Exception as e:
+            errors.append(f"pytesseract: {e!r}")
+        self._reader = None
+        self._reader_items = None
+        self.load_error = " | ".join(errors)
+        _diag_log(f"[OCR] no backend available — {self.load_error}")
 
 
 class ScreenDetector:
@@ -512,6 +818,10 @@ class ScreenDetector:
         # the search area must differ from where the template was captured
         # (e.g. an element that moves within a menu).
         self._custom_rois: dict[str, tuple] = {}
+        # Capture dims (w, h) the custom ROI was drawn at, so it can be remapped
+        # for a different live aspect ratio (centred-16:9 content box), same as a
+        # geometry box. Empty for legacy saves with no dims → used as-is.
+        self._custom_roi_dims: dict[str, tuple] = {}
         # ROI-only matching (default ON): every tracked element is fixed-position
         # and covered by its (geometry-/DEFAULT_) ROI, so the full-screen
         # fallback matchTemplate — the single most expensive per-check op (~680ms
@@ -530,6 +840,34 @@ class ScreenDetector:
         self._ocr_cooldown: float = float(
             self.cfg.get("detector_ocr_cooldown", 1.0))
         self._ocr_last_run: dict[str, float] = {}
+        # OCR enablement. Global toggle (Settings → System, off by default for
+        # CPU). PLUS a per-key FORCE set: these keys always get OCR confirmation
+        # even when the global toggle is off — for small templates that sit alone
+        # on a varying scene (can't be recaptured bigger) and so pixel-match
+        # weakly at low res. OCR reads the invariant TEXT in the ROI, rescuing
+        # them; scoped to a few low-frequency keys so the CPU cost stays small.
+        self._enable_ocr: bool = bool(self.cfg.get("detector_enable_ocr", False))
+        # Public-safe default; Full Auto adds its own keys (e.g. grind_brand) via
+        # cfg["detector_force_ocr_keys"] so no FA-only key lives in this shared file.
+        self._force_ocr_keys: set[str] = set(self.cfg.get(
+            "detector_force_ocr_keys",
+            ["subaru",
+             # Wheelspin spin-cycle prompts: small text on a busy, animating
+             # reward scene that pixel-matches weakly at low res (Ally X etc.).
+             # (Tile/nav templates — super/normal_wheelspin, my_horizon_tab —
+             # are larger and pixel-match fine, so they stay pixel-only.
+             # wheelspin_duplicate is pixel-only too: it can trigger an
+             # unattended sell, so we don't want an OCR false-positive firing it.)
+             "wheelspin_skip", "wheelspin_collect", "wheelspin_collect_final",
+             # Buy confirmation gate — must be reliable on weak-pixel hardware.
+             "buy_confirm"]))
+        # Forced OCR only helps where pixel-matching is weak — low resolutions
+        # where the built-in (4K-authored) templates downscale small. Above this
+        # frame height pixel matching is reliable, so forced OCR is skipped to
+        # save CPU. Set per-frame in detect() (the live frame height is the truth;
+        # window/monitor size isn't known here). 0 disables the gate (always on).
+        self._force_ocr_max_h: int = int(self.cfg.get("detector_force_ocr_max_height", 1080))
+        self._force_active: bool = True   # recomputed each detect() from frame h
         # OCR confirmation tuning. When pixel-matching scores poorly (e.g. the
         # built-in templates run on a different machine than they were captured
         # on), text content is what's actually invariant across hardware. OCR is
@@ -599,9 +937,14 @@ class ScreenDetector:
         # id(template) — to skip equalizeHist + Canny on every frame.
         self._template_cache: dict[int, tuple[np.ndarray, np.ndarray]] = {}
         # Pre-warm OCR in the background so the first detection call doesn't
-        # eat the 1–2 s onnxruntime model-load cost.
-        threading.Thread(
-            target=self._ocr._ensure_loaded, daemon=True).start()
+        # eat the 1–2 s onnxruntime model-load cost — ONLY when global OCR is on.
+        # Forced-OCR keys are NOT pre-warmed: they only fire at low resolution
+        # (see _force_active), so loading onnxruntime here would waste startup on
+        # every high-res run. On low-res the first forced-OCR detect lazy-loads it
+        # (one-time, on a gated/infinite wait — negligible).
+        if self._enable_ocr:
+            threading.Thread(
+                target=self._ocr._ensure_loaded, daemon=True).start()
 
     def _prepared_template(
             self, template: np.ndarray,
@@ -614,11 +957,14 @@ class ScreenDetector:
             self._template_cache[cache_key] = cached
         return cached
 
-    def set_template_roi(self, key: str, roi):
+    def set_template_roi(self, key: str, roi, cap_w: int = 0, cap_h: int = 0):
         """Register a custom detection ROI (x, y, w, h as fractions of the frame)
         for a template — overrides the geometry box and DEFAULT_ROIS in detect().
-        Used directly (no aspect remap): it's captured on the user's own frame, so
-        it's already correct for their aspect. No-op on malformed input."""
+        cap_w/cap_h: the capture resolution it was drawn at. When given AND the
+        live aspect differs, detect() remaps the ROI through the centred-16:9
+        content box (like a geometry box) so a dev-drawn ROI adapts to a user's
+        aspect ratio. Without them it's used as-is (legacy / same-aspect). No-op
+        on malformed input."""
         try:
             x, y, w, h = (float(v) for v in roi)
         except (TypeError, ValueError):
@@ -626,6 +972,8 @@ class ScreenDetector:
         if w <= 0 or h <= 0:
             return
         self._custom_rois[key] = (x, y, w, h)
+        if cap_w and cap_h and cap_w > 0 and cap_h > 0:
+            self._custom_roi_dims[key] = (int(cap_w), int(cap_h))
 
     def set_template_geometry(self, key: str, box, cap_w: int, cap_h: int):
         """Register a template's capture box (x, y, w, h on a cap_w×cap_h
@@ -640,33 +988,23 @@ class ScreenDetector:
         self._geom[key] = {"box": (int(x), int(y), int(w), int(h)),
                            "cap_w": int(cap_w), "cap_h": int(cap_h)}
 
-    def _geom_roi(self, key: str, frame_w: int, frame_h: int):
-        """Anchor-aware ROI (ratio tuple) from a registered capture box, scaled
-        to the live frame. Returns None if the key has no geometry. Scales by
-        height (UI scales with vertical resolution, matching load_template) and
-        anchors x/y to the nearest edge, then pads by detector_geom_variance."""
-        g = self._geom.get(key)
-        if g is None:
-            return None
-        bx, by, bw, bh = g["box"]
-        cap_w, cap_h = g["cap_w"], g["cap_h"]
+    def _box_to_roi(self, key: str, bx: float, by: float, bw: float, bh: float,
+                    cap_w: int, cap_h: int, frame_w: int, frame_h: int,
+                    variance: float):
+        """Map a capture-pixel box (bx,by,bw,bh on cap_w×cap_h) → live fractional
+        ROI, anchor-aware: nearest screen EDGE for HUD keys (_GEOM_EDGE_KEYS),
+        else the centred-16:9 CONTENT BOX of both frames (preserves the element's
+        fraction within the content box, so the pillarbox/letterbox offset is
+        handled across aspect changes — e.g. a 5120x2160 ultrawide capture, menu
+        pillarboxed ~640px in, used on 1920x1080 would otherwise land ~320px off).
+        Padded by `variance` (fraction of screen). None if degenerate."""
         if key in _GEOM_EDGE_KEYS:
-            # Edge-anchored HUD: scale by height, anchor to the nearest screen
-            # edge (the timer/HUD stays glued to the edge on any aspect).
             scale = frame_h / cap_h
             x = _scale_by_anchor(bx, cap_w, frame_w, scale)
             y = _scale_by_anchor(by, cap_h, frame_h, scale)
             w = bw * scale
             h = bh * scale
         else:
-            # Centred-16:9 menu element: map the box through the content box of
-            # BOTH the capture and the live frame, so the pillarbox/letterbox
-            # offset is handled across aspect changes — e.g. a 5120x2160
-            # ultrawide capture (menu pillarboxed ~640px in) used on a 1920x1080
-            # 16:9 screen would otherwise land the ROI ~320px off and miss. The
-            # element's fraction WITHIN the capture box is preserved into the
-            # live box. (capture box ≥16:9 → height-limited → scale == frame_h/
-            # cap_h, matching load_template's height-based template scaling.)
             ccx, ccy, ccw, cch = _content_box(cap_w, cap_h)
             lcx, lcy, lcw, lch = _content_box(frame_w, frame_h)
             sx = lcw / ccw if ccw else 1.0     # == lch/cch (both 16:9)
@@ -674,8 +1012,8 @@ class ScreenDetector:
             y = lcy + (by - ccy) * sx
             w = bw * sx
             h = bh * sx
-        vx = frame_w * self._geom_variance
-        vy = frame_h * self._geom_variance
+        vx = frame_w * variance
+        vy = frame_h * variance
         rx = max(0.0, x - vx)
         ry = max(0.0, y - vy)
         rw = min(frame_w - rx, w + 2 * vx)
@@ -684,8 +1022,46 @@ class ScreenDetector:
             return None
         return (rx / frame_w, ry / frame_h, rw / frame_w, rh / frame_h)
 
+    def _geom_roi(self, key: str, frame_w: int, frame_h: int):
+        """Anchor-aware ROI (ratio tuple) from a registered capture box
+        (set_template_geometry), scaled to the live frame and padded by
+        detector_geom_variance. None if the key has no geometry."""
+        g = self._geom.get(key)
+        if g is None:
+            return None
+        bx, by, bw, bh = g["box"]
+        return self._box_to_roi(key, bx, by, bw, bh, g["cap_w"], g["cap_h"],
+                                frame_w, frame_h, self._geom_variance)
+
+    def _custom_roi_for_frame(self, key: str, frame_w: int, frame_h: int):
+        """The custom ROI for this frame. Stored as fractions of the capture
+        frame, so it's already resolution-adaptive. When the capture dims are
+        known and the live aspect DIFFERS (and aspect-fix is on), remap it through
+        the same content-box/edge model as a geometry box so a dev-drawn ROI
+        adapts to a user's aspect ratio. Else use the fractions as-is. No variance
+        padding — the user drew the exact area."""
+        roi = self._custom_rois.get(key)
+        if roi is None:
+            return None
+        cap = self._custom_roi_dims.get(key)
+        if not cap or not self._roi_aspect_fix:
+            return roi
+        cap_w, cap_h = cap
+        cap_aspect = cap_w / max(1, cap_h)
+        live_aspect = frame_w / max(1, frame_h)
+        if abs(cap_aspect - live_aspect) <= self._roi_aspect_tol * REF_ASPECT:
+            return roi                          # same aspect → fractions correct
+        rx, ry, rw, rh = roi
+        out = self._box_to_roi(key, rx * cap_w, ry * cap_h, rw * cap_w, rh * cap_h,
+                               cap_w, cap_h, frame_w, frame_h, 0.0)
+        return out if out is not None else roi
+
     def detect(self, frame: np.ndarray, key: str, template: np.ndarray,
                threshold: float, stable: bool = True) -> MatchResult:
+        # Forced OCR applies only at/below the configured height (small templates
+        # downscale weakly there); above it, pixel matching is trusted (no OCR).
+        self._force_active = (self._force_ocr_max_h <= 0
+                              or frame.shape[0] <= self._force_ocr_max_h)
         # Prefer a geometry-derived ROI (anchor-aware, from the template's own
         # capture box) when available; else the hand-tuned DEFAULT_ROIS. The
         # geometry ROI already accounts for aspect ratio, so it bypasses the
@@ -693,7 +1069,7 @@ class ScreenDetector:
         # Priority: custom ROI (user-drawn, used as-is) > geometry box >
         # DEFAULT_ROIS. The custom ROI bypasses the 16:9 _roi_for_frame remap
         # for the same reason geometry does — it was captured on this frame.
-        roi = self._custom_rois.get(key)
+        roi = self._custom_roi_for_frame(key, frame.shape[1], frame.shape[0])
         if roi is None:
             roi = self._geom_roi(key, frame.shape[1], frame.shape[0]) \
                 if self._geom_roi_on else None
@@ -704,8 +1080,7 @@ class ScreenDetector:
             frame, key, template, threshold, roi, "roi", stable)
         # Record the latest detection (always — cheap) so the F12 report can
         # render an annotated snapshot even when debug snapshots are off.
-        _record_detect(frame, key, roi, roi_result,
-                       max(self._min_thresh, threshold * 0.92))
+        _record_detect(frame, key, roi, roi_result, max(self._min_thresh, threshold * 0.92))
         if self._debug:
             self.save_debug(frame, key, roi, roi_result, threshold)
         if roi_result.matched:
@@ -888,6 +1263,8 @@ class ScreenDetector:
         # doesn't contain the hint — never on a silent/failed OCR.  If no OCR
         # backend is installed the whole gate is skipped (pixel-only).
         if (key_is_text and has_hints
+                and (self._enable_ocr
+                     or (self._force_active and key in self._force_ocr_keys))
                 and self._ocr_skip_below <= image_score < self._ocr_skip_above
                 and self._ocr.available()):
             now = time.time()
@@ -920,9 +1297,158 @@ class ScreenDetector:
         return MatchResult(matched, score, gray_conf, loc, gray_scale, source,
                            ocr_text=ocr_text)
 
+    def read_text(self, frame: np.ndarray, key: str,
+                  template: Optional[np.ndarray] = None) -> str:
+        """OCR the text inside `key`'s ROI and return the raw string ('' on
+        failure). Unlike detect()'s OCR (gated to the borderline pixel band, used
+        only to CONFIRM a match), this ALWAYS runs OCR — for READING a value such
+        as the tech-points number, where there's no pixel match to gate on. The
+        crop is upscaled for small text by _ocr.read(). `template` is unused (kept
+        for call-site symmetry with detect())."""
+        try:
+            h, w = frame.shape[:2]
+            roi = self._custom_roi_for_frame(key, w, h)
+            if roi is None and self._geom_roi_on:
+                roi = self._geom_roi(key, w, h)
+            if roi is None:
+                roi = self._roi_for_frame(key, DEFAULT_ROIS.get(key), w, h)
+            if roi:
+                x = max(0, int(roi[0] * w))
+                y = max(0, int(roi[1] * h))
+                cw = max(1, min(w - x, int(roi[2] * w)))
+                ch = max(1, min(h - y, int(roi[3] * h)))
+                area = frame[y:y + ch, x:x + cw]
+            else:
+                area = frame
+            if area is None or getattr(area, "size", 0) == 0:
+                return ""
+            return self._ocr.read(area)
+        except Exception:
+            return ""
+
+    def _ocr_region(self, frame: np.ndarray, key: str):
+        """OCR one ROI region (custom > geometry > DEFAULT_ROIS) → (items, roi).
+        `roi` is the fractional rect used (for debug overlay); items may be []."""
+        h, w = frame.shape[:2]
+        roi = self._custom_roi_for_frame(key, w, h)
+        if roi is None and self._geom_roi_on:
+            roi = self._geom_roi(key, w, h)
+        if roi is None:
+            roi = self._roi_for_frame(key, DEFAULT_ROIS.get(key), w, h)
+        if roi:
+            x = max(0, int(roi[0] * w))
+            y = max(0, int(roi[1] * h))
+            cw = max(1, min(w - x, int(roi[2] * w)))
+            ch = max(1, min(h - y, int(roi[3] * h)))
+            area = frame[y:y + ch, x:x + cw]
+        else:
+            area = frame
+        if area is None or getattr(area, "size", 0) == 0:
+            return ([], roi)
+        return (self._ocr.read_items(_upscale_for_ocr(area)), roi)
+
+    def duplicate_info(self, frame: np.ndarray):
+        """Read the duplicate modal from TWO tight ROIs → (fe, price, text):
+          • fe    — True  : the car-name line ends in 'fe' → Forza Edition
+                    False : name read, no FE suffix
+                    None  : no name text read
+          • price — int sell price read from the 'Sell for CR N' row, or None.
+          • text  — the car name, for logging.
+        Separate bands (wheelspin_dup_name / wheelspin_dup_price) so each stays
+        tight: the name band gives the FE suffix, the price band gives ONLY the
+        sell row (no stray numbers). Caller KEEPS when fe in (True, None) and/or
+        price >= threshold, selling only when every keep-condition fails — erring
+        toward KEEP on anything unread (selling is irreversible). Always runs OCR
+        (a read, not a gated confirm) → works with the OCR toggle off.
+        ponytail: price = largest digit-run >= 1000 in a single OCR token; a price
+        split across two tokens ('35' '000') reads as None → caller keeps it."""
+        if not self._ocr.available():
+            return (None, None, "")
+        try:
+            name_items, name_roi = self._ocr_region(frame, "wheelspin_dup_name")
+            fe = None
+            seen = []
+            for text, _ in name_items:
+                n = _normalize_text(text)
+                if not n:
+                    continue
+                seen.append(text.strip())
+                if n.endswith("fe"):          # 'FE' suffix (also matches 'FE' alone)
+                    fe = True
+            if name_items and fe is None:     # name read, no FE suffix
+                fe = False
+
+            price_items, price_roi = self._ocr_region(frame, "wheelspin_dup_price")
+            price = 0
+            for text, _ in price_items:
+                digits = "".join(ch for ch in text if ch.isdigit())
+                if len(digits) >= 4:          # sell prices are >= 1000 credits
+                    price = max(price, int(digits))
+
+            if self._debug:                   # dump both ROIs + reads for tuning
+                self.save_debug(frame, "wheelspin_dup_name", name_roi,
+                                MatchResult(fe is True, 1.0 if fe else 0.0, 0.0,
+                                            None, 1.0, "ocr-fe",
+                                            ocr_text=f"fe={fe} {' '.join(seen)}"[:60]),
+                                0.70)
+                self.save_debug(frame, "wheelspin_dup_price", price_roi,
+                                MatchResult(bool(price), 1.0 if price else 0.0, 0.0,
+                                            None, 1.0, "ocr-price",
+                                            ocr_text=f"price={price} "
+                                            f"{' '.join(t for t, _ in price_items)}"[:60]),
+                                0.70)
+            return (fe, (price or None), " ".join(seen))
+        except Exception:
+            return (None, None, "")
+
+    def locate_text(self, frame: np.ndarray, key: str,
+                    template: Optional[np.ndarray] = None):
+        """Find the on-screen LOCATION of `key`'s hint text via OCR. Returns a
+        MatchResult whose `location` is the matching text's box centre (in frame
+        coords), or None. For click targets in a VARYING list (e.g. the Subaru
+        brand tile, whose position shifts with the player's favourites): a region
+        OCR-confirm would pass but the PIXEL location points at the wrong tile, so
+        here OCR drives the location, not just the score. `template` unused."""
+        hints = OCR_HINTS.get(key)
+        if not hints or not self._ocr.available():
+            return None
+        try:
+            h, w = frame.shape[:2]
+            roi = self._custom_roi_for_frame(key, w, h)
+            if roi is None and self._geom_roi_on:
+                roi = self._geom_roi(key, w, h)
+            if roi is None:
+                roi = self._roi_for_frame(key, DEFAULT_ROIS.get(key), w, h)
+            x0 = y0 = 0
+            if roi:
+                x0 = max(0, int(roi[0] * w))
+                y0 = max(0, int(roi[1] * h))
+                cw = max(1, min(w - x0, int(roi[2] * w)))
+                ch = max(1, min(h - y0, int(roi[3] * h)))
+                area = frame[y0:y0 + ch, x0:x0 + cw]
+            else:
+                area = frame
+            if area is None or getattr(area, "size", 0) == 0:
+                return None
+            up = _upscale_for_ocr(area)
+            sx = up.shape[1] / float(area.shape[1])
+            sy = up.shape[0] / float(area.shape[0])
+            for text, (cx, cy) in self._ocr.read_items(up):
+                n = _normalize_text(text)
+                if any(_normalize_text(hint) in n for hint in hints):
+                    fx = x0 + cx / sx
+                    fy = y0 + cy / sy
+                    return MatchResult(True, self._ocr_confirm_score, 0.0,
+                                       (int(fx), int(fy)), 1.0, "ocr",
+                                       ocr_text=text)
+            return None
+        except Exception:
+            return None
+
     def _ocr_bonus(self, area: np.ndarray, key: str) -> tuple[float, str]:
         hints = OCR_HINTS.get(key)
-        if not hints or not self.cfg.get("detector_enable_ocr", False):
+        if not hints or not (self._enable_ocr
+                             or (self._force_active and key in self._force_ocr_keys)):
             return 0.0, ""
         # Cooldown gate: skip OCR if it ran too recently for this key.
         # Prevents repeated 100–300 ms rapidocr calls when the score is stuck
@@ -938,6 +1464,11 @@ class ScreenDetector:
         norm = _normalize_text(text)
         if any(_normalize_text(hint) in norm for hint in hints):
             return 0.10, text.strip()
+        # Read text but matched no hint. Log the EXACT codepoints (ascii() escapes
+        # non-ASCII to \uXXXX) so a variant-glyph or hidden-char mismatch is
+        # diagnosable from fafe_diag.log / the F12 report.
+        _diag_log(f"[OCR] {key} read but no hint matched: "
+                  f"{ascii(norm)} (hints={[ascii(_normalize_text(h)) for h in hints]})")
         return 0.0, text.strip()
 
     def _stable_match(self, key: str, score: float, threshold: float) -> bool:
@@ -971,8 +1502,8 @@ class ScreenDetector:
             soft = max(self._min_thresh, threshold * 0.92)
             _draw_debug(img, key, roi, result, soft)
             h, w = img.shape[:2]
-            if w > 1280:   # downscale for small, fast-to-write files
-                img = cv2.resize(img, (1280, int(h * 1280.0 / w)))
+            if w > 1920:   # cap width so files stay small/fast, but keep text legible
+                img = cv2.resize(img, (1920, int(h * 1920.0 / w)))
             ok, buf = cv2.imencode(".png", img)
             if ok:
                 # tofile (not imwrite) so non-ASCII / CJK paths work.

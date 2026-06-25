@@ -163,7 +163,7 @@ _TAP_WAIT               = 0.25   # matches grid move rate; 0.1 dropped taps on s
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
         grid_file: str = None, end_at_mycars: bool = False,
-        start_loop: int = None):
+        start_loop: int = None, grid_order: list = None, progress_cb=None):
     # warn_cb is accepted for call-site compatibility but unused — this flow
     # never detects, so there's no "not detected" warning to raise.
     # grid_file: which mastery-tree path spec to use. None → the Mastery tab's
@@ -189,9 +189,11 @@ def run(cfg: dict, stop_event: threading.Event,
         start_loop = _fresh.get("mastery_start_loop", 1)
     start_loop = max(1, min(3, int(start_loop)))
     # Step waits — fixed constants (see top of section), except the cutscene
-    # wait which is user-raisable (default 11, floor 11) via Settings.
-    cut_wait    = max(_KEYS_CUTSCENE_WAIT,
-                      float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT)))
+    # wait (default 11). No code FLOOR (the "skip cutscene" mod can hand-edit it
+    # below 11), but a HARD CEILING of 13s: anything higher overruns the next
+    # step and breaks the loop, so clamp it regardless of config.
+    cut_wait    = min(13.0, max(0.0,
+                      float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT))))
     screen_wait = _KEYS_SCREEN_WAIT
     # Menu cursor tap delay (Up/Down) — Settings-tunable (default 0.25, slider
     # 0.1–0.5s), shared with Delete Cars. Higher helps weak hardware register taps.
@@ -209,8 +211,12 @@ def run(cfg: dict, stop_event: threading.Event,
     # The mastery-tree unlock path (ordered 4x4 cells) is the only config this
     # mode needs — navigated by keyboard, not clicked. Resolution-independent.
     tpl_lang   = _cfg_mod.resolve_template_lang(_fresh)
-    gfile      = grid_file or get_mastery_grid_file(tpl_lang)
-    grid_order = load_grid(gfile)
+    # grid_order passed directly (Full Auto hard-codes its pre-determined cars'
+    # unlock paths — no capture/UI) bypasses the JSON spec; else load the captured
+    # spec (the standalone Mastery tab's own, or a Full Auto grid_file).
+    if grid_order is None:
+        gfile      = grid_file or get_mastery_grid_file(tpl_lang)
+        grid_order = load_grid(gfile)
     if not grid_order:
         log_cb(_at("log_grid_missing", lang))
         status_cb(_at("status_setup_incomplete", lang))
@@ -258,6 +264,8 @@ def run(cfg: dict, stop_event: threading.Event,
     while not stop():
         car_num    += 1
         is_first   = (car_num == 1)
+        if progress_cb:                       # cars completed so far → UI bar fill
+            progress_cb(car_num - 1, max_cars)
 
         # ── 1. Navigate to next car (top→bottom column-major) ──
         # The first car needs no nav (we start positioned on it). Otherwise emit

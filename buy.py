@@ -28,6 +28,7 @@ import time
 import threading
 
 import config
+import navutil
 from config import get_buy_templates
 from app_lang import t as _at
 from capture import (grab_frame, load_template, get_monitor_dims,
@@ -38,8 +39,20 @@ from detector import ScreenDetector
 from gameio import GameIO
 
 
-# Buy macro per loop (unchanged from the old inline implementation).
+# Buy macro per loop (blind-fallback path, used when the confirmation gate
+# templates aren't captured — unchanged from the old inline implementation).
 BUY_MACRO = ['space', 'down', 'enter', 'enter', 'enter']
+
+# Gated path: the keys that bring up the "Buy Car" confirmation popup (Space=Buy,
+# Down=select the correct one of the two buy options, Enter+Enter=confirm). The
+# popup is then dismissed with a single Enter (user-confirmed timing). On a miss
+# (a dropped key — most often Space) Esc reliably backs out of any buy sub-menu
+# to the car detail view, so the retry always restarts from a known screen.
+BUY_INIT          = ['space', 'down', 'enter', 'enter']
+GATE_KEYS         = ["buy_confirm", "buy_detail"]
+_CONFIRM_WINDOW   = 4.0   # wait for the "Buy Car" popup after BUY_INIT
+_RECOVER_WINDOW   = 3.0   # wait for the detail-view anchor after an Esc
+_MAX_BUY_ATTEMPTS = 3     # consecutive misses on one car before aborting
 
 # buy_target_car is intentionally NOT here: the target car is now reached by
 # keyboard (S → Enter from the BRAT GL tile that's selected after picking
@@ -66,7 +79,8 @@ _EXIT_CONFIRM_WINDOW = 10.0   # detect the main menu after the Esc chain
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
-        warn_cb=None, section_cb=None):
+        warn_cb=None, section_cb=None, require_nav: bool = False,
+        target_nav=None, progress_cb=None):
     """
     Auto Buy loop.
     cfg: config dict
@@ -75,6 +89,17 @@ def run(cfg: dict, stop_event: threading.Event,
     max_loops: stop after this many purchases (0 = unlimited)
     section_cb(msg): start a bounded log section; falls back to log_cb
     warn_cb: accepted for call-site parity; unused (nav is time-boxed).
+    require_nav: Full Auto mode — buy MUST start by navigating from the main menu
+        (collection_log). The legacy "assume pre-positioned, run the macro only"
+        fallback is disabled; not finding the main menu aborts (returns False) so
+        the chain doesn't fire the buy macro on an unknown screen.
+    target_nav: optional callback that REPLACES the default Subaru→22B brand/target
+        selection (the part AFTER the shared menu nav + Backspace). Called as
+        target_nav(io, detector, press, wait, log_cb, stop, post_kw) and must leave
+        the target car FOCUSED on its detail view, returning True on success / False
+        to abort. None → the built-in Subaru→22B path. The caller supplies any
+        target-specific templates (this keeps brand/car specifics out of buy.py).
+    Returns True on normal completion, False if it couldn't start (require_nav).
     """
     section       = section_cb or log_cb
     lang          = cfg.get("lang", "en")
@@ -107,6 +132,10 @@ def run(cfg: dict, stop_event: threading.Event,
             detector.set_template_geometry(
                 key, box, meta.get("screen_width", current_w),
                 meta.get("screen_height", current_h))
+        if meta.get("roi"):                           # user-drawn ROI overrides
+            detector.set_template_roi(key, meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
         log_cb(_at("log_template_loaded", lang, key=key, scale=f"{scale:.2f}"))
         return img
 
@@ -119,6 +148,15 @@ def run(cfg: dict, stop_event: threading.Event,
         except FileNotFoundError:
             pass
     nav_enabled = all(k in nav_tpls for k in NAV_KEYS)
+
+    # Gate templates (best-effort, loaded into the same dict _detect indexes):
+    # both present → confirmed/retrying buy loop; either absent → blind macro.
+    for key in GATE_KEYS:
+        try:
+            nav_tpls[key] = _load(key)
+        except FileNotFoundError:
+            pass
+    gating = all(k in nav_tpls for k in GATE_KEYS)
 
     def stop():
         return stop_event.is_set()
@@ -184,26 +222,38 @@ def run(cfg: dict, stop_event: threading.Event,
         the collection_log match already in hand. Returns True on success,
         False if a step's element never appears (abort) or stopped."""
         announce(_at("log_buy_nav_begin", lang))
-        # 1. Collection Log (already detected — click it)
-        lbl = _at("buy_tpl_collection_log", lang)
-        log_cb(_at("log_buy_nav_click", lang, label=lbl))
-        io.click(start_hit.location[0], start_hit.location[1], post_kw)
+        click_fn = lambda loc: io.click(loc[0], loc[1], post_kw)
+
+        def _advance(prev_key, next_key):
+            """Click prev_key and confirm we reached next_key, re-clicking prev_key
+            if a dropped click leaves the menu stuck (navutil failsafe)."""
+            log_cb(_at("log_buy_nav_click", lang, label=_at(_LABELS[prev_key], lang)))
+            return navutil.click_until_advanced(
+                io.grab, detector, click_fn,
+                (prev_key, nav_tpls[prev_key], _thr(prev_key)),
+                (next_key, nav_tpls[next_key], _thr(next_key)),
+                stop,
+                log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
+                                               label=_at(_LABELS[prev_key], lang), n=n)))
+
+        # 1. Collection Log → Discover Japan card
+        if _advance("collection_log", "discover_japan") is None:
+            if not stop():
+                log_cb(_at("log_buy_nav_fail", lang,
+                           label=_at("buy_tpl_discover_japan", lang), secs="-"))
+            return False
         if stop():
             return False
-        # 2. Discover Japan card
-        if not _nav_click("discover_japan"):
-            return False
-        # 3. Car Collection — detect the grid (gate), then Down + Enter
-        lbl = _at("buy_tpl_car_collection", lang)
-        t0 = time.time()
-        r = _detect("car_collection", _NAV_STEP_WINDOW)
-        secs = f"{time.time() - t0:.1f}"
-        if r is None:
+        # 2. Discover Japan → Car Collection grid
+        if _advance("discover_japan", "car_collection") is None:
             if not stop():
-                log_cb(_at("log_buy_nav_fail", lang, label=lbl, secs=secs))
+                log_cb(_at("log_buy_nav_fail", lang,
+                           label=_at("buy_tpl_car_collection", lang), secs="-"))
             return False
-        log_cb(_at("log_buy_nav_detected", lang, label=lbl,
-                   conf=f"{r.score:.0%}, {r.source}", secs=secs))
+        if stop():
+            return False
+        # 3. Car Collection grid reached → Down + Enter
+        lbl = _at("buy_tpl_car_collection", lang)
         log_cb(_at("log_buy_nav_key", lang, keys="Down → Enter", label=lbl))
         press('down')
         if stop():
@@ -216,6 +266,11 @@ def run(cfg: dict, stop_event: threading.Event,
         press('backspace')
         if stop():
             return False
+        # 4b. Custom target nav (e.g. Full Auto money grind → Dodge → GTS ACR):
+        #     replaces the built-in Subaru→22B selection below. Must leave the
+        #     target car focused on its detail view; the macro then runs as usual.
+        if target_nav is not None:
+            return bool(target_nav(io, detector, press, wait, log_cb, stop, post_kw))
         # 5. Scroll to the bottom of the brand view (generous; clamps at the
         #    end), so the Subaru brand tile sits at a fixed bottom position.
         log_cb(_at("log_buy_scroll", lang, n=_SCROLL_NOTCHES))
@@ -226,9 +281,17 @@ def run(cfg: dict, stop_event: threading.Event,
         wait(0.3)   # let the brand view settle at the bottom
         if stop():
             return False
-        # 6. Click Subaru → drops into the car-list view; the cursor reliably
-        #    lands on the BRAT GL tile.
-        if not _nav_click("subaru"):
+        # 6. Click the Subaru BRAND tile → drops into the car-list view; the
+        #    cursor reliably lands on the BRAT GL tile. The brand list order
+        #    varies with the player's favourites, so a pixel match can peak on the
+        #    wrong tile (OCR would still region-confirm "subaru" and pass). So use
+        #    OCR to LOCATE the "Subaru" text and click ITS box; fall back to the
+        #    pixel nav-click if OCR can't place it.
+        sub = detector.locate_text(io.grab(), "subaru")
+        if sub is not None:
+            log_cb(_at("log_buy_nav_click", lang, label=_at("buy_tpl_subaru", lang)))
+            io.click(sub.location[0], sub.location[1], post_kw)
+        elif not _nav_click("subaru"):
             return False
         # 7. From BRAT GL the 22B-STi is one row down, so move down once and
         #    select it with Enter. Keyboard nav is reliable here — detecting the
@@ -276,6 +339,13 @@ def run(cfg: dict, stop_event: threading.Event,
 
     # ── Optional entry navigation ──
     did_nav = False
+    if require_nav and not nav_enabled:
+        # Full Auto: buy must navigate from the main menu, but the nav templates
+        # aren't all captured — can't proceed in the chain.
+        log_cb(_at("log_buy_nav_fail", lang,
+                   label=_at("buy_tpl_collection_log", lang), secs="0"))
+        io.cleanup()
+        return False
     if nav_enabled and not stop():
         # On the main menu (collection_log visible)? Then navigate. Otherwise
         # assume the user pre-positioned on the target car (legacy) and just
@@ -286,31 +356,86 @@ def run(cfg: dict, stop_event: threading.Event,
                 io.cleanup()
                 log_cb(_at("log_buy_stopped", lang))
                 status_cb(_at("status_stopped", lang))
-                return
+                return False
             did_nav = True
+        elif require_nav:
+            # Full Auto: buy must start from the main menu (collection_log). Not
+            # finding it means the chain desynced — stop instead of running the
+            # macro on an unknown screen.
+            log_cb(_at("log_buy_nav_fail", lang,
+                       label=_at("buy_tpl_collection_log", lang),
+                       secs=f"{_START_STATE_WINDOW:.0f}"))
+            io.cleanup()
+            return False
     elif not nav_enabled:
         log_cb(_at("log_buy_nav_skip", lang))
 
-    # ── Buy macro loop ──
-    loop = 0
-    while not stop():
-        loop += 1
-        section(f"-- {_at('buy_loop', lang)} #{loop}" +
-                (f" / {max_loops}" if max_loops > 0 else "") + " --")
-        for key in BUY_MACRO:
+    def _buy_one():
+        """Buy ONE car with confirmation + Esc recovery. Returns the confirm
+        match score on a verified purchase, or None if it had to abort (couldn't
+        recover to the detail view, attempts exhausted, or stopped)."""
+        for attempt in range(1, _MAX_BUY_ATTEMPTS + 1):
             if stop():
+                return None
+            for key in BUY_INIT:
+                if stop():
+                    return None
+                log_cb(_at('log_buy_key', lang, key=key.upper()))
+                press(key)
+            r = _detect("buy_confirm", _CONFIRM_WINDOW)
+            if r is not None:               # popup → the car was really bought
+                press('enter')              # dismiss "Enter ▸ Ok" → detail view
+                return r.score
+            if stop():
+                return None
+            # No confirmation: a key was dropped and we may be sitting on the
+            # wrong buy option / a sub-menu. Esc always returns to the car detail
+            # view; confirm we're there before re-pressing (never guess).
+            log_cb(_at("log_buy_retry", lang, a=attempt, m=_MAX_BUY_ATTEMPTS))
+            press('escape')
+            if _detect("buy_detail", _RECOVER_WINDOW) is None:
+                if not stop():
+                    log_cb(_at("log_buy_recover_fail", lang))
+                return None
+            # back on the detail view → loop retries from a known state
+        log_cb(_at("log_buy_attempts_exhausted", lang, m=_MAX_BUY_ATTEMPTS))
+        return None
+
+    # ── Buy loop ──
+    run_ok = True
+    loop = 0
+    if gating:
+        log_cb(_at("log_buy_gated_on", lang))
+    while not stop():
+        section(f"-- {_at('buy_loop', lang)} #{loop + 1}" +
+                (f" / {max_loops}" if max_loops > 0 else "") + " --")
+        if gating:
+            score = _buy_one()
+            if score is None:               # aborted — don't snowball
+                run_ok = False
                 break
-            log_cb(_at('log_buy_key', lang, key=key.upper()))
-            press(key)
+            loop += 1
+            log_cb(_at("log_buy_confirmed", lang, conf=f"{score:.0%}", n=loop))
+        else:
+            # Blind fallback (gate templates not captured): old behaviour.
+            for key in BUY_MACRO:
+                if stop():
+                    break
+                log_cb(_at('log_buy_key', lang, key=key.upper()))
+                press(key)
+            loop += 1
+        if progress_cb:
+            progress_cb(loop, max_loops)
         if max_loops > 0 and loop >= max_loops:
             log_cb(_at('log_buy_limit_reached', lang, n=max_loops))
             break
 
-    # ── Optional exit navigation — only if we entered via nav (so we know
-    #    we're on the detail view / can count the Esc chain back to the menu). ──
-    if did_nav and not stop():
+    # ── Optional exit navigation — only if we entered via nav AND finished
+    #    cleanly (an abort leaves an unknown screen; don't fire the Esc chain). ──
+    if did_nav and run_ok and not stop():
         _return_to_menu()
 
     io.cleanup()     # stop keep-alive + unmute
     log_cb(_at("log_buy_stopped", lang))
     status_cb(_at("status_stopped", lang))
+    return run_ok

@@ -12,6 +12,7 @@ import ctypes
 from ctypes import wintypes
 
 import config
+import navutil
 from config import get_race_templates, get_nodes_file
 from app_lang import t as _at
 from capture import (grab_frame, load_template, get_monitor_dims,
@@ -146,7 +147,8 @@ _NAV_SETTLE   = 0.3
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
-        warn_cb=None, section_cb=None):
+        warn_cb=None, section_cb=None, require_nav: bool = False,
+        progress_cb=None):
     """
     Main race automation loop.
     cfg: config dict
@@ -155,6 +157,12 @@ def run(cfg: dict, stop_event: threading.Event,
     status_cb(msg): update the status bar
     max_loops: stop after this many completed races (0 = unlimited)
     section_cb(msg): start a new (bounded) log section; falls back to log_cb
+    require_nav: Full Auto mode — the race MUST start by navigating from the main
+        menu (creative_hub). The "already at start_menu" shortcut and the
+        "wait wherever you are" fallback are disabled; a non-main-menu start
+        state aborts (returns False) so the chain doesn't race from a desynced
+        state. Standalone (default False) keeps the lenient start-state handling.
+    Returns True on normal completion, False if it couldn't start (require_nav).
     """
     section = section_cb or log_cb
 
@@ -217,6 +225,10 @@ def run(cfg: dict, stop_event: threading.Event,
                 detector.set_template_geometry(
                     key, _box, meta.get("screen_width", current_w),
                     meta.get("screen_height", current_h))
+            if meta.get("roi"):                       # user-drawn ROI overrides
+                detector.set_template_roi(key, meta["roi"],
+                                          meta.get("screen_width", 0),
+                                          meta.get("screen_height", 0))
             log_cb(_at("log_template_loaded", cfg.get("lang","en"), key=key, scale=f"{scale:.2f}"))
         except FileNotFoundError:
             log_cb(_at("log_template_missing", cfg.get("lang","en"), key=key))
@@ -244,6 +256,10 @@ def run(cfg: dict, stop_event: threading.Event,
                 detector.set_template_geometry(
                     key, _box, meta.get("screen_width", current_w),
                     meta.get("screen_height", current_h))
+            if meta.get("roi"):                       # user-drawn ROI overrides
+                detector.set_template_roi(key, meta["roi"],
+                                          meta.get("screen_width", 0),
+                                          meta.get("screen_height", 0))
         except FileNotFoundError:
             pass
     nav_enabled = all(k in nav_tpls for k in NAV_KEYS)
@@ -266,6 +282,10 @@ def run(cfg: dict, stop_event: threading.Event,
             detector.set_template_geometry(
                 "next_activity", _box, meta.get("screen_width", current_w),
                 meta.get("screen_height", current_h))
+        if meta.get("roi"):                           # user-drawn ROI overrides
+            detector.set_template_roi("next_activity", meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
     except FileNotFoundError:
         pass
     exit_enabled = exit_tpl is not None and "creative_hub" in nav_tpls
@@ -460,7 +480,20 @@ def run(cfg: dict, stop_event: threading.Event,
         lbl = _at("race_tpl_creative_hub", lang)
         log_cb(_at("log_race_nav_click", lang, label=lbl))
         wait(_NAV_SETTLE)
-        _click(ch_hit.location[0], ch_hit.location[1])
+        # CREATIVE HUB → EventLab, with the nav failsafe (re-click if a dropped
+        # click leaves us on the main menu). ch_hit is ignored — the helper
+        # re-detects for fresh coords.
+        if navutil.click_until_advanced(
+                _grab, detector, lambda loc: _click(loc[0], loc[1]),
+                ("creative_hub", nav_tpls["creative_hub"], _thresh("creative_hub")),
+                ("eventlab", nav_tpls["eventlab"], _thresh("eventlab")),
+                stop,
+                log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
+                       label=_at("race_tpl_creative_hub", lang), n=n))) is None:
+            if not stop():
+                log_cb(_at("log_race_nav_fail", lang,
+                           label=_at("race_tpl_eventlab", lang), secs="-"))
+            return False
         # Per step: (key, action, pre_wait). pre_wait is a settle BEFORE acting,
         # for screens that animate in — the element is detected mid-transition
         # but the game drops input until the transition finishes. A uniform
@@ -476,7 +509,7 @@ def run(cfg: dict, stop_event: threading.Event,
                  ("my_history", "enter", _NAV_SETTLE, "choose_race_type"),
                  ("choose_race_type", "enter", _NAV_SETTLE, None),
                  ("car_select", "enter", _NAV_SETTLE, None)]
-        for key, action, pre_wait, retry_to in steps:
+        for i, (key, action, pre_wait, retry_to) in enumerate(steps):
             lbl = _at("race_tpl_" + key, lang)
             t0 = time.time()
             r = _detect_nav(key, _NAV_STEP_WINDOW)
@@ -493,7 +526,25 @@ def run(cfg: dict, stop_event: threading.Event,
                     return False
             if action == "click":
                 log_cb(_at("log_race_nav_click", lang, label=lbl))
-                _click(r.location[0], r.location[1])
+                # Failsafe: confirm we advanced to the NEXT step; re-click this one
+                # if a dropped click leaves the menu stuck. Falls back to a plain
+                # click if there's no next nav template to verify against.
+                nxt_key = steps[i + 1][0] if i + 1 < len(steps) else None
+                if nxt_key and nxt_key in nav_tpls:
+                    if navutil.click_until_advanced(
+                            _grab, detector, lambda loc: _click(loc[0], loc[1]),
+                            (key, nav_tpls[key], _thresh(key)),
+                            (nxt_key, nav_tpls[nxt_key], _thresh(nxt_key)),
+                            stop,
+                            log_retry=lambda n, _l=lbl: log_cb(
+                                _at("log_nav_reclick", lang, label=_l, n=n))) is None:
+                        if not stop():
+                            log_cb(_at("log_race_nav_fail", lang,
+                                       label=_at("race_tpl_" + nxt_key, lang),
+                                       secs="-"))
+                        return False
+                else:
+                    _click(r.location[0], r.location[1])
             elif retry_to:
                 log_cb(_at("log_race_nav_enter", lang, label=lbl))
                 # Source-gated: re-press Enter only while still on this step's
@@ -514,6 +565,13 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb(_at("log_race_nav_done", lang))
         return True
 
+    if require_nav and not nav_enabled:
+        # Full Auto: race must start by navigating from the main menu, but the
+        # nav templates aren't all captured — can't proceed in the chain.
+        log_cb(_at("log_race_nav_fail", lang,
+                   label=_at("race_tpl_creative_hub", lang), secs="0"))
+        io.cleanup()
+        return False
     if nav_enabled and not stop():
         _which, _hit = _detect_start_state(8.0)
         if _which == "creative_hub":
@@ -521,10 +579,18 @@ def run(cfg: dict, stop_event: threading.Event,
                 log_cb(_at("log_race_stopped", cfg.get("lang", "en")))
                 status_cb(_at("status_stopped", lang))
                 io.cleanup()   # always unmute / stop keep-alive on nav abort
-                return
-        elif _which == "start_menu":
+                return False
+        elif _which == "start_menu" and not require_nav:
             log_cb(_at("log_race_at_start", lang))
-        # else: neither within the window — fall through to the loop's
+        elif require_nav:
+            # Full Auto: each step starts from the main menu. A non-creative_hub
+            # start state (start_menu, or nothing within the window) means the
+            # chain desynced — stop cleanly instead of racing from there.
+            log_cb(_at("log_race_nav_fail", lang,
+                       label=_at("race_tpl_creative_hub", lang), secs="8"))
+            io.cleanup()
+            return False
+        # else (standalone, neither): fall through to the loop's
         # wait_for(start_menu), which handles wherever the user actually is.
 
     loop_count = 0
@@ -609,6 +675,10 @@ def run(cfg: dict, stop_event: threading.Event,
 
         # ── 2. Press Enter to start the race ──────────────────────────
         press(START_RACE_KEY, "Start Race")
+        # Silence the keep-alive across the input-free countdown: its WM_ACTIVATE/
+        # SETFOCUS bursts hit the ~3s countdown as focus flicker and break the
+        # start. Covers Enter → countdown → W-hold; keep-alive auto-resumes after.
+        io.quiet_keepalive(_PRE_W_WAIT + 0.6)
         if stop(): break
 
         # ── 3. Wait for the race to begin, then hold W ────────────────
@@ -643,6 +713,10 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop(): break
         log_cb(_at("log_released_w", lang))
 
+        # One full race completed → report progress (n of max) to the UI bar.
+        if progress_cb:
+            progress_cb(loop_count, max_loops)
+
         # One full race completed. Stop here (on the results/restart screen)
         # when the requested number of races is reached, rather than kicking
         # off another race we'd immediately abandon.
@@ -666,3 +740,4 @@ def run(cfg: dict, stop_event: threading.Event,
     _release_w()     # safety release (W up to the game)
     log_cb(_at("log_race_stopped", cfg.get("lang","en")))
     status_cb(_at("status_stopped", lang))
+    return True
