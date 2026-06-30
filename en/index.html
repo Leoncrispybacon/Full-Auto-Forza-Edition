@@ -37,7 +37,10 @@
       <a href="#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Settings</a>
     </nav>
     <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
-      <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;border:1px solid #243044;border-radius:7px;padding:6px 11px;">EN ▾</span>
+      <select aria-label="Language" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../en/" selected>EN</option>
+        <option value="../zh-tw/">繁中</option>
+      </select>
       <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">Download</a>
     </div>
   </div>
