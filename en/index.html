@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FAFE - Forza Horizon 6 Automation Tool for Windows</title>
-<meta name="description" content="Automate Forza Horizon 6 with FAFE: AFK races, mastery-tree Wheelspin unlocks, batch car buying, Auto Wheelspins, garage cleanup, and the public automation tools.">
+<meta name="description" content="Automate Forza Horizon 6 with FAFE: AFK races, mastery-tree Wheelspin unlocks, batch car buying, Auto Wheelspins, garage cleanup, and Full Auto mode.">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/">
@@ -31,6 +31,7 @@
     </a>
     <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;">
       <a href="#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">About</a>
+      <a href="#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">Full Auto</a>
       <a href="#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Features &amp; Guides</a>
       <a href="#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Getting Started</a>
       <a href="#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Settings</a>
@@ -85,13 +86,92 @@
   </div>
 </section>
 
-FEATURES & GUIDES ════════ -->
+<!-- ════════ FULL AUTO (pro) ════════ -->
+<section id="full-auto" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
+    <div style="position:relative;background:#0C1A2E;border:1px solid #2563EB;border-radius:14px;padding:44px 48px 40px;overflow:hidden;box-shadow:0 0 0 1px rgba(37,99,235,.08), 0 36px 90px rgba(0,0,0,.45);">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 92% at 100% -10%, rgba(37,99,235,0.2), transparent 58%);pointer-events:none;"></div>
+      <div style="position:relative;">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div style="width:64px;height:64px;border-radius:14px;background:#13243d;border:1px solid #2b4d7a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="29" height="29" viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="10.3" width="16" height="10.7" rx="2.6" fill="#7DB2FF"></rect>
+              <path d="M7.4 10.3V7.4a4.6 4.6 0 0 1 9.2 0v2.9" stroke="#7DB2FF" stroke-width="2.2" fill="none"></path>
+              <circle cx="12" cy="15" r="1.5" fill="#13243d"></circle>
+            </svg>
+          </div>
+          <div>
+            <div style="font-family:'Geist Mono',monospace;font-size:.76rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#7DB2FF;">Pro</div>
+            <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:2.8rem;line-height:1;color:#F4F8FD;margin:5px 0 0;letter-spacing:-.02em;">Full Auto</h2>
+          </div>
+        </div>
+        <p style="color:#cdd9e5;font-size:1.1rem;line-height:1.65;margin:26px 0 0;max-width:760px;">Run the whole farm loop unattended: race for mastery points, buy the right number of cars, unlock their mastery trees, delete them, then either spin wheels or go straight back to racing.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:34px;">
+          <div>
+            <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.2rem;color:#F4F8FD;margin:0;">Wheelspin Mode</h3>
+            <p style="color:#82A0B2;font-size:.95rem;line-height:1.55;margin:8px 0 16px;">Turns mastery points into Super Wheelspins, then optionally connects Auto Wheelspin after deleting.</p>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Buys the <strong style="color:#F4F8FD;font-weight:600;">Subaru 22B-STI</strong> — or the <strong style="color:#F4F8FD;font-weight:600;">#123 Mad Mike</strong> if you own the Car Pass DLC</span></li>
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Optionally connects Auto Wheelspin after deleting</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.2rem;color:#F4F8FD;margin:0;">Money Mode</h3>
+            <p style="color:#82A0B2;font-size:.95rem;line-height:1.55;margin:8px 0 16px;">Buys for credit nodes instead of wheelspin nodes, then loops straight back to racing.</p>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Buys the <strong style="color:#F4F8FD;font-weight:600;">Viper GTS ACR</strong> — about <strong style="color:#F4F8FD;font-weight:600;">88,000 credits</strong> profit per car</span></li>
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Deletes each car, then returns straight to the race loop</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="margin-top:30px;background:#0A1422;border:1px solid #1c2c44;border-radius:10px;padding:20px 26px;">
+          <div style="font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7DB2FF;margin-bottom:14px;">Both modes</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 48px;">
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Detects available mastery points and calculates how many cars to process</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Real-time stage bar: Race → Buy → Unlock → Delete → Wheelspin / Repeat</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Runs buy, mastery unlock, and delete as one chained workflow if you already have mastery points. The buy function will start from reading your currently available mastery points.</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Hardware-bound license with 2 activations and 3-day offline grace</span></div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #243044;margin:36px 0 24px;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:1.85rem;color:#F4F8FD;letter-spacing:-.01em;">$5.99 one-time unlock</span>
+            <span style="color:#5f7488;font-size:.9rem;">Regional price may vary with exchange rate.</span>
+          </div>
+          <a href="https://ko-fi.com/s/edbeb0552c" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:1.02rem;padding:14px 30px;border-radius:10px;box-shadow:0 8px 26px rgba(37,99,235,.4);white-space:nowrap;">Unlock Full Auto</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FEATURES & GUIDES ════════ -->
 <section id="guides" style="border-bottom:1px solid #1a2433;">
   <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
     <div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;">Features &amp; Guides</div>
     <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:2.2rem;line-height:1.12;color:#F4F8FD;margin:12px 0 14px;letter-spacing:-.015em;">What FAFE can do — and how to use it</h2>
     <p style="color:#82A0B2;font-size:1.05rem;line-height:1.7;margin:0 0 32px;max-width:680px;">Each feature opens its complete guide, so you can understand what it automates and then follow the exact setup steps.</p>
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;">
+
+    <a href="guides/full-auto/" style="display:block;text-decoration:none;position:relative;background:#0C1A2E;border:1px solid #2563EB;border-radius:12px;padding:26px 30px;margin-bottom:22px;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 36% 130% at 100% 0%, rgba(37,99,235,0.16), transparent 60%);pointer-events:none;"></div>
+      <div style="position:relative;display:flex;align-items:flex-start;gap:22px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:11px;margin-bottom:7px;">
+            <span style="font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#0B0F17;background:#7DB2FF;border-radius:4px;padding:3px 7px;">Pro</span>
+            <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.2rem;color:#F4F8FD;margin:0;white-space:nowrap;">Full Auto Mode</h3>
+            <span style="font-family:'Geist Mono',monospace;font-size:.86rem;color:#7DB2FF;margin-left:auto;white-space:nowrap;">Read guide →</span>
+          </div>
+          <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.55;max-width:760px;">Chain every tool into one hands-off loop — Wheelspin Mode or Money Mode, with automatic mastery detection, live stage progress, and optional Auto Wheelspin after deleting.</p>
+        </div>
+      </div>
+    </a>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;">
       <a href="guides/forza-horizon-6-farming-guide/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#7DB2FF;border:1px solid #7DB2FF55;background:#7DB2FF1A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Overview</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Money, Credit &amp; Skill Point Farm</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">The complete public workflow from AFK races through mastery unlocks, Wheelspins and cleanup.</p></a>
       <a href="guides/first-time-setup/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A99BF2;border:1px solid #A99BF255;background:#A99BF21A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Configuration</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">First-time Setup</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Select the game monitor, language and initial controls — 繁中 / English, multi-monitor, ultrawide.</p></a>
       <a href="guides/settings/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A99BF2;border:1px solid #A99BF255;background:#A99BF21A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Configuration</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Settings</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Appearance, remappable hotkeys, language, timing controls and background mode.</p></a>
