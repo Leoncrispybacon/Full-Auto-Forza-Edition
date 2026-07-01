@@ -442,18 +442,21 @@ def run(cfg: dict, stop_event: threading.Event,
 
     def _recover_buy_entry_route():
         nonlocal recovered_anchor
-        log_cb("  ! Buy entry recovery: searching for a known route anchor.")
+        rec_label = "Buy entry"
+        log_cb(_at("log_recovery_search", lang, label=rec_label))
         for attempt in range(7):
             anchor_keys = recovery.backtrack_anchor_keys(
                 (*NAV_KEYS, "buy_detail"))
             which, _hit = _detect_buy_anchor(1.2, keys=anchor_keys)
             if which is not None:
                 recovered_anchor = which
-                log_cb(f"  ! Buy entry recovery: anchored at {which}.")
+                log_cb(_at("log_recovery_anchored", lang,
+                           label=rec_label, anchor=which))
                 return True
             safety = _detect_safety_anchor(0.8)
             if safety is not None:
-                log_cb(f"  ! Buy entry recovery: anchored at safety {safety}.")
+                log_cb(_at("log_recovery_anchored_safety", lang,
+                           label=rec_label, anchor=safety))
                 if _recover_to_main_menu_from_safety_anchor(
                         safety,
                         lambda: press('escape', post_wait=0.5),
@@ -463,9 +466,9 @@ def run(cfg: dict, stop_event: threading.Event,
                     return True
             if attempt >= 6 or stop():
                 break
-            log_cb("  ! Buy entry recovery: pressing ESC to back out one menu.")
+            log_cb(_at("log_recovery_esc", lang, label=rec_label))
             press('escape', post_wait=0.5)
-        log_cb("  ! Buy entry recovery: no safe anchor found.")
+        log_cb(_at("log_recovery_no_anchor", lang, label=rec_label))
         return False
 
     if require_nav and not nav_enabled:

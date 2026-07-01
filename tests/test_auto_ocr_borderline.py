@@ -25,8 +25,8 @@ class AutoOcrBorderlineTests(unittest.TestCase):
         detector_source = Path("detector.py").read_text(encoding="utf-8")
         ui_source = Path("webui/app.js").read_text(encoding="utf-8")
 
-        self.assertIn('get("detector_min_threshold", 0.67)', detector_source)
-        self.assertIn("slider.min = '0.67'", ui_source)
+        self.assertIn('get("detector_min_threshold", 0.70)', detector_source)
+        self.assertIn("slider.min = '0.70'", ui_source)
 
     def test_automations_forward_auto_ocr_note_to_logs(self):
         for path in ("race.py", "buy.py", "wheelspin.py", "mastery.py", "full_auto.py"):

@@ -141,4 +141,14 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/mechanics/" />
     <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/mechanics/" />
   </url>
+  <url>
+    <loc>https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/" />
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/recovery/" />
+  </url>
+  <url>
+    <loc>https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/recovery/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/" />
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/recovery/" />
+  </url>
 </urlset>

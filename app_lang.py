@@ -1506,6 +1506,14 @@ STRINGS = {
         "en":    "Note: this bundle includes your settings and basic system info. Fine to share for support; review before posting publicly.",
         "zh-tw": "注意：此回報包含你的設定與基本系統資訊。提供給支援沒問題，公開分享前請先檢視。",
     },
+    "auto_report_saved": {
+        "en":    "Automatic bug report saved: {path}",
+        "zh-tw": "自動錯誤回報已儲存：{path}",
+    },
+    "auto_report_failed": {
+        "en":    "Automatic bug report failed: {error}",
+        "zh-tw": "自動錯誤回報失敗：{error}",
+    },
     "report_help_btn": {
         "en":    "Report a Bug",
         "zh-tw": "回報錯誤",
@@ -1684,6 +1692,58 @@ STRINGS = {
     "log_bg_window_size": {
         "en":    "  Detecting against game window: {w}×{h} (don't move/resize it while running).",
         "zh-tw": "  以遊戲視窗為偵測範圍：{w}×{h}（執行期間請勿移動或縮放視窗）。",
+    },
+    "log_route_retry": {
+        "en":    "  ! {label} route failed - retrying stage route {n}/{max}.",
+        "zh-tw": "  ! {label} 路線失敗 - 正在重試階段路線 {n}/{max}。",
+    },
+    "log_route_recovery_action_failed": {
+        "en":    "  ! {label} route recovery action failed - aborting.",
+        "zh-tw": "  ! {label} 路線復原動作失敗 - 中止。",
+    },
+    "log_route_recovery_anchored": {
+        "en":    "  ! {label} route recovery anchored - retry budget reset.",
+        "zh-tw": "  ! {label} 路線復原已定位 - 重試次數已重置。",
+    },
+    "log_route_recovery_failed": {
+        "en":    "  ! {label} route recovery failed - aborting.",
+        "zh-tw": "  ! {label} 路線復原失敗 - 中止。",
+    },
+    "log_recovery_search": {
+        "en":    "  ! {label} recovery: searching for a known route anchor.",
+        "zh-tw": "  ! {label} 復原：正在尋找可辨識的路線定位點。",
+    },
+    "log_recovery_search_safe": {
+        "en":    "  ! {label} recovery: searching for a safe anchor.",
+        "zh-tw": "  ! {label} 復原：正在尋找安全定位點。",
+    },
+    "log_recovery_anchored": {
+        "en":    "  ! {label} recovery: anchored at {anchor}.",
+        "zh-tw": "  ! {label} 復原：已定位在 {anchor}。",
+    },
+    "log_recovery_anchored_safety": {
+        "en":    "  ! {label} recovery: anchored at safety {anchor}.",
+        "zh-tw": "  ! {label} 復原：已定位在安全點 {anchor}。",
+    },
+    "log_recovery_backing_out": {
+        "en":    "  ! {label} recovery: backing out from {anchor}.",
+        "zh-tw": "  ! {label} 復原：正在從 {anchor} 退出。",
+    },
+    "log_recovery_esc": {
+        "en":    "  ! {label} recovery: pressing ESC to back out one menu.",
+        "zh-tw": "  ! {label} 復原：按下 ESC 返回上一層選單。",
+    },
+    "log_recovery_no_anchor": {
+        "en":    "  ! {label} recovery: no safe anchor found.",
+        "zh-tw": "  ! {label} 復原：找不到安全定位點。",
+    },
+    "log_recovery_main_menu_unsafe": {
+        "en":    "  ! {label} recovery: reached the main menu safety anchor, but this stage cannot safely restart there.",
+        "zh-tw": "  ! {label} 復原：已到達主選單安全定位點，但此階段無法安全地從這裡重新開始。",
+    },
+    "log_low_resolution_warning": {
+        "en":    "!!! WARNING !!! Game window is {w}x{h}, under 1080p. Running under 1080p massively increases the chance of detection failure and missed input.",
+        "zh-tw": "!!! WARNING !!! 遊戲視窗目前是 {w}x{h}，低於 1080p。低於 1080p 會大幅增加偵測失敗與輸入漏接的機率。",
     },
     "log_bg_letterbox": {
         "en":    "  Black bars detected — cropping to game content {w}×{h} (window aspect ≠ game aspect).",

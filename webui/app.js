@@ -40,7 +40,14 @@ function API(name, ...args) {
 }
 let isRunning = false;
 window.appendLog = (line) =>
-  document.querySelectorAll('.log-body').forEach(l => { l.textContent += line + '\n'; l.scrollTop = l.scrollHeight; });
+  document.querySelectorAll('.log-body').forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'log-line';
+    if (String(line).startsWith('!!! WARNING !!!')) row.classList.add('log-warn');
+    row.textContent = line;
+    l.appendChild(row);
+    l.scrollTop = l.scrollHeight;
+  });
 window.setStatus = (text, running) => {
   isRunning = !!running;
   document.querySelectorAll('.status').forEach(s => {
@@ -61,10 +68,10 @@ window.onHotkey = (name) => {
     }
   } else if (name === 'f12') {
     const log = document.querySelector('.view:not([hidden]) .log-body');
-    API('report', log ? log.textContent : '');
+    API('report', log ? log.innerText : '');
   }
 };
-function clearLog() { document.querySelectorAll('.log-body').forEach(l => l.textContent = ''); }
+function clearLog() { document.querySelectorAll('.log-body').forEach(l => l.innerHTML = ''); }
 // The keyboard-driven automations (Unlock/Delete) inject Enter/Space. If a
 // Start/Stop button holds focus, that injected key re-fires it — re-clicking
 // Start wipes the log mid-run, hitting Stop kills the run. Block NATIVE keyboard
@@ -609,7 +616,7 @@ async function renderTemplates(bodyId, tab) {
     const name = el('span', null, tpl.name); name.className = 'name';
     const thr = el('span', null, t('tpl_threshold')); thr.className = 'thr';
     const slider = el('input'); slider.className = 'tpl-slider'; slider.type = 'range';
-    slider.min = '0.67'; slider.max = '0.95'; slider.step = '0.01'; slider.value = String(tpl.threshold);
+    slider.min = '0.70'; slider.max = '0.95'; slider.step = '0.01'; slider.value = String(tpl.threshold);
     const val = el('span', null, Number(tpl.threshold).toFixed(2)); val.className = 'val';
     slider.oninput = () => { val.textContent = Number(slider.value).toFixed(2); };
     slider.onchange = () => API('set_cfg', 'thresh_' + tpl.name, Number(slider.value));

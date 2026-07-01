@@ -51,6 +51,14 @@ class WebUiEntryCleanupTests(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_log_warning_lines_render_red(self):
+        app_js = (ROOT / "webui" / "app.js").read_text(encoding="utf-8")
+        css = (ROOT / "webui" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("log-warn", app_js)
+        self.assertIn("innerText", app_js)
+        self.assertIn(".log-line.log-warn", css)
+
 
 if __name__ == "__main__":
     unittest.main()

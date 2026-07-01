@@ -59,6 +59,22 @@ Use token names, not raw hex, when describing app components.
 
 ---
 
+## Theming — a theme is one `:root` token set
+
+The app is themed entirely by the CSS custom properties in `webui/styles.css` `:root`
+(the App WebUI tokens above). Components never hardcode color — they read `var(--token)` —
+so a **theme = one complete set of values for those variables**, and nothing else changes.
+Alternate themes ship as **drop-in token sets** (to be wired via `:root[data-theme="name"]`
+and selected by the `theme_preset` config). Rules for any new theme:
+- Keep the token **names** identical across themes so it's a pure value swap.
+- Keep status **semantics**: `--ok` = "ready / active" (green-family), `--danger` =
+  "stop / warn" (red-family) — a theme may restyle the shade, not the meaning.
+- **No gradient/glow inside the app** (WebView2 renders it poorly); contrast from color.
+- Preserve `--cjk` (the CJK fallback stack) so 繁體中文 stays crisp; aim for WCAG AA text.
+- Dark-first — the app is dark-only unless a light theme is explicitly added.
+
+---
+
 ## Color — Website (mirrors the app palette as of the v2.0.0 site refresh)
 
 The website now follows the **app's dark tokens**, not the older, brighter Tailwind

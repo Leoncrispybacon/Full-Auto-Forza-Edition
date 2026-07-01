@@ -98,24 +98,30 @@ class GameRelaunchTests(unittest.TestCase):
         self.assertIn("import game_relaunch", source)
         self.assertIn('key == "my_history" and retry_to == "choose_race_type"', source)
         self.assertIn("game_relaunch.relaunch_game", source)
-        self.assertIn("_RACE_HISTORY_LOAD_WINDOW = 180.0", source)
+        self.assertIn("_RACE_HISTORY_DEAD_ZONE_WINDOW = 60.0", source)
+        self.assertIn("_HISTORY_RETRY_CHECK_WINDOW = 3.0", source)
 
-    def test_race_history_load_wait_does_not_repress_enter(self):
+    def test_race_history_retries_only_when_still_on_history(self):
         source = Path("race.py").read_text(encoding="utf-8")
+        block = source.split("def _handle_history_enter", 1)[1].split(
+            "def _navigate_to_event", 1)[0]
 
         self.assertNotIn("def _enter_until", source)
         self.assertNotIn("log_race_nav_retry", source)
+        self.assertIn('_detect_nav_any((retry_to, key), _HISTORY_RETRY_CHECK_WINDOW)', block)
+        self.assertIn('_kp("enter", post_wait=0.0)', block)
+        self.assertIn("_RACE_HISTORY_DEAD_ZONE_WINDOW", block)
 
     def test_race_relaunch_waits_until_entry_recovery_fails(self):
         source = Path("race.py").read_text(encoding="utf-8")
-        nav_block = source.split("def _navigate_to_event", 1)[1].split(
+        entry_block = source.split("def _handle_history_enter", 1)[1].split(
             "route_retries =", 1)[0]
         recovery_block = source.split(
             'if not recovery.run_stage_route("Race entry"', 1)[1].split(
             "loop_count = 0", 1)[0]
 
-        self.assertNotIn("game_relaunch.relaunch_game", nav_block)
-        self.assertIn("pending_history_relaunch = True", nav_block)
+        self.assertNotIn("game_relaunch.relaunch_game", entry_block)
+        self.assertIn("pending_history_relaunch = True", entry_block)
         self.assertIn("if pending_history_relaunch and not stop():", recovery_block)
         self.assertIn("game_relaunch.relaunch_game", recovery_block)
 
@@ -283,6 +289,30 @@ class GameRelaunchTests(unittest.TestCase):
             gameio.capture.get_client_rect = originals["get_client_rect"]
             gameio.capture.grab_window = originals["grab_window"]
             gameio.time.monotonic = originals["monotonic"]
+
+    def test_gameio_warns_when_game_window_is_below_1080p(self):
+        import gameio
+
+        logs = []
+        originals = {
+            "get_monitor_dims": gameio.capture.get_monitor_dims,
+            "find_game_window": gameio.capture.find_game_window,
+            "get_client_rect": gameio.capture.get_client_rect,
+        }
+        try:
+            gameio.capture.get_monitor_dims = lambda _mon: (1920, 1080, 0, 0)
+            gameio.capture.find_game_window = lambda _title: 100
+            gameio.capture.get_client_rect = lambda _hwnd: (0, 0, 1280, 720)
+
+            gameio.GameIO({"background_input": True}, log_cb=logs.append)
+        finally:
+            gameio.capture.get_monitor_dims = originals["get_monitor_dims"]
+            gameio.capture.find_game_window = originals["find_game_window"]
+            gameio.capture.get_client_rect = originals["get_client_rect"]
+
+        joined = "\n".join(logs)
+        self.assertIn("!!! WARNING !!!", joined)
+        self.assertIn("under 1080p", joined)
 
     def test_race_and_full_auto_launch_missing_game_before_routes(self):
         self.assertIn("ensure_game_ready_for_start", Path("race.py").read_text(encoding="utf-8"))

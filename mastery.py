@@ -11,6 +11,7 @@ from ctypes import wintypes
 
 from app_lang import t as _at
 import config
+import recovery
 from config import get_mastery_grid_file, get_mastery_templates
 from capture import load_grid, load_template, force_english_ime
 from detector import ScreenDetector
@@ -169,6 +170,7 @@ GATED_TEMPLATE_KEYS = (
     "recently_added",
 )
 _GATED_DETECT_WINDOW = 10.0
+_RECOVERY_SETTLE = 1.25
 
 
 def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
@@ -381,6 +383,108 @@ def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
     return stop() or success
 
 
+def _recover_standalone_gated_to_grid(cfg, stop_event, log_cb, status_cb) -> bool:
+    fresh = config.load()
+    lang = fresh.get("lang", "en")
+    tpl_lang = config.resolve_template_lang(fresh)
+
+    def stop():
+        return stop_event.is_set()
+
+    def _thr(key):
+        return float(fresh.get("thresh_" + key, 0.70))
+
+    io = GameIO(fresh, log_cb)
+    detector = ScreenDetector(fresh, on_auto_ocr=log_cb)
+    folder = get_mastery_templates(config.REFERENCE_RES, tpl_lang)
+    prefer_ref = fresh.get("template_prefer_reference", True)
+
+    def _load(folder, key):
+        img, _scale, meta = load_template(
+            folder, key, io.width, io.height, grayscale=True,
+            ref_folder=folder, prefer_ref=prefer_ref)
+        box = meta.get("box")
+        if box:
+            detector.set_template_geometry(
+                key, box, meta.get("screen_width", io.width),
+                meta.get("screen_height", io.height))
+        if meta.get("roi"):
+            detector.set_template_roi(key, meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
+        return img
+
+    tpls = {}
+    for key in GATED_TEMPLATE_KEYS:
+        try:
+            tpls[key] = _load(folder, key)
+        except FileNotFoundError:
+            pass
+    tpls.update(recovery.load_recovery_safety_templates(
+        detector, fresh, tpl_lang, io.width, io.height))
+
+    def _detect_any(keys, window_s):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None
+            try:
+                frame = io.grab()
+                for key in keys:
+                    if key not in tpls:
+                        continue
+                    r = detector.detect(frame, key, tpls[key],
+                                        _thr(key), stable=False)
+                    if r.matched:
+                        return key
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return None
+
+    def _press(key):
+        io.press(key, post_wait=_RECOVERY_SETTLE)
+
+    try:
+        label = "Mastery per-car"
+        log_cb(_at("log_recovery_search_safe", lang, label=label))
+        for attempt in range(8):
+            anchor = _detect_any(("my_cars_header", "my_cars",
+                                  "recently_added") + GATED_TEMPLATE_KEYS, 0.8)
+            if anchor == "my_cars_header":
+                log_cb(_at("log_recovery_anchored", lang,
+                           label=label, anchor=anchor))
+                return True
+            if anchor == "my_cars":
+                log_cb(_at("log_recovery_anchored", lang,
+                           label=label, anchor=anchor))
+                _press("up")
+                _press("enter")
+                return _detect_any(("my_cars_header",), 2.0) == "my_cars_header"
+            if anchor == "recently_added":
+                log_cb(_at("log_recovery_anchored", lang,
+                           label=label, anchor=anchor))
+                _press("escape")
+                return _detect_any(("my_cars_header",), 2.0) == "my_cars_header"
+            safety = _detect_any(recovery.SAFETY_ANCHORS, 0.8)
+            if safety is not None:
+                log_cb(_at("log_recovery_anchored_safety", lang,
+                           label=label, anchor=safety))
+                return False
+            if attempt >= 7 or stop():
+                break
+            if anchor is not None:
+                log_cb(_at("log_recovery_backing_out", lang,
+                           label=label, anchor=anchor))
+            else:
+                log_cb(_at("log_recovery_esc", lang, label=label))
+            _press("escape")
+        log_cb(_at("log_recovery_no_anchor", lang, label=label))
+        return False
+    finally:
+        io.cleanup()
+
+
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
         grid_file: str = None, end_at_mycars: bool = False,
@@ -426,9 +530,7 @@ def run(cfg: dict, stop_event: threading.Event,
                            float(_fresh.get("mastery_grid_unlock_wait",
                                             _GRID_UNLOCK_WAIT)))
 
-    io = GameIO(_fresh, log_cb)
-    current_w, current_h = io.width, io.height
-    mon_left, mon_top = io.cap_left, io.cap_top
+    io = None
 
     # The mastery-tree unlock path (ordered 4x4 cells) is the only config this
     # mode needs — navigated by keyboard, not clicked. Resolution-independent.
@@ -442,7 +544,6 @@ def run(cfg: dict, stop_event: threading.Event,
     if not grid_order:
         log_cb(_at("log_grid_missing", lang))
         status_cb(_at("status_setup_incomplete", lang))
-        io.cleanup()
         return False
 
     def stop():
@@ -470,27 +571,53 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb(msg)
         status_cb(msg)
 
+    def _open_io():
+        nonlocal io
+        io = GameIO(_fresh, log_cb)
+        if not io.bg and _fresh.get("auto_english_ime", True):
+            force_english_ime()
+            time.sleep(0.2)
+        io.mute(_fresh)
+        io.start_keepalive(stop, _fresh)
+        return io
+
     if max_cars > 0:
         log_cb(_at("log_mastery_started_count", lang, n=max_cars))
     else:
         log_cb(_at("log_mastery_started", lang))
-    # Switch the game to English input only if it isn't already (see
-    # capture.force_english_ime). Disable with auto_english_ime=false.
-    if not io.bg and _fresh.get("auto_english_ime", True):
-        force_english_ime()
-        time.sleep(0.2)
-    io.mute(_fresh)
-    io.start_keepalive(stop, _fresh)
-
     if _fresh.get("mastery_gated_menus", True):
-        return _run_gated_menus(
-            _fresh, io, grid_order, start_loop, max_cars, end_at_mycars,
-            lang, log_cb, status_cb, section, progress_cb, stop, wait,
-            taps, announce, cut_wait, post_kw, grid_unlock_wait,
-            initial_completed=initial_completed)
+        def _run_gated_once(resume_from, cb):
+            return _run_gated_menus(
+                _fresh, _open_io(), grid_order, start_loop, max_cars,
+                end_at_mycars, lang, log_cb, status_cb, section, cb, stop,
+                wait, taps, announce, cut_wait, post_kw, grid_unlock_wait,
+                initial_completed=resume_from)
+
+        standalone = grid_file is None and not end_at_mycars
+        if not standalone:
+            return _run_gated_once(initial_completed, progress_cb)
+
+        completed = max(0, int(initial_completed or 0))
+
+        def _progress(done, total):
+            nonlocal completed
+            try:
+                completed = max(completed, int(done or 0))
+            except (TypeError, ValueError):
+                pass
+            if progress_cb:
+                progress_cb(done, total)
+
+        return recovery.run_stage_route(
+            "Mastery per-car",
+            lambda: _run_gated_once(completed, _progress),
+            stop, log_cb, recovery.route_retries(_fresh),
+            recover_fn=lambda: _recover_standalone_gated_to_grid(
+                _fresh, stop_event, log_cb, status_cb))
 
     completed  = max(0, int(initial_completed or 0))
     success    = False
+    io = _open_io()
 
     while not stop():
         if max_cars > 0 and completed >= max_cars:

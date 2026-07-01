@@ -471,9 +471,13 @@ def _best_template_match(screen: np.ndarray, template: np.ndarray,
     best_loc = (0, 0)
     best_scale = 1.0
     sh, sw = screen.shape[:2]
+    if float(screen.std()) < 1.0:
+        return 0.0, best_loc, best_scale
     for scale, tpl in _scaled_templates(template, scales):
         th, tw = tpl.shape[:2]
         if th > sh or tw > sw:
+            continue
+        if float(tpl.std()) < 1.0:
             continue
         result = cv2.matchTemplate(screen, tpl, cv2.TM_CCOEFF_NORMED)
         _, conf, _, loc = cv2.minMaxLoc(result)
@@ -800,7 +804,7 @@ class ScreenDetector:
         # real hardware (Ally X). Soft threshold = max(this, slider * 0.92).
         # Tunable via config `detector_min_threshold`.
         self._min_thresh: float = float(
-            self.cfg.get("detector_min_threshold", 0.67))
+            self.cfg.get("detector_min_threshold", 0.70))
         # Geometry-derived ROI (Stage 2): when a template carries its capture
         # box (x,y,w,h) + capture resolution, derive an anchor-aware search ROI
         # from it instead of the hand-tuned DEFAULT_ROIS. Only applies to keys

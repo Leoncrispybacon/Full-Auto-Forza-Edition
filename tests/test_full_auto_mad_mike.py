@@ -75,6 +75,15 @@ class FullAutoMadMikeTests(unittest.TestCase):
         self.assertIn('"mad_mike": 21', source)
         self.assertIn("target = _target_for_grind", source)
 
+    def test_tech_points_666_ocr_read_is_treated_as_999(self):
+        import full_auto
+
+        logs = []
+        self.assertEqual(
+            full_auto._parse_tech_points_ocr("技術點數：666", logs.append),
+            999)
+        self.assertTrue(any("666" in line and "999" in line for line in logs))
+
     def test_full_auto_exposes_mad_mike_templates_for_capture(self):
         source = (ROOT / "app_web.py").read_text(encoding="utf-8")
 

@@ -82,6 +82,21 @@ class StageRouteRecoveryTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(calls, ["route", "anchor", "route", "anchor", "route"])
 
+    def test_stage_route_recovery_logs_are_localized(self):
+        import recovery
+
+        logs = []
+        recovery.set_log_lang("zh-tw")
+        try:
+            ok = recovery.run_stage_route(
+                "Race entry", lambda: False, stop=lambda: False,
+                log_cb=logs.append, max_retries=0)
+        finally:
+            recovery.set_log_lang("en")
+
+        self.assertFalse(ok)
+        self.assertNotIn("route recovery failed", "\n".join(logs))
+
     def test_backtrack_anchor_keys_start_at_expected_step(self):
         import recovery
 
@@ -105,6 +120,8 @@ class StageRouteRecoveryTests(unittest.TestCase):
                        "recover_fn=_recover_buy_entry_route"],
             "wheelspin.py": ["recovery.run_stage_route", "Wheelspin entry",
                              "recover_fn=_recover_wheelspin_entry_route"],
+            "mastery.py": ["recovery.run_stage_route", "Mastery per-car",
+                           "_recover_standalone_gated_to_grid"],
             "full_auto.py": ["recovery.run_stage_route", "Full Auto mastery entry",
                              "recover_fn=_recover_mastery_entry_route",
                              "Full Auto tech-point read",
@@ -212,6 +229,8 @@ class StageRouteRecoveryTests(unittest.TestCase):
                         "_recover_to_main_menu_from_safety_anchor"],
             "buy.py": ["anna", "collection_log", "_load_recovery_safety_templates",
                        "_recover_to_main_menu_from_safety_anchor"],
+            "mastery.py": ["recovery.SAFETY_ANCHORS",
+                           "load_recovery_safety_templates"],
             "wheelspin.py": ["anna", "collection_log", "_load_recovery_safety_templates",
                              "_recover_to_main_menu_from_safety_anchor"],
             "full_auto.py": ["anna", "collection_log", "_load_recovery_safety_templates",
@@ -235,11 +254,12 @@ class StageRouteRecoveryTests(unittest.TestCase):
 
     def test_race_nav_rechecks_previous_step_before_route_recovery(self):
         source = Path("race.py").read_text(encoding="utf-8")
-        block = source.split("elif retry_to:", 1)[1].split("else:", 1)[0]
+        block = source.split("def _handle_history_enter", 1)[1].split(
+            "def _navigate_to_event", 1)[0]
 
-        self.assertIn("_NAV_STUCK_PREV_WINDOW", block)
-        self.assertIn("_detect_nav(key, _NAV_STUCK_PREV_WINDOW)", block)
-        self.assertIn("_kp('enter', post_wait=0.0)", block)
+        self.assertIn("_HISTORY_RETRY_CHECK_WINDOW", block)
+        self.assertIn("_detect_nav_any((retry_to, key), _HISTORY_RETRY_CHECK_WINDOW)", block)
+        self.assertIn('_kp("enter", post_wait=0.0)', block)
 
     def test_race_recovery_scans_route_anchors_backwards_from_expected_step(self):
         source = Path("race.py").read_text(encoding="utf-8")

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Union
 
+from app_lang import t as _at
+
 
 @dataclass(frozen=True)
 class RouteAttempt:
@@ -10,6 +12,18 @@ class RouteAttempt:
 
 RouteReturn = Union[bool, RouteAttempt]
 SAFETY_ANCHORS = ("anna", "collection_log")
+_trigger_callback = None
+_log_lang = "en"
+
+
+def set_trigger_callback(callback):
+    global _trigger_callback
+    _trigger_callback = callback
+
+
+def set_log_lang(lang):
+    global _log_lang
+    _log_lang = lang or "en"
 
 
 def _as_attempt(value: RouteReturn) -> RouteAttempt:
@@ -90,7 +104,8 @@ def run_stage_route(label: str,
                     stop: Callable[[], bool],
                     log_cb: Callable[[str], None],
                     max_retries: int = 1,
-                    recover_fn: Callable[[], bool] | None = None) -> bool:
+                    recover_fn: Callable[[], bool] | None = None,
+                    trigger_cb: Callable[[str], None] | None = None) -> bool:
     """Run one known stage route with bounded retries.
 
     The helper never presses keys itself. It re-runs the caller's
@@ -102,6 +117,7 @@ def run_stage_route(label: str,
     """
     max_retries = max(0, int(max_retries or 0))
     failures_since_anchor = 0
+    reported = False
     while True:
         if stop():
             return False
@@ -112,14 +128,21 @@ def run_stage_route(label: str,
             return False
         if failures_since_anchor < max_retries:
             failures_since_anchor += 1
-            log_cb(f"  ! {label} route failed - retrying stage route "
-                   f"{failures_since_anchor}/{max_retries}.")
+            log_cb(_at("log_route_retry", _log_lang, label=label,
+                       n=failures_since_anchor, max=max_retries))
+            if not reported:
+                reported = True
+                cb = trigger_cb or _trigger_callback
+                if cb is not None:
+                    cb(f"{label} recovery")
             if recover_fn is not None:
                 if not recover_fn():
-                    log_cb(f"  ! {label} route recovery action failed - aborting.")
+                    log_cb(_at("log_route_recovery_action_failed", _log_lang,
+                               label=label))
                     return False
                 failures_since_anchor = 0
-                log_cb(f"  ! {label} route recovery anchored - retry budget reset.")
+                log_cb(_at("log_route_recovery_anchored", _log_lang,
+                           label=label))
             continue
-        log_cb(f"  ! {label} route recovery failed - aborting.")
+        log_cb(_at("log_route_recovery_failed", _log_lang, label=label))
         return False

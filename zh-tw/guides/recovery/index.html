@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自救系統教學 - FAFE</title>
+<meta name="description" content="FAFE 在偵測或選單交接失敗時如何自救：有次數上限的階段層級重試與安全畫面回錨，以及針對無限載入畫面的自動重新啟動遊戲。">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/recovery/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/recovery/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.75; }
+  ::selection { background: rgba(37,99,235,.4); }
+</style>
+</head>
+<body>
+<div style="background:#0B0F17;">
+
+<!-- ════════ TOP HEADER ════════ -->
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;">
+      <a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">關於</a>
+      <a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">全自動模式</a>
+      <a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">功能與教學</a>
+      <a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">開始使用</a>
+      <a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">設定</a>
+    </nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="Language" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/recovery/">EN</option>
+        <option value="../../../zh-tw/guides/recovery/" selected>繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">下載</a>
+    </div>
+  </div>
+</header>
+
+<!-- ════════ GUIDE BODY ════════ -->
+<main style="max-width:880px;margin:0 auto;padding:40px 40px 80px;">
+
+  <!-- breadcrumbs -->
+  <nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;">
+    <a href="../../" style="color:#5f7488;text-decoration:none;">首頁</a>
+    <span>/</span>
+    <a href="../../#guides" style="color:#5f7488;text-decoration:none;">教學</a>
+    <span>/</span>
+    <span style="color:#82A0B2;">自救系統</span>
+  </nav>
+
+  <!-- title block -->
+  <div style="margin-bottom:10px;">
+    <span style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9FB4CC;">知識</span>
+  </div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.12;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">自救系統</h1>
+  <p style="font-size:1.18rem;line-height:1.7;color:#82A0B2;margin:0;max-width:680px;">當偵測或選單交接沒有如預期進行時，FAFE 不會直接停止。有兩層機制會嘗試讓流程回到正軌，才會真正放棄。</p>
+
+  <!-- LAYERS -->
+  <section id="layers" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">兩層自救機制</h2>
+    <div style="background:#0A0E14;border:1px solid #243044;border-radius:12px;padding:26px;overflow-x:auto;">
+      <div style="display:flex;align-items:center;gap:10px;min-width:660px;flex-wrap:nowrap;">
+        <span style="background:#161E28;border:1px solid #243044;color:#cdd9e5;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">階段流程</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#E0B27E;flex-shrink:0;">失敗？</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#0D1622;border:1px solid #2a4036;color:#6FD0C0;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">第一層 · 重試 + 回錨</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#E0B27E;flex-shrink:0;">仍卡住？</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#1a140a;border:1px solid #4a3a1e;color:#E0B27E;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">第二層 · 重新啟動遊戲</span>
+      </div>
+    </div>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:22px 0 0;">第一層處理小狀況，完全不會碰到遊戲行程本身。第二層則是更重的後備手段 — 用於遊戲本身出問題時，例如無限載入畫面、當機，或視窗被關閉。</p>
+  </section>
+
+  <!-- LAYER 1 -->
+  <section id="layer1" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">第一層 — 階段層級重試</h2>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 22px;">流程中的每個階段（進入選單、確認畫面、交接到下一步）都會經過有次數上限的重試機制。若某個階段失敗，FAFE 不會立刻放棄或盲目往前衝 — 它會重試同一個流程有限的次數，並且在重試之間可以先回到一個已知的安全畫面。</p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">有次數上限的重試</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">失敗的階段流程會在 FAFE 中止本次執行前，重試少量、可設定的次數。這是刻意限制的 — 無法復原的狀態不應該無聲無息地永遠循環下去。</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">安全錨點</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">有兩個畫面被視為通用安全點：<strong style="color:#cdd9e5;font-weight:600;">開放世界</strong>（自由駕駛）與<strong style="color:#cdd9e5;font-weight:600;">主選單</strong>。這兩者幾乎能從任何地方透過連續按下 Esc 到達，而且每個主要流程都知道如何從其中一個重新開始。</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">成功復原後重試次數會重置</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">若某次重試成功回錨到安全畫面，失敗次數就會重置 — 因此一次真正的復原不會佔用之後另一次無關小狀況的重試額度。只有連續且未復原的失敗才會計入上限。</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">不會重複已完成的工作</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">如果該階段真正的工作（購買、轉盤、賽車）已經完成，只是之後的交接失敗，FAFE 會辨識出來並繼續往下走 — 它不會因為之後的畫面沒有乾淨地確認，就重複購買同一台車。</p></div>
+    </div>
+  </section>
+
+  <!-- LAYER 2 -->
+  <section id="layer2" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">第二層 — 重新啟動遊戲</h2>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 26px;">若第一層無法復原 — 最常見的情況是選擇最後遊玩的賽事後、賽事類型選單出現前，卡在<strong style="color:#cdd9e5;font-weight:600;">無限載入畫面</strong> — FAFE 會判定遊戲本身卡住了，並採取更重的處理方式。</p>
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">關閉卡住的遊戲</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">FAFE 先請求視窗正常關閉，若約 10 秒內沒有關閉，就強制關閉它。</p></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">等待後重新啟動</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">短暫延遲（預設 8 秒）後，FAFE 會透過遊戲所在的平台重新啟動它 — <strong style="color:#cdd9e5;font-weight:600;">Steam</strong>、<strong style="color:#cdd9e5;font-weight:600;">Xbox / Game Pass</strong>，或自訂啟動指令。</p></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">自動導航回主選單</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">遊戲視窗重新出現後，FAFE 會自行走過啟動提示（開始提示 → 繼續 → 首頁 → 開放世界 → 主選單），讓循環能從手動重啟時會停留的相同位置繼續。</p></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">4</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">恢復循環</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">AFK 賽車（以及內部同樣執行賽車的全自動模式）會從主選單繼續，就像什麼事都沒發生一樣。</p></div>
+      </div>
+    </div>
+    <div style="margin-top:24px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.7;color:#cdd9e5;">
+      同一套重新啟動機制也涵蓋遊戲根本<strong style="color:#F4F8FD;font-weight:600;">還沒開啟</strong>的情況：在遊戲關閉時啟動 AFK 賽車或全自動模式，會自動開啟遊戲並導航到主選單，而不是直接失敗。
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">設定選項</h2>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">需要時啟動遊戲</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">預設開啟。若沒有偵測到遊戲視窗，會為 AFK 賽車或全自動模式啟動遊戲，並在卡住的載入畫面後處理重新啟動。若你希望 FAFE 直接停止並由你手動處理，可以關閉此選項。</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">重新啟動延遲</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.7;">預設 8 秒 — FAFE 關閉卡住的遊戲後、再次啟動前等待的時間，讓 Steam / Xbox 有時間完全釋放先前的工作階段。</p></div>
+    </div>
+    <div style="margin-top:16px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.7;color:#cdd9e5;">
+      <strong style="color:#F4F8FD;font-weight:600;">在活動記錄中：</strong>復原步驟會即時記錄下來 — 像是<span style="font-family:'Geist Mono',monospace;color:#7DB2FF;">重試階段流程</span>、<span style="font-family:'Geist Mono',monospace;color:#7DB2FF;">重新啟動前先關閉卡住的遊戲</span>、<span style="font-family:'Geist Mono',monospace;color:#7DB2FF;">透過 steam 重新啟動遊戲</span>這類訊息，能讓你清楚知道哪一層機制啟動了、原因是什麼。
+    </div>
+  </section>
+
+  <!-- prev / next -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:60px;">
+    <a href="../mechanics/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#5f7488;margin-bottom:5px;">← 上一篇</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">機制說明</div>
+    </a>
+    <a href="../troubleshooting/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;text-align:right;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#5f7488;margin-bottom:5px;">下一篇 →</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">疑難排解</div>
+    </a>
+  </div>
+
+</main>
+
+<!-- ════════ FOOTER ════════ -->
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · 適用於 Forza Horizon 6 · 非官方 · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">支持我</a>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

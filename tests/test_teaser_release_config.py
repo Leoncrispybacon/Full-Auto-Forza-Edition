@@ -7,12 +7,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class TeaserReleaseConfigTests(unittest.TestCase):
-    def test_development_version_is_202(self):
+    def test_development_version_is_204(self):
         version = (ROOT / "version.py").read_text(encoding="utf-8")
         installer = (ROOT / "build_installer.iss").read_text(encoding="utf-8")
 
-        self.assertIn('VERSION = "2.0.2"', version)
-        self.assertIn('#define MyAppVersion "2.0.2"', installer)
+        self.assertIn('VERSION = "2.0.4"', version)
+        self.assertIn('#define MyAppVersion "2.0.4"', installer)
 
     def test_backend_keeps_missing_full_auto_builds_in_teaser_mode(self):
         source = (ROOT / "app_web.py").read_text(encoding="utf-8")

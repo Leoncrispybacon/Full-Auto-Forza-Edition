@@ -320,6 +320,7 @@ select.dropdown.accent option { background:var(--ctrl); color:var(--text); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 .log-body { flex:1; min-height:0; overflow:auto; background:var(--bg); padding:14px 18px; font-family:var(--mono);
             font-size:12.5px; line-height:1.65; color:var(--row); white-space:pre-wrap; }
+.log-line.log-warn { color:#F87171; font-weight:800; font-size:13.5px; }
 
 /* settings */
 .set-wrap { padding:26px 30px 30px; max-width:760px; }

@@ -360,6 +360,8 @@ class Api:
         # other's keys — without it, each loads the old config, changes one key,
         # and the last full-dict write wins, dropping the others (e.g. middle_cols).
         self._cfg_lock = threading.Lock()
+        self._auto_report_lock = threading.Lock()
+        self._auto_reported = set()
 
     # ── Python → JS ──────────────────────────────────────────
     def _js(self, expr):
@@ -389,6 +391,34 @@ class Api:
         self._running_flag = running
         self._js(f"setStatus({json.dumps(str(text))}, {str(running).lower()})")
         self._push_overlay()
+
+    def _report_logs(self, fallback=""):
+        logs = {name: list(buf) for name, buf in self._logbuf.items() if buf}
+        return logs or {"Activity": str(fallback or "").splitlines()}
+
+    def _auto_report(self, trigger_name):
+        trigger_name = str(trigger_name or "Automation stopped")
+        with self._auto_report_lock:
+            if trigger_name in self._auto_reported:
+                return
+            self._auto_reported.add(trigger_name)
+
+        def _run():
+            try:
+                import report as _report
+                cfg = config.load()
+                path = _report.generate_report(
+                    cfg, cfg.get("monitor_index", 1), self._report_logs(),
+                    log_cb=self._log, trigger_name=trigger_name,
+                    open_folder=False)
+                if path:
+                    self._log(_at("auto_report_saved", cfg.get("lang", "en"),
+                                  path=path))
+            except Exception as e:
+                self._log(_at("auto_report_failed", config.load().get("lang", "en"),
+                              error=str(e)))
+
+        threading.Thread(target=_run, daemon=True).start()
 
     def _overlay_data(self):
         cfg = config.load()
@@ -678,6 +708,7 @@ class Api:
         if self._running():
             return False
         self._stop = threading.Event()
+        self._auto_reported = set()
         # fresh per-function log buffer for this run (the report keeps each
         # function's latest run; other functions' buffers are untouched)
         self._logbuf[self._func or "General"] = collections.deque(maxlen=1000)
@@ -705,13 +736,23 @@ class Api:
                 self._log(_at("log_ocr_enabled", lang))
                 self._log(ocr_profile.describe_effective_profile(cfg))
             self._status("Running", True)
+            import recovery as _recovery
+            _recovery.set_log_lang(lang)
+            _recovery.set_trigger_callback(self._auto_report)
             try:
-                runner(cfg, self._stop, self._log,
-                       lambda m: self._status(m, True), **kwargs)
+                result = runner(cfg, self._stop, self._log,
+                                lambda m: self._status(m, True), **kwargs)
+                if result is False and not self._stop.is_set():
+                    self._auto_report(f"{self._func or 'Automation'} auto stopped")
             except Exception as e:
                 import traceback
                 self._log(f"ERROR: {e}")
                 self._log(traceback.format_exc())
+                if not self._stop.is_set():
+                    self._auto_report(f"{self._func or 'Automation'} exception")
+            finally:
+                _recovery.set_trigger_callback(None)
+                _recovery.set_log_lang("en")
             self._status("Ready", False)
 
         self._thread = threading.Thread(target=_run, daemon=True)
@@ -1010,7 +1051,7 @@ class Api:
         self._js(f"showView({json.dumps(key)})")
 
     _GUIDE_BASE = "https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/"
-    _GUIDE_SLUGS = {"full_auto": "forza-horizon-6-farming-guide",
+    _GUIDE_SLUGS = {"full_auto": "full-auto",
                     "race": "race-auto-grind", "buy": "auto-buy-cars-in-batch",
                     "wheelspin": "auto-wheelspin",
                     "mastery": "auto-unlock-spin-wheel-mastery-tree",
@@ -1020,7 +1061,9 @@ class Api:
         """Open the web guide — the per-function page when known, else the index."""
         import webbrowser
         slug = self._GUIDE_SLUGS.get(func)
-        url = self._GUIDE_BASE + (f"en/guides/{slug}/" if slug else "")
+        cfg = config.load()
+        lang = "zh-tw" if cfg.get("lang") == "zh-tw" else "en"
+        url = self._GUIDE_BASE + (f"{lang}/guides/{slug}/" if slug else "")
         try:
             webbrowser.open(url)
         except Exception:

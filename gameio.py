@@ -151,6 +151,7 @@ class GameIO:
         self._ka_quiet_until = 0.0   # keep-alive skips activation until this time
         self._held = {}          # key -> True once first keydown sent (repeat bit)
         self._muted_pid = None
+        self._low_res_warned_size = None
 
         # Default = legacy whole-monitor path.
         mw, mh, ml, mt = capture.get_monitor_dims(self.monitor_index)
@@ -182,6 +183,7 @@ class GameIO:
                     self._log(_at("log_bg_input_on", self._lang))
                     self._log(_at("log_bg_window_size", self._lang,
                                   w=self.width, h=self.height))
+                    self._warn_low_resolution()
                     if self.win_capture:
                         self._log(_at("log_bg_capture_window", self._lang))
                     # Crop is decided per-RUN, not globally: only enabled for
@@ -219,9 +221,21 @@ class GameIO:
         self._crop_y = 0
         self._log(_at("log_bg_window_size", self._lang,
                       w=self.width, h=self.height))
+        self._warn_low_resolution()
         if self._crop_letterbox_enabled:
             self._detect_letterbox(refresh=False)
         return True
+
+    def _warn_low_resolution(self):
+        size = (self.width, self.height)
+        if self.height >= 1080:
+            self._low_res_warned_size = None
+            return
+        if self._low_res_warned_size == size:
+            return
+        self._low_res_warned_size = size
+        self._log(_at("log_low_resolution_warning", self._lang,
+                      w=self.width, h=self.height))
 
     def refresh_window(self):
         return self._maybe_refresh_window(force=True)

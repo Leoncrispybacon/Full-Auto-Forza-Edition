@@ -408,16 +408,19 @@ def run(cfg: dict, stop_event: threading.Event,
         return True
 
     def _recover_wheelspin_entry_route():
-        log_cb("  ! Wheelspin entry recovery: searching for a known route anchor.")
+        rec_label = "Wheelspin entry"
+        log_cb(_at("log_recovery_search", lang, label=rec_label))
         for attempt in range(5):
             anchor_keys = recovery.backtrack_anchor_keys(("tab", "tile"))
             which, _hit = _detect_tile_or_tab(1.2, keys=anchor_keys)
             if which in ('tile', 'tab'):
-                log_cb(f"  ! Wheelspin entry recovery: anchored at {which}.")
+                log_cb(_at("log_recovery_anchored", lang,
+                           label=rec_label, anchor=which))
                 return True
             safety = _detect_safety_anchor(0.8)
             if safety is not None:
-                log_cb(f"  ! Wheelspin entry recovery: anchored at safety {safety}.")
+                log_cb(_at("log_recovery_anchored_safety", lang,
+                           label=rec_label, anchor=safety))
                 return _recover_to_main_menu_from_safety_anchor(
                     safety,
                     lambda: press('escape', post_wait=0.5),
@@ -425,9 +428,9 @@ def run(cfg: dict, stop_event: threading.Event,
                     lambda: _detect_safety_anchor(1.2))
             if attempt >= 4 or stop():
                 break
-            log_cb("  ! Wheelspin entry recovery: pressing ESC to back out one menu.")
+            log_cb(_at("log_recovery_esc", lang, label=rec_label))
             press('escape', post_wait=0.5)
-        log_cb("  ! Wheelspin entry recovery: no safe anchor found.")
+        log_cb(_at("log_recovery_no_anchor", lang, label=rec_label))
         return False
 
     if not recovery.run_stage_route("Wheelspin entry", _wheelspin_entry_route,
