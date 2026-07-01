@@ -15,6 +15,9 @@ import mss
 
 import config
 
+_MUTED_PROCESS_LOCK = threading.RLock()
+_MUTED_PROCESS_VOLUMES = {}
+
 
 # ── IME / input-language helper ───────────────────────────────
 
@@ -285,7 +288,7 @@ def post_key(hwnd, vk: int, key_up: bool = False,
     reaches the window even when unfocused. `repeat` sets the previous-key-down
     bit for sustained/auto-repeat keydowns. See the section note re: DirectInput."""
     if not hwnd:
-        return
+        return False
     try:
         u32 = ctypes.windll.user32
         u32.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint,
@@ -302,9 +305,9 @@ def post_key(hwnd, vk: int, key_up: bool = False,
             if repeat:
                 lparam |= (1 << 30)               # previous state down
             msg = _WM_KEYDOWN
-        u32.PostMessageW(hwnd, msg, vk, lparam)
+        return bool(u32.PostMessageW(hwnd, msg, vk, lparam))
     except Exception:
-        pass
+        return False
 
 
 def post_click(hwnd, screen_x: int, screen_y: int, post_wait: float = 0.5):
@@ -366,11 +369,7 @@ def post_client_click(hwnd, client_x: int, client_y: int, post_wait: float = 0.5
         pass
 
 
-_WM_ACTIVATE    = 0x0006
-_WM_SETFOCUS    = 0x0007
 _WM_ACTIVATEAPP = 0x001C
-_WM_NCACTIVATE  = 0x0086
-_WA_ACTIVE      = 1
 
 
 def set_window_active(hwnd):
@@ -386,9 +385,6 @@ def set_window_active(hwnd):
         u32.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint,
                                      ctypes.c_size_t, ctypes.c_size_t]
         u32.PostMessageW(hwnd, _WM_ACTIVATEAPP, 1, 0)
-        u32.PostMessageW(hwnd, _WM_NCACTIVATE, 1, 0)
-        u32.PostMessageW(hwnd, _WM_ACTIVATE, _WA_ACTIVE, 0)
-        u32.PostMessageW(hwnd, _WM_SETFOCUS, 0, 0)
     except Exception:
         pass
 
@@ -437,7 +433,7 @@ def get_window_pid(hwnd):
         return None
 
 
-def set_process_muted(pid, mute: bool) -> bool:
+def _set_process_muted_legacy(pid, mute: bool) -> bool:
     """Mute/unmute one process's audio session (per-app — other apps' audio is
     untouched). Returns True if a matching session was found and set. Uses
     pycaw/Core Audio; returns False (no-op) if pycaw isn't available. Safe to
@@ -473,6 +469,88 @@ def set_process_muted(pid, mute: bool) -> bool:
 
 
 # ── mss screen capture ───────────────────────────────────────
+
+def _get_session_volume(simple):
+    try:
+        return float(simple.GetMasterVolume())
+    except Exception:
+        return None
+
+
+def _restore_session_volume(simple, volume):
+    if volume is None:
+        return
+    try:
+        simple.SetMasterVolume(float(volume), None)
+    except Exception:
+        pass
+
+
+def set_process_muted(pid, mute: bool) -> bool:
+    """Mute/unmute one process's audio session and preserve its volume."""
+    if not pid:
+        return False
+    try:
+        pid = int(pid)
+    except Exception:
+        return False
+    try:
+        from pycaw.pycaw import AudioUtilities
+        import comtypes
+    except Exception:
+        return False
+    try:
+        comtypes.CoInitialize()
+    except Exception:
+        pass
+    try:
+        done = False
+        muted_snapshots = []
+        with _MUTED_PROCESS_LOCK:
+            restore_snapshots = list(_MUTED_PROCESS_VOLUMES.get(pid, []))
+        restore_idx = 0
+        for s in AudioUtilities.GetAllSessions():
+            try:
+                if int(s.ProcessId) == pid and s.SimpleAudioVolume is not None:
+                    simple = s.SimpleAudioVolume
+                    if mute:
+                        muted_snapshots.append(_get_session_volume(simple))
+                        simple.SetMute(1, None)
+                    else:
+                        volume = (restore_snapshots[restore_idx]
+                                  if restore_idx < len(restore_snapshots)
+                                  else None)
+                        _restore_session_volume(simple, volume)
+                        simple.SetMute(0, None)
+                        restore_idx += 1
+                    done = True
+            except Exception:
+                continue
+        if done:
+            with _MUTED_PROCESS_LOCK:
+                if mute:
+                    _MUTED_PROCESS_VOLUMES.setdefault(pid, muted_snapshots)
+                else:
+                    _MUTED_PROCESS_VOLUMES.pop(pid, None)
+        return done
+    except Exception:
+        return False
+    finally:
+        try:
+            comtypes.CoUninitialize()
+        except Exception:
+            pass
+
+
+def unmute_tracked_processes() -> bool:
+    """Best-effort release for any process FAFE muted before a hard shutdown."""
+    with _MUTED_PROCESS_LOCK:
+        pids = list(_MUTED_PROCESS_VOLUMES)
+    ok = True
+    for pid in pids:
+        ok = set_process_muted(pid, False) and ok
+    return ok
+
 
 # An mss instance is bound to the thread that created it, so we keep one
 # per thread and reuse it across captures. Rebuilding mss.MSS() on every
@@ -1013,11 +1091,77 @@ def grid_exists(grid_file: str) -> bool:
     return bool(load_grid(grid_file))
 
 
+def _normalise_grid_order(order: list) -> list:
+    cells = []
+    for p in order or []:
+        r, c = int(p[0]), int(p[1])
+        if not (0 <= r <= 3 and 0 <= c <= 3):
+            raise ValueError("mastery preset cells must be inside the 4x4 grid")
+        cells.append((r, c))
+    if not cells:
+        raise ValueError("mastery preset route cannot be empty")
+    return cells
+
+
+def load_grid_presets(preset_file: str) -> list:
+    """Return saved mastery route presets as [{name, order}], or [] if absent."""
+    import json
+    try:
+        with open(preset_file, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+
+    out, seen = [], set()
+    for item in data.get("presets", []):
+        try:
+            name = str(item.get("name", "")).strip()
+            order = _normalise_grid_order(item.get("order", []))
+        except Exception:
+            continue
+        key = name.lower()
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        out.append({"name": name, "order": order})
+    return out
+
+
+def save_grid_preset(preset_file: str, name: str, order: list) -> list:
+    """Add or replace one named mastery route preset; returns all saved presets."""
+    import json
+    clean_name = str(name or "").strip()
+    if not clean_name:
+        raise ValueError("mastery preset name cannot be blank")
+    cells = _normalise_grid_order(order)
+
+    presets = load_grid_presets(preset_file)
+    replacement = {"name": clean_name, "order": cells}
+    key = clean_name.lower()
+    for i, preset in enumerate(presets):
+        if preset["name"].lower() == key:
+            presets[i] = replacement
+            break
+    else:
+        presets.append(replacement)
+
+    folder = os.path.dirname(preset_file)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    data = {"presets": [
+        {"name": p["name"], "order": [[int(r), int(c)] for r, c in p["order"]]}
+        for p in presets
+    ]}
+    with open(preset_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    return presets
+
+
 # ── Example image window ────────────────────────────────────
 
 import queue as _queue
 _example_queue = _queue.Queue()
-_example_win_ref = [None]   # holds the CTkToplevel
+_example_win_ref = [None]   # holds the preview window
 
 
 def show_example(key: str, examples_dir: str):

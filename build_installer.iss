@@ -9,7 +9,7 @@
 ;   1. Run build_app.bat  (produces FAFE_dist\ next to this file).
 ;   2. Install Inno Setup (free): https://jrsoftware.org/isdl.php
 ;   3. Open this .iss in Inno Setup and click Build (or: ISCC.exe build_installer.iss)
-;   -> produces Output\FAFE_Setup_v1.9.0.exe
+;   -> produces Output\FAFE_Setup.exe
 ;
 ; Note: bump MyAppVersion each release to match version.py. SmartScreen may still
 ; show an "unknown publisher" prompt on first run (that needs code signing to
@@ -17,7 +17,7 @@
 ; -----------------------------------------------------------------------------
 
 #define MyAppName "Full Auto Forza Edition"
-#define MyAppVersion "1.9.1"
+#define MyAppVersion "2.0.2"
 #define MyAppExe "FAFE.exe"
 
 [Setup]

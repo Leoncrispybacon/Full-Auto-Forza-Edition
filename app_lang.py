@@ -1,5 +1,5 @@
 # ============================================================
-#  app_lang.py — GUI string translations for forza_app
+#  app_lang.py — UI string translations for the WebUI and automation logs
 #  Separate from lang.py (which serves the terminal scripts)
 #  Supports: English (en), Traditional Chinese (zh-tw)
 # ============================================================
@@ -324,6 +324,42 @@ STRINGS = {
         "en":    "Mixed",
         "zh-tw": "混合",
     },
+    "full_auto_grind_mad_mike": {
+        "en":    "Wheelspin",
+        "zh-tw": "轉盤",
+    },
+    "grind_mad_mike": {
+        "en":    "Wheelspin",
+        "zh-tw": "轉盤",
+    },
+    "grind_mixed_mad_mike": {
+        "en":    "Mixed",
+        "zh-tw": "混合",
+    },
+    "car_pass_title": {
+        "en":    "Car Pass DLC",
+        "zh-tw": "Car Pass DLC",
+    },
+    "car_pass_prompt": {
+        "en":    "Do you own the Car Pass DLC?",
+        "zh-tw": "你有 Car Pass DLC 嗎？",
+    },
+    "car_pass_yes": {
+        "en":    "Yes",
+        "zh-tw": "有",
+    },
+    "car_pass_no": {
+        "en":    "No",
+        "zh-tw": "沒有",
+    },
+    "sys_car_pass_dlc_owned": {
+        "en":    "Own Car Pass DLC",
+        "zh-tw": "擁有 Car Pass DLC",
+    },
+    "sys_car_pass_dlc_owned_h": {
+        "en":    "Uses the #123 Mad Mike wheelspin route in Full Auto.",
+        "zh-tw": "Full Auto 會使用 #123 Mad Mike 輪盤路線。",
+    },
     "full_auto_branch_label": {
         "en":    "After selling:",
         "zh-tw": "賣出後：",
@@ -368,6 +404,10 @@ STRINGS = {
     "fa_check_stock_paint": {
         "en":    "The car I'm using to AFK is a 22B-STI with a stock paint job. (one-time setup — a custom livery breaks grind-car detection)",
         "zh-tw": "我用來掛機的車是「原廠塗裝」的 22B-STI。（一次性設定 — 自訂塗裝會導致練車偵測失敗）",
+    },
+    "fa_check_collection_unlock": {
+        "en":    "Check if your 22B-STI/Viper GTS ACR is unlocked in Car Collection before starting. (one-time setup)",
+        "zh-tw": "開始前確認你的 22B-STI / Viper GTS ACR 已在車輛收藏中解鎖。（一次性設定）",
     },
 
     "status_fa_checklist": {
@@ -425,6 +465,26 @@ STRINGS = {
     "log_fa_money_tpl_missing": {
         "en":    "  ✗ GTS ACR car template not captured — capture it in the Full Auto setup panel.",
         "zh-tw": "  ✗ 尚未擷取 GTS ACR 車輛樣本 — 請在全自動設定面板擷取。",
+    },
+    "log_fa_target_brand": {
+        "en":    "  Target brand found: {brand} ({conf})",
+        "zh-tw": "  已找到目標品牌：{brand} ({conf})",
+    },
+    "log_fa_target_brand_fail": {
+        "en":    "  Target brand not found: {brand} - aborting buy.",
+        "zh-tw": "  找不到目標品牌：{brand} - 中止購買。",
+    },
+    "log_fa_target_car": {
+        "en":    "  Target car found: {car} ({conf})",
+        "zh-tw": "  已找到目標車輛：{car} ({conf})",
+    },
+    "log_fa_target_car_fail": {
+        "en":    "  Target car not found: {car} - aborting buy.",
+        "zh-tw": "  找不到目標車輛：{car} - 中止購買。",
+    },
+    "log_fa_target_tpl_missing": {
+        "en":    "  Target template missing: {key} - capture it in the Full Auto setup panel.",
+        "zh-tw": "  缺少目標模板：{key} - 請在 Full Auto 設定中擷取。",
     },
     "log_fa_step_race": {
         "en":    "[1/5] AFK race…",
@@ -623,8 +683,8 @@ STRINGS = {
         "zh-tw": "  自動數量：{p} 點 → 本輪處理 {n} 台車。",
     },
     "log_fa_points_too_few": {
-        "en":    "  Only {p} points (< 30) — racing again to earn more.",
-        "zh-tw": "  僅有 {p} 點（少於 30）— 再次跑圖以累積。",
+        "en":    "  Only {p} points (< {c}) — racing again to earn more.",
+        "zh-tw": "  僅有 {p} 點（少於 {c}）— 再次跑圖以累積。",
     },
     "log_fa_points_no_progress": {
         "en":    "  ✗ Points didn't increase after racing — aborting (race not earning).",
@@ -1693,6 +1753,10 @@ STRINGS = {
         "en":    "  Holding W — waiting for race to end...",
         "zh-tw": "  按住 W — 等待比賽結束...",
     },
+    "log_race_pause_resume": {
+        "en":    "  Focus-loss pause menu detected ({conf}) — pressing ESC and resuming W.",
+        "zh-tw": "  偵測到失焦暫停選單（{conf}）— 按下 ESC 並重新按住 W。",
+    },
     "log_released_w": {
         "en":    "  Released W — race over.",
         "zh-tw": "  釋放 W — 比賽結束。",
@@ -1729,6 +1793,22 @@ STRINGS = {
     "log_grid_missing": {
         "en":    "  Mastery tree path not set — open Setup and pick the nodes on the grid.",
         "zh-tw": "  尚未設定熟練度路徑 — 請開啟設定並在格子上選取節點。",
+    },
+    "log_mastery_gated_on": {
+        "en":    "  Experimental gated Mastery menus ON.",
+        "zh-tw": "  Experimental gated Mastery menus ON.",
+    },
+    "log_mastery_gated_wait": {
+        "en":    "  Waiting for {label}...",
+        "zh-tw": "  Waiting for {label}...",
+    },
+    "log_mastery_gated_click": {
+        "en":    "  Click {label}",
+        "zh-tw": "  Click {label}",
+    },
+    "log_mastery_gated_fail": {
+        "en":    "  ERROR: {label} was not detected; stopping gated Mastery to avoid wrong inputs.",
+        "zh-tw": "  ERROR: {label} was not detected; stopping gated Mastery to avoid wrong inputs.",
     },
     # Mastery grid picker widget
     "grid_title": {

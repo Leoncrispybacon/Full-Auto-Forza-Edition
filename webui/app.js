@@ -4,7 +4,14 @@
    (Unlock Wheelspins, Delete Cars) get their selector in the next pass. */
 
 // option arrays store [value, i18n-key]; labels are translated at render via t().
-const GRIND  = [['wheelspin','grind_wheelspin'],['money','grind_money'],['mixed','grind_mixed']];
+function grindOptions() {
+  const hasDlc = state.cfg && state.cfg.car_pass_dlc_owned === true;
+  return [
+    ['wheelspin', hasDlc ? 'grind_mad_mike' : 'grind_wheelspin'],
+    ['money', 'grind_money'],
+    ['mixed', hasDlc ? 'grind_mixed_mad_mike' : 'grind_mixed'],
+  ];
+}
 const BRANCH = [['racing','branch_racing'],['wheelspin','branch_wheelspin']];
 const WHEEL_TYPE = [['super','wheel_super'],['normal','wheel_normal']];
 const CAR_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>';
@@ -19,13 +26,12 @@ const MODES = {
   delete:    { control:'block', start:'start_delete' },
   settings:  { control:'none' },
 };
+// Teaser gate — driven by get_init().coming_soon (backend), not a hardcoded flag,
+// so a stale bundled app.js can't keep showing COMING SOON after 2.0 goes live.
+let COMING_SOON = false;
 
-// COMING_SOON: 1.9.0 ships the Full Auto tab as a teaser only — no working tab,
-// no purchase/license UI. Flip to false to enable the real paywall + feature.
-// ponytail: one flag gates the whole thing; delete it (and this comment) when live.
-const COMING_SOON = true;
-
-const state = { grind:'wheelspin', branch:'racing', start:'race', func:'full_auto', cfg:{} };
+const state = { grind:'wheelspin', branch:'racing', start:'race', func:'full_auto', cfg:{},
+                licensed:false, fullAutoBundled:true, comingSoon:false };
 
 // ── bridge ───────────────────────────────────────────────────
 function API(name, ...args) {
@@ -93,6 +99,22 @@ function reportBug() {
 function closeReport() { document.getElementById('reportModal').classList.remove('open'); }
 function openSupport() { document.getElementById('supportModal').classList.add('open'); }
 function closeSupport() { document.getElementById('supportModal').classList.remove('open'); }
+function showUpdate(tag, url) {
+  const modal = document.getElementById('updateModal');
+  if (!modal) return;
+  modal.dataset.url = url || '';
+  const title = document.getElementById('updateTitle');
+  const body = document.getElementById('updateBody');
+  if (title) title.textContent = t('update_available', { tag });
+  if (body) body.textContent = t('update_prompt');
+  modal.classList.add('open');
+}
+function closeUpdate() { document.getElementById('updateModal').classList.remove('open'); }
+function openUpdatePage() {
+  const modal = document.getElementById('updateModal');
+  API('open_update_page', modal ? modal.dataset.url : '');
+  closeUpdate();
+}
 // Reflect overlay on/off across both topbar buttons + the Settings switch.
 // Global so Python (F10 hotkey) can push the state back here to stay in sync.
 window.setOverlayUI = (on) => {
@@ -110,7 +132,15 @@ function divider() { return el('div', 'height:1px;background:var(--border-soft)'
 function countRow(tab, m) {
   const row = el('div', 'display:flex;align-items:center;gap:16px;flex-wrap:wrap');
   row.appendChild(el('label', 'font-size:15px;color:var(--text)', t('mode_' + tab + '_count')));
-  const inp = document.createElement('input'); inp.className = 'num mode-count'; inp.value = m.value ?? 0;
+  const key = tab + '_count';   // race_count / buy_count / wheelspin_count — persisted
+  const inp = document.createElement('input'); inp.className = 'num mode-count';
+  inp.value = state.cfg[key] != null ? state.cfg[key] : (m.value ?? 0);
+  const commit = () => {
+    const v = Math.max(0, parseInt(inp.value, 10) || 0);
+    inp.value = v; state.cfg[key] = v; API('set_cfg', key, v);
+  };
+  inp.oninput = commit;
+  inp.onchange = commit;
   row.appendChild(inp);
   row.appendChild(el('span', 'font-size:13px;color:var(--text2)', t('mode_' + tab + '_hint')));
   return row;
@@ -193,12 +223,18 @@ function setStage(n, frac) {
 }
 window.setStage = setStage;
 // Full Auto pre-flight checklist — Start stays disabled until every box is ticked.
-const FA_CHECKLIST = ['chk_driving', 'chk_map', 'chk_favorite', 'chk_stock_paint'];
+const FA_CHECKLIST = [
+  { key:'chk_driving' },
+  { key:'chk_map' },
+  { key:'chk_favorite', cfg:'fa_check_favorite_ok' },
+  { key:'chk_stock_paint', cfg:'fa_check_stock_paint_ok' },
+  { key:'chk_collection_unlock', cfg:'fa_check_collection_unlock_ok' },
+];
 function renderChecklist() {
   const host = document.getElementById('faChecklist'); if (!host) return;
   const startBtn = document.getElementById('faStartBtn');
   host.innerHTML = '';
-  const checked = new Array(FA_CHECKLIST.length).fill(false);
+  const checked = FA_CHECKLIST.map(item => item.cfg ? state.cfg[item.cfg] === true : false);
   const gate = () => {
     const ok = checked.every(Boolean);
     startBtn.disabled = !ok; startBtn.style.opacity = ok ? '' : '.45';
@@ -206,12 +242,16 @@ function renderChecklist() {
   };
   const card = el('div'); card.className = 'fa-check';
   card.appendChild(el('div', null, t('chk_title'))).className = 'fa-check-title';
-  FA_CHECKLIST.forEach((key, i) => {
-    const txt = t(key);
+  FA_CHECKLIST.forEach((item, i) => {
+    const txt = t(item.key);
     const row = el('label'); row.className = 'fa-check-row';
     const box = el('button'); box.className = 'fa-check-box';
+    box.classList.toggle('on', checked[i]);
+    box.textContent = checked[i] ? '\u2713' : '';
     box.onclick = () => { checked[i] = !checked[i]; box.classList.toggle('on', checked[i]);
-                          box.textContent = checked[i] ? '✓' : ''; gate(); };
+                          box.textContent = checked[i] ? '\u2713' : '';
+                          if (item.cfg) { state.cfg[item.cfg] = checked[i]; API('set_cfg', item.cfg, checked[i]); }
+                          gate(); };
     row.appendChild(box);
     row.appendChild(el('span', null, txt)).className = 'fa-check-txt';
     card.appendChild(row);
@@ -220,7 +260,7 @@ function renderChecklist() {
   gate();
 }
 function renderFA() {
-  renderSeg('grindSeg', GRIND, 'grind');
+  renderSeg('grindSeg', grindOptions(), 'grind');
   renderSeg('branchSeg', BRANCH, 'branch');
   document.getElementById('branchRow').style.display = state.grind === 'money' ? 'none' : 'flex';
   renderChain();
@@ -230,7 +270,14 @@ function persistFA(key) {
   if (key === 'grind')  API('set_cfg', 'full_auto_grind_type', state.grind);
   if (key === 'branch') API('set_cfg', 'full_auto_branch_mode', state.branch);
 }
-function startFA() { if (isRunning) return; clearLog(); API('start_full_auto', document.getElementById('faRaces').value); }
+async function startFA() {
+  if (isRunning) return;
+  const inp = document.getElementById('faRaces');
+  const v = Math.max(1, parseInt(inp.value, 10) || 1);
+  inp.value = v; state.cfg.full_auto_races = v; API('set_cfg', 'full_auto_races', v);
+  clearLog();
+  API('start_full_auto', v);
+}
 
 // ── garage-block selector (Unlock / Delete) ──────────────────
 function blockSelector(tab, startBtn) {
@@ -266,7 +313,9 @@ function blockSelector(tab, startBtn) {
   const midWrap = el('div'); midWrap.className = 'block-mid';
   const step = el('div'); step.className = 'block-step';
   const dec = el('button', null, '−'); dec.className = 'step-btn'; dec.onclick = () => { mid = Math.max(0, mid - 1); commit(); };
-  const midNum = el('span'); midNum.className = 'block-midnum';
+  const midNum = document.createElement('input'); midNum.type = 'number'; midNum.min = 0; midNum.className = 'block-midnum';
+  midNum.addEventListener('change', () => { mid = Math.max(0, parseInt(midNum.value) || 0); commit(); });
+  midNum.addEventListener('blur', () => { mid = Math.max(0, parseInt(midNum.value) || 0); render(); }); // reset bad text on blur
   const inc = el('button', null, '+'); inc.className = 'step-btn'; inc.onclick = () => { mid += 1; commit(); };
   step.append(dec, midNum, inc); midWrap.appendChild(step);
   const midCols = el('div'); midCols.className = 'block-midcols'; midWrap.appendChild(midCols);
@@ -301,7 +350,7 @@ function blockSelector(tab, startBtn) {
   function render() {
     fp.arr.forEach((b,i) => { const r=i+1; b.classList.toggle('sel', r===first); b.classList.toggle('inblk', r>=first); });
     lp.arr.forEach((b,i) => { const r=i+1; b.classList.toggle('sel', r===last);  b.classList.toggle('inblk', r<=last); });
-    midNum.textContent = mid;
+    midNum.value = mid;
     midCols.innerHTML = '';
     if (mid === 0) midCols.appendChild(el('span', null, t('block_adjacent'))).className = 'adj';
     else {
@@ -341,6 +390,7 @@ function routeSeg(a, b) {
 
 function gridEditor(startBtn) {
   let path = [];   // flat indices 0..15, in unlock order
+  let presets = [];
 
   const wrap = el('div', 'background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 24px');
   const head = el('div', 'display:flex;align-items:center;gap:10px;margin-bottom:4px');
@@ -350,6 +400,13 @@ function gridEditor(startBtn) {
   wrap.appendChild(el('div', 'font-size:12px;color:var(--text2);line-height:1.5;max-width:520px;margin-bottom:18px',
     t('grid_hint')));
 
+  const presetRow = el('div', 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px');
+  presetRow.appendChild(el('span', 'font-size:12px;color:var(--text2);font-weight:600', t('grid_preset_label')));
+  const presetSelect = document.createElement('select');
+  presetSelect.style.cssText = 'min-width:230px;background:#0b1422;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px';
+  presetRow.appendChild(presetSelect);
+  wrap.appendChild(presetRow);
+
   const board = el('div', 'position:relative;width:232px;height:232px;background-image:radial-gradient(#15293c 1px,transparent 1px);background-size:24.6px 24.6px;background-position:11px 11px');
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('width','232'); svg.setAttribute('height','232'); svg.setAttribute('viewBox','0 0 232 232');
@@ -357,9 +414,26 @@ function gridEditor(startBtn) {
   const cells = el('div', 'position:absolute;inset:0;display:grid;grid-template-columns:repeat(4,46px);grid-auto-rows:46px;gap:16px');
   board.append(svg, cells); wrap.appendChild(board);
 
-  const clear = el('button', 'margin-top:16px;background:var(--danger);border:none;color:#fff;border-radius:7px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer', t('grid_clear'));
+  const actions = el('div', 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px');
+  const clear = el('button', 'background:var(--danger);border:none;color:#fff;border-radius:7px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer', t('grid_clear'));
   clear.onclick = () => { path = []; commit(); };
-  wrap.appendChild(clear);
+  const savePreset = el('button', 'background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer', t('grid_save_preset'));
+  savePreset.onclick = async () => {
+    if (!path.length) { alert(t('grid_preset_empty')); return; }
+    const name = (prompt(t('grid_preset_name_prompt')) || '').trim();
+    if (!name) return;
+    const existing = presets.find(p => (p.name || '').toLowerCase() === name.toLowerCase());
+    if (existing && existing.builtin) { alert(t('grid_preset_builtin_name')); return; }
+    if (existing && !confirm(t('grid_preset_replace', { name }))) return;
+    const result = await API('save_mastery_preset', name, orderOfPath());
+    if (!result || result.ok === false) {
+      alert((result && result.error) || t('grid_preset_save_failed'));
+      return;
+    }
+    await loadPresets();
+  };
+  actions.append(clear, savePreset);
+  wrap.appendChild(actions);
 
   function gate() {
     const ok = path.length > 0;
@@ -367,7 +441,45 @@ function gridEditor(startBtn) {
     startBtn.style.opacity = ok ? '' : '.45';
     startBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
   }
-  function commit() { API('save_grid', path.map(i => [Math.floor(i/4), i%4])); render(); gate(); }
+  function orderOfPath() { return path.map(i => [Math.floor(i/4), i%4]); }
+  function sameOrder(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i][0] !== b[i][0] || a[i][1] !== b[i][1]) return false;
+    }
+    return true;
+  }
+  function setPresetSelection() {
+    const cur = orderOfPath();
+    const idx = presets.findIndex(p => sameOrder(p.order || [], cur));
+    presetSelect.value = idx >= 0 ? String(idx) : '';
+  }
+  function renderPresets() {
+    presetSelect.innerHTML = '';
+    const custom = document.createElement('option');
+    custom.value = '';
+    custom.textContent = t('grid_preset_custom');
+    presetSelect.appendChild(custom);
+    presets.forEach((preset, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = preset.name || t('grid_preset_unnamed');
+      presetSelect.appendChild(opt);
+    });
+    setPresetSelection();
+  }
+  async function loadPresets() {
+    const data = (await API('get_mastery_presets')) || {};
+    presets = Array.isArray(data.presets) ? data.presets : [];
+    renderPresets();
+  }
+  presetSelect.onchange = () => {
+    const preset = presets[parseInt(presetSelect.value, 10)];
+    if (!preset || !Array.isArray(preset.order)) return;
+    path = preset.order.map(([r, c]) => r*4 + c);
+    commit();
+  };
+  function commit() { API('save_grid', orderOfPath()); render(); gate(); setPresetSelection(); }
   function render() {
     count.textContent = '· ' + path.length;
     svg.replaceChildren();
@@ -395,7 +507,11 @@ function gridEditor(startBtn) {
     }
   }
 
-  API('get_grid').then(g => { if (g && g.order) path = g.order.map(([r, c]) => r*4 + c); render(); gate(); });
+  Promise.all([API('get_grid'), API('get_mastery_presets')]).then(([g, p]) => {
+    if (g && g.order) path = g.order.map(([r, c]) => r*4 + c);
+    presets = (p && Array.isArray(p.presets)) ? p.presets : [];
+    renderPresets(); render(); gate();
+  });
   render(); gate();
   return wrap;
 }
@@ -445,12 +561,17 @@ function renderMode(tab) {
     body.appendChild(el('div', 'color:var(--muted);font-size:13px;line-height:1.6', t('coming_soon')));
     startBtn.disabled = true; startBtn.style.opacity = '.45'; startBtn.style.cursor = 'not-allowed';
   }
-  startBtn.onclick = () => {
+  startBtn.onclick = async () => {
     if (startBtn.disabled || isRunning) return;
     clearLog();
     if (m.control === 'count' || m.control === 'wheel') {
       const cnt = body.querySelector('.mode-count');
-      API(m.start, cnt ? cnt.value : 0);
+      const v = Math.max(0, parseInt(cnt ? cnt.value : 0, 10) || 0);
+      if (cnt) {
+        const key = tab + '_count';
+        cnt.value = v; state.cfg[key] = v; API('set_cfg', key, v);
+      }
+      API(m.start, v);
     } else {
       API(m.start);   // block tabs read the count from config
     }
@@ -459,10 +580,20 @@ function renderMode(tab) {
 }
 
 // ── Setup & Templates panel ──────────────────────────────────
+function updateTemplatePill(body, tpls) {
+  const ready = body.closest('.panel')?.querySelector('.ready-pill');
+  if (!ready) return;
+  const missing = (tpls || []).some(tpl => tpl.exists === false);
+  ready.classList.toggle('missing', missing);
+  const label = ready.querySelector('[data-i18n]');
+  if (label) label.textContent = t(missing ? 'tpl_missing_pill' : 'ready_pill');
+}
+
 async function renderTemplates(bodyId, tab) {
   const body = document.getElementById(bodyId); if (!body) return;
   body.innerHTML = '';
   const tpls = (await API('get_templates', tab)) || [];
+  updateTemplatePill(body, tpls);
   if (!tpls.length) {
     body.appendChild(el('div', 'font-size:12px;color:var(--text2);line-height:1.5;max-width:560px;padding-top:14px',
       t('tpl_none')));
@@ -473,11 +604,12 @@ async function renderTemplates(bodyId, tab) {
   const list = el('div', 'display:flex;flex-direction:column;gap:8px');
   tpls.forEach(tpl => {
     const chip = el('div'); chip.className = 'tpl-chip';
+    if (tpl.exists === false) chip.classList.add('missing');
     const dot = el('span'); dot.className = 'dot';
     const name = el('span', null, tpl.name); name.className = 'name';
     const thr = el('span', null, t('tpl_threshold')); thr.className = 'thr';
     const slider = el('input'); slider.className = 'tpl-slider'; slider.type = 'range';
-    slider.min = '0.60'; slider.max = '0.95'; slider.step = '0.01'; slider.value = String(tpl.threshold);
+    slider.min = '0.67'; slider.max = '0.95'; slider.step = '0.01'; slider.value = String(tpl.threshold);
     const val = el('span', null, Number(tpl.threshold).toFixed(2)); val.className = 'val';
     slider.oninput = () => { val.textContent = Number(slider.value).toFixed(2); };
     slider.onchange = () => API('set_cfg', 'thresh_' + tpl.name, Number(slider.value));
@@ -503,12 +635,27 @@ function renderLocked() {
   const grid = document.getElementById('lockedFeatures');
   if (grid) {
     grid.innerHTML = '';
-    [0, 1, 2, 3].forEach(i => {
+    ['points', 'progress', 'branch', 'bulk', 'license'].forEach(key => {
       const d = el('div', 'display:flex;align-items:flex-start;gap:9px');
       d.innerHTML = `<span style="display:flex;color:#34D778;flex:none;margin-top:1px">${CHECK_SVG}</span>` +
-        `<span style="font-size:13.5px;color:#cdd9e5;line-height:1.45">${t('locked_feat_' + i)}</span>`;
+        `<span style="font-size:13.5px;color:#cdd9e5;line-height:1.45">${t('locked_feat_' + key)}</span>`;
       grid.appendChild(d);
     });
+  }
+  const modes = document.getElementById('lockedModes');
+  if (modes) {
+    modes.innerHTML = '';
+    ['wheelspin', 'money'].forEach(key => {
+      const card = el('div', 'locked-mode');
+      card.innerHTML = `<div class="locked-mode-title">${t('locked_mode_' + key)}</div>` +
+        `<div class="locked-mode-body">${t('locked_mode_' + key + '_body')}</div>`;
+      modes.appendChild(card);
+    });
+  }
+  const price = document.getElementById('lockedPrice');
+  if (price) {
+    price.innerHTML = `<div class="locked-price-main">${t('locked_price')}</div>` +
+      `<div class="locked-price-note">${t('locked_price_note')}</div>`;
   }
   const mid = document.getElementById('lockedMachineId');
   if (mid) mid.textContent = t('machine_id') + (state.machineId || '—');
@@ -521,10 +668,19 @@ function makeSwitch(on, onToggle) {
   return b;
 }
 const SYSTEM_TOGGLES = [
+  ['update_check',         'Check for updates',       'Checks GitHub releases at startup. Opens the releases page; never downloads.'],
+  ['game_relaunch_enabled','Launch game when needed', 'Starts the game for Race/Full Auto if no game window is detected.'],
+  ['car_pass_dlc_owned',   'Own Car Pass DLC',        'Uses the #123 Mad Mike wheelspin route in Full Auto.'],
   ['mute_game',           'Mute game while running', 'Silences the game audio during automation.'],
-  ['detector_enable_ocr', 'OCR text detection',      'Confirms matches by reading on-screen text. Heavier on CPU.'],
-];  // debug_detection lives under Settings → Developer (gated by dev mode)
-// [key, label, hint, lo, hi, step] — per-function timing (ported from CTk Settings).
+];  // OCR/debug_detection live under Settings -> Developer (gated by dev mode)
+const LAUNCH_PLATFORMS = [
+  ['steam', 'launch_path_steam'],
+  ['xbox', 'launch_path_xbox'],
+  ['custom', 'launch_path_custom'],
+];
+// (Letterbox auto-crop is decided per-run in GameIO — on only for main-menu-start
+//  functions; no user toggle. See gameio.GameIO(crop_letterbox=…).)
+// [key, label, hint, lo, hi, step] — per-function timing controls.
 // race_check_interval is intentionally absent: fixed at 0.5s default, config-only.
 const TIMING = [
   ['race_post_key_wait',       'AFK Races — key interval',           'Pause after each keypress in race nav.',                            0.75, 3.0, 0.05],
@@ -545,6 +701,13 @@ async function refreshLicense() {
   document.getElementById('licKey').textContent = s.key || '';
   document.getElementById('licMachine').textContent = t('machine_id') + (s.machine_id || '—');
   state.licensed = !!s.allowed;
+  syncLicensedChrome();
+}
+function syncLicensedChrome() {
+  const pill = document.getElementById('licPill');
+  if (pill) pill.style.display = (state.licensed && !state.comingSoon) ? '' : 'none';
+  const active = document.querySelector('#nav a.active[data-view="full_auto"]');
+  if (active) showView('full_auto');
 }
 // [which, configKey, labelKey] — which maps to a backend shortcut on set_shortcut
 const SHORTCUTS = [
@@ -587,6 +750,62 @@ function renderShortcuts() {
     row.appendChild(btn); host.appendChild(row);
   });
 }
+function renderLaunchPathSettings(host) {
+  const row = el('div'); row.className = 'set-row';
+  const sub = el('div', 'display:flex;flex-direction:column;gap:3px');
+  sub.appendChild(el('span', 'font-size:15px;color:var(--text)', t('launch_path_label')));
+  sub.appendChild(el('span', 'font-size:12px;color:var(--text2)', t('launch_path_hint')));
+  const sel = document.createElement('select');
+  sel.className = 'dropdown accent launch-select';
+  LAUNCH_PLATFORMS.forEach(([value, key]) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = t(key);
+    sel.appendChild(opt);
+  });
+  const current = ['steam', 'xbox', 'custom'].includes(state.cfg.game_platform)
+    ? state.cfg.game_platform : 'steam';
+  if (state.cfg.game_platform !== current) {
+    state.cfg.game_platform = current;
+    API('set_cfg', 'game_platform', current);
+  }
+  sel.value = current;
+  sel.onchange = () => {
+    state.cfg.game_platform = sel.value;
+    API('set_cfg', 'game_platform', sel.value);
+    customRow.style.display = sel.value === 'custom' ? '' : 'none';
+  };
+  row.append(sub, sel);
+  host.appendChild(row);
+
+  const customRow = el('div'); customRow.className = 'set-row launch-custom-row';
+  const label = el('div', 'display:flex;flex-direction:column;gap:3px;min-width:180px');
+  label.appendChild(el('span', 'font-size:15px;color:var(--text)', t('launch_custom_label')));
+  label.appendChild(el('span', 'font-size:12px;color:var(--text2)', t('launch_custom_hint')));
+  const pick = el('div'); pick.className = 'launch-pick';
+  const input = document.createElement('input');
+  input.className = 'lic-input launch-path-input';
+  input.value = state.cfg.game_custom_launch || '';
+  input.placeholder = t('launch_custom_placeholder');
+  input.onchange = () => {
+    state.cfg.game_custom_launch = input.value.trim();
+    API('set_cfg', 'game_custom_launch', state.cfg.game_custom_launch);
+  };
+  const browse = document.createElement('button');
+  browse.className = 'lic-btn ghost';
+  browse.textContent = t('launch_custom_browse');
+  browse.onclick = async () => {
+    const path = await API('browse_game_custom_launch');
+    if (path) {
+      input.value = path;
+      state.cfg.game_custom_launch = path;
+    }
+  };
+  pick.append(input, browse);
+  customRow.append(label, pick);
+  customRow.style.display = current === 'custom' ? '' : 'none';
+  host.appendChild(customRow);
+}
 function renderSettings() {
   const lang = document.getElementById('setLang'); lang.value = state.cfg.lang || 'en';
   lang.onchange = async () => { await API('set_cfg', 'lang', lang.value); location.reload(); };  // reload re-renders in the new language
@@ -598,8 +817,8 @@ function renderSettings() {
 
   const dev = document.getElementById('setDevMode');
   dev.classList.toggle('on', state.dev);
-  const devDebugRow = document.getElementById('devDebugRow');
-  const syncDevExtras = () => { if (devDebugRow) devDebugRow.style.display = state.dev ? '' : 'none'; };
+  const devExtras = document.getElementById('devExtras');
+  const syncDevExtras = () => { if (devExtras) devExtras.style.display = state.dev ? '' : 'none'; };
   dev.onclick = () => {
     state.dev = !dev.classList.contains('on'); dev.classList.toggle('on', state.dev);
     state.cfg.dev_mode = state.dev; API('set_cfg', 'dev_mode', state.dev);
@@ -614,6 +833,12 @@ function renderSettings() {
     dbg.onclick = () => { const now = !dbg.classList.contains('on'); dbg.classList.toggle('on', now);
       state.cfg.debug_detection = now; API('set_cfg', 'debug_detection', now); };
   }
+  const ocr = document.getElementById('setDevOcr');
+  if (ocr) {
+    ocr.classList.toggle('on', !!state.cfg.detector_enable_ocr);
+    ocr.onclick = () => { const now = !ocr.classList.contains('on'); ocr.classList.toggle('on', now);
+      state.cfg.detector_enable_ocr = now; API('set_cfg', 'detector_enable_ocr', now); };
+  }
   syncDevExtras();
 
   const sys = document.getElementById('systemToggles'); sys.innerHTML = '';
@@ -622,9 +847,18 @@ function renderSettings() {
     const sub = el('div', 'display:flex;flex-direction:column;gap:3px');
     sub.appendChild(el('span', 'font-size:15px;color:var(--text)', t('sys_' + key)));
     sub.appendChild(el('span', 'font-size:12px;color:var(--text2)', t('sys_' + key + '_h')));
-    row.append(sub, makeSwitch(!!state.cfg[key], (on) => { state.cfg[key] = on; API('set_cfg', key, on); }));
+    row.append(sub, makeSwitch(!!state.cfg[key], (on) => {
+      state.cfg[key] = on;
+      API('set_cfg', key, on);
+      if (key === 'car_pass_dlc_owned') {
+        state.cfg.car_pass_dlc_answered = true;
+        API('set_cfg', 'car_pass_dlc_answered', true);
+        renderFA();
+      }
+    }));
     sys.appendChild(row);
   });
+  renderLaunchPathSettings(sys);
 
   renderShortcuts();
 
@@ -675,16 +909,17 @@ function renderSettings() {
   refreshLicense();
 }
 
-// ── coming-soon gate (1.9.0) ─────────────────────────────────
-// Reuses the locked view's Full Auto hero but strips the purchase + key-entry
-// cards and shows a "coming soon" banner; also hides the Settings license block.
+// ── coming-soon gate (1.9.x teaser — off in 2.0; backend sets coming_soon) ──
 function applyComingSoon() {
-  if (!COMING_SOON) return;
+  const banner = document.getElementById('comingSoonBanner');
+  if (!COMING_SOON) {
+    if (banner) { banner.hidden = true; banner.style.display = 'none'; }
+    return;
+  }
   const hide = (id) => { const e = document.getElementById(id); if (e) e.style.display = 'none'; };
-  const show = (id) => { const e = document.getElementById(id); if (e) e.hidden = false; };
+  const show = (id) => { const e = document.getElementById(id); if (e) { e.hidden = false; e.style.display = ''; } };
   ['lockedPurchase', 'lockedKeyrow', 'licSection', 'licGroup', 'licPill'].forEach(hide);
   show('comingSoonBanner');
-  // drop the "unlock with a one-time purchase" sentence from the hero blurb
   const desc = document.querySelector('#view-locked [data-i18n="locked_desc"]');
   if (desc) desc.textContent = (t('locked_desc') || '').split('\n\n')[0];
 }
@@ -694,7 +929,10 @@ function showView(view) {
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === view));
   ['view-full_auto', 'view-mode', 'view-locked', 'view-settings'].forEach(id => { document.getElementById(id).hidden = true; });
   if (view === 'settings') { document.getElementById('view-settings').hidden = false; renderSettings(); }
-  else if (view === 'full_auto') { document.getElementById((state.licensed && !COMING_SOON) ? 'view-full_auto' : 'view-locked').hidden = false; }
+  else if (view === 'full_auto') {
+    const unlocked = state.licensed && !COMING_SOON;
+    document.getElementById(unlocked ? 'view-full_auto' : 'view-locked').hidden = false;
+  }
   else { document.getElementById('view-mode').hidden = false; renderMode(view); }
   if (view !== 'settings') state.func = view;   // for the How-it-works modal
   API('set_func', view);   // keep the overlay header's function in sync
@@ -729,6 +967,8 @@ async function init() {
 // re-showing the picker), so we apply the language in place.
 function showLangPicker() {
   const m = document.getElementById('langPicker');
+  setLang(state.cfg.lang || 'en');
+  applyI18n(m);
   m.classList.add('open');
   m.querySelectorAll('[data-lang]').forEach(b => b.onclick = async () => {
     const l = b.dataset.lang;
@@ -740,21 +980,83 @@ function showLangPicker() {
   });
 }
 
+function showCarPassPicker() {
+  const m = document.getElementById('carPassPicker');
+  if (!m) return;
+  applyI18n(m);
+  m.classList.add('open');
+  m.querySelectorAll('[data-car-pass]').forEach(b => b.onclick = async () => {
+    const owned = b.dataset.carPass === 'yes';
+    state.cfg.car_pass_dlc_owned = owned;
+    state.cfg.car_pass_dlc_answered = true;
+    await API('set_cfg', 'car_pass_dlc_owned', owned);
+    await API('set_cfg', 'car_pass_dlc_answered', true);
+    m.classList.remove('open');
+    renderFA();
+    if (state.func === 'settings') renderSettings();
+    runPostSetupStartupTasks();
+  });
+}
+
+function showLaunchPathPicker() {
+  const m = document.getElementById('launchPathPicker');
+  if (!m) return false;
+  applyI18n(m);
+  m.classList.add('open');
+  m.querySelectorAll('[data-launch-platform]').forEach(b => b.onclick = async () => {
+    const platform = b.dataset.launchPlatform;
+    if (platform === 'custom') {
+      const path = await API('browse_game_custom_launch');
+      if (!path) return;
+      state.cfg.game_custom_launch = path;
+    }
+    state.cfg.game_platform = platform;
+    state.cfg.game_launch_path_answered = true;
+    await API('set_cfg', 'game_platform', platform);
+    await API('set_cfg', 'game_launch_path_answered', true);
+    m.classList.remove('open');
+    if (showPendingFirstTimePrompt()) return;
+    if (state.func === 'settings') renderSettings();
+    runPostSetupStartupTasks();
+  });
+  return true;
+}
+
+function showPendingFirstTimePrompt() {
+  if (state.cfg.game_launch_path_answered !== true) return showLaunchPathPicker();
+  if (state.cfg.car_pass_dlc_answered !== true) { showCarPassPicker(); return true; }
+  return false;
+}
+
+function runPostSetupStartupTasks() {
+  if (state.cfg.update_check !== false) API('check_updates');
+}
+
 function finishInit() {
   const data = _initData;
   setLang(state.cfg.lang || 'en');     // pick the UI language before rendering
   applyI18n();                          // translate the static index.html chrome
-  state.licensed = data.licensed !== false;
+  state.comingSoon = data.coming_soon === true;
+  COMING_SOON = state.comingSoon;
+  state.fullAutoBundled = data.full_auto_bundled !== false;
+  state.licensed = !!data.licensed;
   state.machineId = data.machine_id || '';
   state.grind  = state.cfg.full_auto_grind_type || 'wheelspin';
   state.branch = state.cfg.full_auto_branch_mode || 'racing';
   state.start  = state.cfg.full_auto_start_from  || 'race';
   document.getElementById('faStart').value = state.start;
-  document.getElementById('licPill').style.display = data.licensed ? '' : 'none';
+  syncLicensedChrome();
   fillMonitors(document.getElementById('monitor'),     data.monitors, state.cfg.monitor_index);
   fillMonitors(document.getElementById('modeMonitor'), data.monitors, state.cfg.monitor_index);
   document.getElementById('faStart').onchange = (e) => API('set_cfg', 'full_auto_start_from', e.target.value);
-  document.getElementById('faRaces').value = state.cfg.full_auto_races || 2;
+  const faR = document.getElementById('faRaces');
+  faR.value = state.cfg.full_auto_races || 2;
+  const commitFARaces = () => {
+    const v = Math.max(1, parseInt(faR.value, 10) || 1);
+    faR.value = v; state.cfg.full_auto_races = v; API('set_cfg', 'full_auto_races', v);
+  };
+  faR.oninput = commitFARaces;
+  faR.onchange = commitFARaces;
   document.getElementById('nav').addEventListener('click', (e) => {
     const a = e.target.closest('a[data-view]'); if (a) showView(a.dataset.view);
   });
@@ -766,8 +1068,10 @@ function finishInit() {
   renderFA();
   renderTemplates('faTplBody', 'full_auto');
   renderLocked();
-  applyComingSoon();        // 1.9.0: strip purchase/license UI, show teaser banner
+  applyComingSoon();
   showView('full_auto');   // routes to the locked view if unlicensed
+  if (showPendingFirstTimePrompt()) return;
+  runPostSetupStartupTasks();
 }
 
 if (window.pywebview && window.pywebview.api) init();

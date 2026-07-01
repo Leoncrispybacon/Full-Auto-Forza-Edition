@@ -1,0 +1,168 @@
+@echo off
+cd /d "%~dp0"
+
+set FAFE_BUILD_KIND=paid
+set FAFE_FULLAUTO=1
+
+title Full Auto Forza Edition - Build (%FAFE_BUILD_KIND%, web UI)
+
+:: ============================================================
+::  Builds the PyWebView app (app_web.py) into FAFE_dist\FAFE.exe.
+::  - bundles webui\ (HTML/CSS/JS UI) and assets\ into the build
+::  - templates\ are COPIED next to the exe (read from BASE_DIR, not _internal)
+::  Private paid Full Auto build. Paid modules are compiled and bundled.
+::
+::  PREREQUISITE on the target machine: the Microsoft Edge WebView2 Runtime
+::  (present by default on Windows 11; Windows 10 may need the Evergreen
+::  bootstrapper). PyWebView uses the system runtime - it isn't bundled here.
+:: ============================================================
+
+set DEPS_MODE=fast
+if /i "%~1"=="full"    set DEPS_MODE=full
+if /i "%~1"=="upgrade" set DEPS_MODE=full
+set PIP_FLAGS=
+if /i "%DEPS_MODE%"=="full" set PIP_FLAGS=--upgrade
+
+:: full_auto (the PAID feature) is OMITTED by default → safe public/teaser build
+:: (defense-by-absence: the .pyd simply isn't shipped, so no env-var/JS bypass can
+:: run it). license_client is also omitted in the default teaser build.
+:: build_app_paid.bat sets FAFE_FULLAUTO=1 for the private paid build.
+set FA_ADD=
+set LIC_ADD=
+if /i "%FAFE_FULLAUTO%"=="1" set FA_ADD=--add-binary "%CD%\compiled\full_auto.pyd;."
+if /i "%FAFE_FULLAUTO%"=="1" set LIC_ADD=--add-binary "%CD%\compiled\license_client.pyd;."
+
+:: Clean old artifacts
+taskkill /f /im FAFE.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
+if exist dist rmdir /s /q dist >nul 2>&1
+if exist build rmdir /s /q build >nul 2>&1
+if exist FAFE.spec del /f /q FAFE.spec >nul 2>&1
+if exist FAFE_dist rmdir /s /q FAFE_dist >nul 2>&1
+if exist compiled rmdir /s /q compiled >nul 2>&1
+
+echo.
+echo  =====================================================
+echo   Full Auto Forza Edition - Building FAFE.exe  (%FAFE_BUILD_KIND%, deps: %DEPS_MODE%)
+echo  =====================================================
+echo.
+if not "%FAFE_NOPAUSE%"=="1" pause
+
+:: -- Step 1: dependencies ------------------------------------
+echo.
+echo  [1/3]  Ensuring dependencies present (pass "full" to upgrade)...
+echo  -----------------------------------------------------
+pip install %PIP_FLAGS% pyinstaller nuitka ^
+    pywebview pythonnet ^
+    opencv-python mss numpy keyboard certifi ^
+    rapidocr-onnxruntime ^
+    pycaw comtypes
+if errorlevel 1 (
+    echo  ERROR: pip failed. Check Python installation.
+    if not "%FAFE_NOPAUSE%"=="1" pause
+    exit /b 1
+)
+
+:: -- Step 2: compile the paid modules to native .pyd ----------
+:: Nuitka MODULE mode (only these two files). The teaser build skips this step
+:: entirely so paid/private code is not shipped.
+echo.
+echo  [2/3]  Compiling protected modules...
+echo  -----------------------------------------------------
+if /i not "%FAFE_FULLAUTO%"=="1" (
+    echo  Teaser build: full_auto and license_client NOT bundled.
+    goto after_fa_compile
+)
+python -m nuitka --module license_client.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
+if errorlevel 1 ( echo  ERROR: Nuitka license_client failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+for %%F in ("compiled\license_client.*.pyd")  do move /y "%%F" "compiled\license_client.pyd" >nul
+if not exist "compiled\license_client.pyd" ( echo  ERROR: license_client.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+
+:: full_auto only in the private (paid) build — FAFE_FULLAUTO=1
+if /i not "%FAFE_FULLAUTO%"=="1" echo  Teaser build: full_auto (paid feature) NOT bundled.
+if /i not "%FAFE_FULLAUTO%"=="1" goto after_fa_compile
+python -m nuitka --module full_auto.py --output-dir=compiled --msvc=latest --assume-yes-for-downloads --remove-output
+if errorlevel 1 ( echo  ERROR: Nuitka full_auto failed. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+for %%F in ("compiled\full_auto.*.pyd")      do move /y "%%F" "compiled\full_auto.pyd" >nul
+if not exist "compiled\full_auto.pyd" ( echo  ERROR: full_auto.pyd not produced. & if not "%FAFE_NOPAUSE%"=="1" pause & exit /b 1 )
+:after_fa_compile
+
+:: -- Step 3: build FAFE.exe ----------------------------------
+echo.
+echo  [3/3]  Building FAFE.exe (PyWebView)...
+echo  -----------------------------------------------------
+python -m PyInstaller --onedir --windowed --name FAFE ^
+    --icon "%CD%\FAFE_icon.ico" ^
+    --add-data "%CD%\FAFE_icon.ico;." ^
+    --add-data "%CD%\webui;webui" ^
+    --add-data "%CD%\assets;assets" ^
+    --exclude-module full_auto ^
+    --exclude-module license_client ^
+    %FA_ADD% ^
+    %LIC_ADD% ^
+    --collect-all webview ^
+    --collect-all clr_loader ^
+    --hidden-import clr ^
+    --hidden-import detector ^
+    --hidden-import rapidocr_onnxruntime ^
+    --hidden-import certifi ^
+    --hidden-import pycaw ^
+    --hidden-import comtypes ^
+    --collect-all rapidocr_onnxruntime ^
+    --collect-all certifi ^
+    --collect-all comtypes ^
+    --collect-submodules pycaw ^
+    app_web.py
+if errorlevel 1 (
+    echo  ERROR: Build failed. See output above.
+    if not "%FAFE_NOPAUSE%"=="1" pause
+    exit /b 1
+)
+
+if exist FAFE_dist rmdir /s /q FAFE_dist >nul 2>&1
+xcopy /e /i /q dist\FAFE FAFE_dist >nul
+
+:: Template sets are read from BASE_DIR\templates (next to the exe), so COPY them.
+echo  [+]    Bundling templates...
+if exist templates xcopy /e /i /q templates "FAFE_dist\templates" >nul
+
+:: Teaser build: strip the Full Auto template images (paid feature) so the FREE
+:: download doesn't ship them. The paid build (FAFE_FULLAUTO=1) keeps them.
+if /i not "%FAFE_FULLAUTO%"=="1" echo  [+]    Teaser build: removing Full Auto templates...
+if /i not "%FAFE_FULLAUTO%"=="1" for /d %%D in ("FAFE_dist\templates\*") do if exist "%%D\full_auto" rmdir /s /q "%%D\full_auto"
+
+:: Bundle the Edge WebView2 Evergreen bootstrapper if present, so Win10 PCs
+:: without the runtime can install it on first launch (app_web._ensure_webview2
+:: searches _internal via _res_dir/_MEIPASS).
+if exist MicrosoftEdgeWebview2Setup.exe copy /y MicrosoftEdgeWebview2Setup.exe "FAFE_dist\_internal\" >nul
+
+:: No config.json is written here - config.py self-completes a full default
+:: config.json from DEFAULTS on first launch (avoids shipping stale keys).
+
+:: -- Step 4: build the installer (Inno Setup) ----------------
+:: An installer avoids the "Mark of the Web" DLL block (a downloaded ZIP flags
+:: its DLLs; .NET refuses to load them). Installer-written files don't inherit
+:: MOTW. Skipped gracefully if Inno Setup (ISCC.exe) isn't installed.
+echo.
+echo  [4/4]  Building installer (Inno Setup, if present)...
+echo  -----------------------------------------------------
+set ISCC=
+if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe
+if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe
+if not defined ISCC (
+    echo  Inno Setup not found - skipping installer. Install from https://jrsoftware.org/isdl.php
+    echo  to also produce FAFE_Setup_*.exe, then re-run.
+) else (
+    "%ISCC%" build_installer.iss
+    if errorlevel 1 ( echo  WARNING: installer build failed - FAFE_dist\ is still good. ) else ( echo  [+]    Installer written to Output\ )
+)
+
+echo.
+echo  =====================================================
+echo   BUILD COMPLETE  -  FAFE.exe is in FAFE_dist\
+echo  =====================================================
+echo.
+echo  Note: requires the Edge WebView2 Runtime on the target PC (default on Win11).
+echo  You can delete 'dist', 'build', 'compiled', and FAFE.spec.
+echo.
+if not "%FAFE_NOPAUSE%"=="1" pause

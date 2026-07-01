@@ -38,6 +38,13 @@ MicrosoftEdgeWebview2Setup.exe
 
 # Local agent/editor + scratch
 .claude/
+.qwen/
+docs/superpowers/
+AGENTS.md
+CLAUDE.md
+Codex.md
+patchnote.md
+QWEN.md
 debug/
 roi_preview.png
 webui_poc/
@@ -51,8 +58,11 @@ reports/
 
 # runtime diagnostics
 fafe_diag.log
+build_log.txt
+license.dat
 
 # User-captured custom templates (never commit — user data, any language)
 templates/**/custom/
+templates/*/mastery_full/mastery_presets.json
 compiled/
 nuitka_build/

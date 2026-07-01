@@ -25,6 +25,7 @@ import threading
 
 import config
 import navutil
+import recovery
 from config import get_wheelspin_templates
 from app_lang import t as _at
 from capture import (grab_frame, load_template, get_monitor_dims,
@@ -72,6 +73,18 @@ FINAL_KEY    = "wheelspin_collect_final"  # last-spin single "Collect Prize" (no
 TEMPLATE_KEY = "wheelspin_duplicate"  # the 3-option duplicate-reward menu
 # Skip is BEST-EFFORT: loaded only if the template exists; a missing/missed skip
 # falls back to waiting for the collect prompt (no desync, just no speed-up).
+_RECOVERY_SAFETY_ANCHOR_KEYS = ("anna", "collection_log")
+
+
+def _load_recovery_safety_templates(detector, cfg, tpl_lang, width, height):
+    return recovery.load_recovery_safety_templates(
+        detector, cfg, tpl_lang, width, height)
+
+
+def _recover_to_main_menu_from_safety_anchor(anchor, press_escape, wait,
+                                             detect_anchor=None):
+    return recovery.recover_to_main_menu_from_safety_anchor(
+        anchor, press_escape, wait, detect_anchor)
 
 
 def run(cfg: dict, stop_event: threading.Event,
@@ -115,7 +128,7 @@ def run(cfg: dict, stop_event: threading.Event,
     def _thr(key):
         return _fresh.get(f"thresh_{key}", 0.60)
 
-    io = GameIO(_fresh, log_cb)
+    io = GameIO(_fresh, log_cb, crop_letterbox=True)   # starts on main menu (My Horizon)
     current_w, current_h = io.width, io.height
     mon_left, mon_top = io.cap_left, io.cap_top
     # Single built-in template set (REFERENCE_RES), auto-scaled to the monitor.
@@ -123,7 +136,7 @@ def run(cfg: dict, stop_event: threading.Event,
     ref_folder = folder
     prefer_ref = _fresh.get('template_prefer_reference', True)
     log_cb(f"  Templates: {tpl_lang} / built-in")
-    detector = ScreenDetector(_fresh)
+    detector = ScreenDetector(_fresh, on_auto_ocr=log_cb)
 
     def _load(key):
         img, scale, meta = load_template(folder, key, current_w, current_h,
@@ -174,6 +187,8 @@ def run(cfg: dict, stop_event: threading.Event,
     except FileNotFoundError:
         mh_tab_tpl = None
         log_cb(_at("log_spin_mh_tab_off", lang))
+    safety_tpls = _load_recovery_safety_templates(
+        detector, _fresh, tpl_lang, current_w, current_h)
 
     def stop():
         return stop_event.is_set()
@@ -212,32 +227,55 @@ def run(cfg: dict, stop_event: threading.Event,
             time.sleep(_DETECT_IV)
         return None
 
-    def _detect_tile_or_tab(window_s):
+    def _detect_tile_or_tab(window_s, keys=None):
         """First step: poll for the wheel TILE or the My Horizon TAB, TILE
         prioritized. If the tile is already visible we're on the My Horizon menu,
         so we should click the tile — NOT re-navigate via the tab. Returns
         ('tile'|'tab', result) for whichever shows (tile wins ties), or
         (None, None) if the window elapses / stopped."""
+        scan_keys = tuple(keys) if keys is not None else ("tile", "tab")
         end = time.time() + window_s
         while time.time() < end:
             if stop():
                 return (None, None)
             try:
                 frame = io.grab()
-                tr = detector.detect(frame, TILE_KEY, tile_tpl,
-                                     _thr(TILE_KEY), stable=False)
-                if tr.matched:
-                    return ('tile', tr)
-                br = detector.detect(frame, MH_TAB_KEY, mh_tab_tpl,
-                                     _thr(MH_TAB_KEY), stable=False)
-                if br.matched:
-                    return ('tab', br)
+                for key in scan_keys:
+                    if key == "tile":
+                        r = detector.detect(frame, TILE_KEY, tile_tpl,
+                                            _thr(TILE_KEY), stable=False)
+                    elif key == "tab" and mh_tab_tpl is not None:
+                        r = detector.detect(frame, MH_TAB_KEY, mh_tab_tpl,
+                                            _thr(MH_TAB_KEY), stable=False)
+                    else:
+                        continue
+                    if r.matched:
+                        return (key, r)
             except Exception:
                 pass
             time.sleep(_DETECT_IV)
         return (None, None)
 
-    def _wait_collect(skip_deadline):
+    def _detect_safety_anchor(window_s):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None
+            try:
+                frame = io.grab()
+                for key in _RECOVERY_SAFETY_ANCHOR_KEYS:
+                    if key not in safety_tpls:
+                        continue
+                    r = detector.detect(frame, key, safety_tpls[key],
+                                        _thr(key), stable=False)
+                    if r.matched:
+                        return key
+            except Exception:
+                pass
+            time.sleep(_DETECT_IV)
+        return None
+
+    def _wait_collect(skip_deadline, is_last=False):
         """Wait until a spin's collect prompt shows; return
         ('skip'|'collect'|'final', result), or (None, None) if stopped.
           • 'skip'    — the brief reveal "Skip" prompt (Enter fast-forwards).
@@ -248,6 +286,8 @@ def run(cfg: dict, stop_event: threading.Event,
           • 'final'   — the single "Collect Prize" prompt (account out of spins),
                         a text subset of collect — so it only wins when collect's
                         spin-again distinguisher is absent (genuinely out of spins).
+                        Only polled when is_last is True to avoid false matches
+                        on intermediate spins whose "…and Spin Again" overlaps.
         collect/final are watched indefinitely (F9/Stop recovers a screen that
         genuinely can't be detected). One grab serves all checks."""
         while not stop():
@@ -262,7 +302,7 @@ def run(cfg: dict, stop_event: threading.Event,
                                     _thr(COLLECT_KEY), stable=False)
                 if r.matched:
                     return ('collect', r)
-                if final_tpl is not None:
+                if final_tpl is not None and is_last:
                     r = detector.detect(frame, FINAL_KEY, final_tpl,
                                         _thr(FINAL_KEY), stable=False)
                     if r.matched:
@@ -330,20 +370,73 @@ def run(cfg: dict, stop_event: threading.Event,
     #    the spin screen, which then persists. Every later spin auto-starts from
     #    the previous collect ("…and Spin Again"), so FAFE never presses to spin
     #    again — it just waits for each spin's skip/collect prompts. ──
-    announce(_at("log_spin_select_tile", lang, label=tile_label))
-    _t_super = time.time()
-    res_super = _detect(TILE_KEY, tile_tpl, SUPER_FIND_WINDOW)
-    if res_super is None:
-        if not stop():
-            log_cb(_at("log_spin_tile_not_found", lang, label=tile_label))
+    route_retries = recovery.route_retries(_fresh)
+
+    def _wheelspin_entry_route():
+        announce(_at("log_spin_select_tile", lang, label=tile_label))
+        _t_super = time.time()
+        which_first, r_first = _detect_tile_or_tab(MH_TAB_WINDOW)
+        if which_first == 'tab':
+            log_cb(_at("log_spin_detected", lang,
+                       label=_at("spin_tpl_my_horizon", lang),
+                       conf=f"{r_first.score:.0%}, {r_first.source}",
+                       secs=f"{time.time() - _t_super:.1f}"))
+            navutil.click_until_advanced(
+                io.grab, detector,
+                lambda loc: io.click(loc[0], loc[1], post_kw),
+                (MH_TAB_KEY, mh_tab_tpl, _thr(MH_TAB_KEY)),
+                (TILE_KEY, tile_tpl, _thr(TILE_KEY)),
+                stop,
+                log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
+                       label=_at("spin_tpl_my_horizon", lang), n=n)))
+            res_super = _detect(TILE_KEY, tile_tpl, SUPER_FIND_WINDOW)
+        elif which_first == 'tile':
+            log_cb(_at("log_spin_on_my_horizon", lang, label=tile_label))
+            res_super = r_first
+        else:
+            res_super = _detect(TILE_KEY, tile_tpl, SUPER_FIND_WINDOW)
+        if res_super is None:
+            if not stop():
+                log_cb(_at("log_spin_tile_not_found", lang, label=tile_label))
+            return False
+        log_cb(_at("log_spin_detected", lang, label=tile_label,
+                   conf=f"{res_super.score:.0%}, {res_super.source}",
+                   secs=f"{time.time() - _t_super:.1f}"))
+        # This click starts spin #1. After this point recovery must not repeat
+        # the entry route, because a spin has already been spent/started.
+        io.click(res_super.location[0], res_super.location[1], post_kw)
+        return True
+
+    def _recover_wheelspin_entry_route():
+        log_cb("  ! Wheelspin entry recovery: searching for a known route anchor.")
+        for attempt in range(5):
+            anchor_keys = recovery.backtrack_anchor_keys(("tab", "tile"))
+            which, _hit = _detect_tile_or_tab(1.2, keys=anchor_keys)
+            if which in ('tile', 'tab'):
+                log_cb(f"  ! Wheelspin entry recovery: anchored at {which}.")
+                return True
+            safety = _detect_safety_anchor(0.8)
+            if safety is not None:
+                log_cb(f"  ! Wheelspin entry recovery: anchored at safety {safety}.")
+                return _recover_to_main_menu_from_safety_anchor(
+                    safety,
+                    lambda: press('escape', post_wait=0.5),
+                    lambda: wait(0.5),
+                    lambda: _detect_safety_anchor(1.2))
+            if attempt >= 4 or stop():
+                break
+            log_cb("  ! Wheelspin entry recovery: pressing ESC to back out one menu.")
+            press('escape', post_wait=0.5)
+        log_cb("  ! Wheelspin entry recovery: no safe anchor found.")
+        return False
+
+    if not recovery.run_stage_route("Wheelspin entry", _wheelspin_entry_route,
+                                    stop, log_cb, route_retries,
+                                    recover_fn=_recover_wheelspin_entry_route):
         io.cleanup()
         log_cb(_at("log_spin_stopped", lang))
         status_cb(_at("status_stopped", lang))
         return
-    log_cb(_at("log_spin_detected", lang, label=tile_label,
-               conf=f"{res_super.score:.0%}, {res_super.source}",
-               secs=f"{time.time() - _t_super:.1f}"))
-    io.click(res_super.location[0], res_super.location[1], post_kw)  # starts spin #1
 
     loop_count = 0
     while not stop():
@@ -382,7 +475,7 @@ def run(cfg: dict, stop_event: threading.Event,
         skip_deadline = (_t0 + SKIP_WATCH_S) if skip_tpl is not None else 0.0
         collected = False
         while not stop():
-            which, r = _wait_collect(skip_deadline)
+            which, r = _wait_collect(skip_deadline, is_last)
             if which is None:
                 break
             _el = f"{time.time() - _t0:.1f}"

@@ -19,7 +19,7 @@ import time
 
 def click_until_advanced(grab, detector, click, prev, nxt, stop,
                          log_retry=None, grace=2.0,
-                         ceiling=12.0, interval=0.15, retries=2):
+                         ceiling=12.0, interval=0.15, retries=0):
     """Click `prev`, then ensure the menu advanced to `nxt`.
 
       grab()        -> frame
@@ -36,11 +36,12 @@ def click_until_advanced(grab, detector, click, prev, nxt, stop,
       • detect `prev` (fresh coords) → click it
       • poll for `nxt`:
           - `nxt` found                         → return its MatchResult ✓
-          - `prev` still present past `grace`
-            (two consecutive polls)             → click didn't land → re-click
+      - `prev` still present past `grace`
+            (two consecutive polls)             → click didn't land → fail
           - `prev` absent                       → click took; keep waiting for
                                                   `nxt` up to `ceiling`
-      • bounded at `retries` re-clicks, then give up.
+      • bounded at `retries` re-clicks, then give up. The default is 0 so the
+        caller's anchor-based route recovery owns retry/re-anchor behavior.
 
     Returns the `nxt` MatchResult on success, or None if it never advanced
     (the caller aborts — never guesses). The grace exists because `prev` always
@@ -119,17 +120,22 @@ if __name__ == "__main__":
     r, c = _run(lambda d, n: d.visible.__init__({"B"}))
     assert r is not None and c["clicks"] == 1 and c["retries"] == [], (r, c)
 
-    # 2. First click dropped, second lands.
+    # 2. Default path: first click dropped, helper gives up after one click so
+    #    the caller can run anchor recovery.
     def _drop_once(d, n):
         if n >= 2: d.visible = {"B"}      # only the 2nd click works
     r, c = _run(_drop_once)
+    assert r is None and c["clicks"] == 1 and c["retries"] == [], (r, c)
+
+    # 3. Explicit opt-in retry still works for callers that really need it.
+    r, c = _run(_drop_once, retries=2)
     assert r is not None and c["clicks"] == 2 and c["retries"] == [1], (r, c)
 
-    # 3. Deterministic ignore: click never changes the screen → give up.
-    r, c = _run(lambda d, n: None)
+    # 4. Deterministic ignore: click never changes the screen → give up.
+    r, c = _run(lambda d, n: None, retries=2)
     assert r is None and c["clicks"] == 3 and c["retries"] == [1, 2], (r, c)
 
-    # 4. Neither prev nor next on screen → abort without clicking.
+    # 5. Neither prev nor next on screen → abort without clicking.
     d = _Det(); d.visible = set()
     r = click_until_advanced(lambda: None, d, lambda loc: None,
                              ("A", None, 0.6), ("B", None, 0.6),

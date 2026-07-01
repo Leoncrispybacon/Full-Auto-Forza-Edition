@@ -1,5 +1,5 @@
 # ============================================================
-#  automation/race.py — Race automation logic
+#  automation/race.py 闁?Race automation logic
 #  All output goes through log_cb(message) instead of print()
 #  Stop is signalled via stop_event (threading.Event)
 # ============================================================
@@ -12,7 +12,9 @@ import ctypes
 from ctypes import wintypes
 
 import config
+import game_relaunch
 import navutil
+import recovery
 from config import get_race_templates, get_nodes_file
 from app_lang import t as _at
 from capture import (grab_frame, load_template, get_monitor_dims,
@@ -50,13 +52,13 @@ _KEYEVENTF_EXTENDEDKEY = 0x0001
 _KEYEVENTF_KEYUP       = 0x0002
 _KEYEVENTF_SCANCODE    = 0x0008
 # VKs that map to an extended scancode (none used here, kept for safety if
-# extended keys are ever added — see delete_cars.py for the rationale).
+# extended keys are ever added 闁?see delete_cars.py for the rationale).
 _EXTENDED_VKS = frozenset({0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
                            0x2D, 0x2E, 0xA3, 0xA5})
 
 def _vk_for_key(name: str):
     """Virtual-key code for a toggle-key name (e.g. 'f9', 'enter'), for
-    GetAsyncKeyState polling. Handles F1–F24 and the keys in _VK_MAP."""
+    GetAsyncKeyState polling. Handles F1闁炽儲寮?4 and the keys in _VK_MAP."""
     name = (name or "").strip().lower()
     if name in _VK_MAP:
         return _VK_MAP[name]
@@ -76,7 +78,7 @@ def _send_vk(key_name, key_up=False):
     # Send BOTH the virtual key (wVk) and the hardware scancode (wScan) so the
     # game receives input whether it reads the Windows message / VK path
     # (WM_KEYDOWN / GetAsyncKeyState) or the DirectInput / Raw Input scancode
-    # path. Scancode-only (wVk=0) regressed VK-path games — notably the held W
+    # path. Scancode-only (wVk=0) regressed VK-path games 闁?notably the held W
     # during a race; VK-only (wScan=0) leaves DirectInput games with scancode
     # 0. Populating both is the most compatible. The CJK IME is handled
     # separately by capture.force_english_ime() at the start of the run.
@@ -90,11 +92,11 @@ def _send_vk(key_name, key_up=False):
     ctypes.windll.user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
 
 def _send_scancode(key_name, key_up=False):
-    """Scancode injection WITH the KEYEVENTF_SCANCODE flag (wVk=0) — the
+    """Scancode injection WITH the KEYEVENTF_SCANCODE flag (wVk=0) 闁?the
     DirectInput / Raw Input path the game uses for *gameplay* (held W). This is
-    the same method pydirectinput uses for mastery's WASD nav, which works
-    in-game. The dual `_send_vk` (no SCANCODE flag) is fine for menu taps but
-    doesn't register as a true held key for driving."""
+    the same low-level path used by GameIO for mastery/background WASD nav. The
+    dual `_send_vk` (no SCANCODE flag) is fine for menu taps but doesn't
+    register as a true held key for driving."""
     vk = _VK_MAP.get(key_name.lower())
     if vk is None:
         return
@@ -117,7 +119,7 @@ def key_press(key, post_wait=1.5):
     time.sleep(post_wait)
 
 
-# ── Template matching ─────────────────────────────────────────
+# 闁冲厜鍋撻柍鍏夊亾 Template matching 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
 
 def _screen_matches(screen, template, threshold):
     if template.shape[0] > screen.shape[0] or template.shape[1] > screen.shape[1]:
@@ -127,10 +129,10 @@ def _screen_matches(screen, template, threshold):
     return best_conf >= threshold, best_conf
 
 
-# ── Main runner ───────────────────────────────────────────────
+# 闁冲厜鍋撻柍鍏夊亾 Main runner 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
 
 # Two detections: the Start Race screen (start_menu) and the race-END screen
-# (restart_menu). start_menu is detected — NOT timed — because the load time
+# (restart_menu). start_menu is detected 闁?NOT timed 闁?because the load time
 # between finishing a race and the next Start Race screen varies. racing /
 # confirm remain blind timing.
 TEMPLATE_KEYS = ["start_menu", "restart_menu"]
@@ -143,6 +145,35 @@ _CONFIRM_WAIT = 1.25   # step 6: after pressing X, wait before Enter (confirm)
 # wait before acting makes the click/Enter land reliably (esp. in background
 # mode, where PostMessage taps can arrive even earlier in the animation).
 _NAV_SETTLE   = 0.3
+
+_RACE_NAV_ROUTE_STEPS = [
+    ("eventlab", "click", _NAV_SETTLE, None),
+    ("play_event", "click", _NAV_SETTLE, None),
+    ("events_arrow", "click", _NAV_SETTLE, None),
+    ("my_history", "enter", _NAV_SETTLE, "choose_race_type"),
+    ("choose_race_type", "enter", _NAV_SETTLE, None),
+    ("car_select", "enter", _NAV_SETTLE, None),
+]
+_RACE_NAV_STEP_KEYS = tuple(step[0] for step in _RACE_NAV_ROUTE_STEPS)
+_RACE_RECOVERY_ANCHOR_KEYS = (
+    "eventlab",
+    "play_event",
+    "my_history",
+    "choose_race_type",
+    "car_select",
+)
+_RECOVERY_SAFETY_ANCHOR_KEYS = ("anna", "collection_log")
+
+
+def _load_recovery_safety_templates(detector, cfg, tpl_lang, width, height):
+    return recovery.load_recovery_safety_templates(
+        detector, cfg, tpl_lang, width, height)
+
+
+def _recover_to_main_menu_from_safety_anchor(anchor, press_escape, wait,
+                                             detect_anchor=None):
+    return recovery.recover_to_main_menu_from_safety_anchor(
+        anchor, press_escape, wait, detect_anchor)
 
 
 def run(cfg: dict, stop_event: threading.Event,
@@ -157,7 +188,7 @@ def run(cfg: dict, stop_event: threading.Event,
     status_cb(msg): update the status bar
     max_loops: stop after this many completed races (0 = unlimited)
     section_cb(msg): start a new (bounded) log section; falls back to log_cb
-    require_nav: Full Auto mode — the race MUST start by navigating from the main
+    require_nav: Full Auto mode 闁?the race MUST start by navigating from the main
         menu (creative_hub). The "already at start_menu" shortcut and the
         "wait wherever you are" fallback are disabled; a non-main-menu start
         state aborts (returns False) so the chain doesn't race from a desynced
@@ -190,12 +221,16 @@ def run(cfg: dict, stop_event: threading.Event,
     folder   = get_race_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
     ref_folder = folder
     prefer_ref = _fresh.get('template_prefer_reference', True)
+    if not game_relaunch.ensure_game_ready_for_start(
+            _fresh, log_cb, stop_cb=stop_event.is_set):
+        status_cb(_at("status_stopped", lang))
+        return False
     log_cb(f"  Templates: {tpl_lang} / built-in")
     # VK of the stop hotkey, for the hook-independent stop poll in stop().
     _toggle_vk = _vk_for_key(_fresh.get('toggle_key', 'f9'))
-    detector = ScreenDetector(_fresh)
+    detector = ScreenDetector(_fresh, on_auto_ocr=log_cb)
 
-    # ── Window-aware IO (gameio.GameIO) — shared by every function ──
+    # 闁冲厜鍋撻柍鍏夊亾 Window-aware IO (gameio.GameIO) 闁?shared by every function 闁冲厜鍋撻柍鍏夊亾
     # Auto-adapts: if the game window is found, FAFE drives it through the window
     # (client-area capture + PostMessage) so detection sizes to the window
     # (windowed OR borderless) and input works whether the game is focused or
@@ -233,17 +268,15 @@ def run(cfg: dict, stop_event: threading.Event,
         except FileNotFoundError:
             log_cb(_at("log_template_missing", cfg.get("lang","en"), key=key))
             status_cb(_at("status_setup_incomplete", cfg.get("lang","en")))
-            io.cleanup()   # mute already ran above — always unmute on exit
+            io.cleanup()   # mute already ran above 闁?always unmute on exit
             return
 
-    # ── Optional menu-navigation templates ──
-    # If ALL are captured, the script can walk main menu → CREATIVE HUB →
-    # EventLab → Play Event → MY HISTORY → Solo → car → Start screen before the
+    # 闁冲厜鍋撻柍鍏夊亾 Optional menu-navigation templates 闁冲厜鍋撻柍鍏夊亾
+    # If ALL are captured, the script can walk main menu 闁?CREATIVE HUB 闁?    # EventLab 闁?Play Event 闁?MY HISTORY 闁?Solo 闁?car 闁?Start screen before the
     # AFK loop (the bridge for chaining other functions into racing). Best-
     # effort: missing any of them disables navigation and we just wait for the
-    # Start screen as before — so existing race setups are unaffected.
-    NAV_KEYS = ["creative_hub", "eventlab", "play_event", "events_arrow",
-                "my_history", "choose_race_type", "car_select"]
+    # Start screen as before 闁?so existing race setups are unaffected.
+    NAV_KEYS = ["creative_hub", *_RACE_NAV_STEP_KEYS]
     nav_tpls = {}
     for key in NAV_KEYS:
         try:
@@ -263,20 +296,22 @@ def run(cfg: dict, stop_event: threading.Event,
         except FileNotFoundError:
             pass
     nav_enabled = all(k in nav_tpls for k in NAV_KEYS)
+    safety_tpls = _load_recovery_safety_templates(
+        detector, _fresh, tpl_lang, current_w, current_h)
 
-    # ── Optional exit template (results → main menu) ──
+    # 闁冲厜鍋撻柍鍏夊亾 Optional exit template (results 闁?main menu) 闁冲厜鍋撻柍鍏夊亾
     # Lets the run END on the main menu when the race count is reached: press
     # Continue, wait through the loading screen for the recommended "What's
     # Next" menu, then Esc back out to the main menu. This is the chaining
     # hand-off (every function ends on the main menu). Needs next_activity AND
     # creative_hub (the main-menu marker). Best-effort: if either is missing the
     # run just stops on the results screen as before.
-    exit_tpl = None
+    exit_tpls = {}
     try:
         img, scale, meta = load_template(folder, "next_activity",
                                    current_w, current_h, grayscale=True,
                                    ref_folder=ref_folder, prefer_ref=prefer_ref)
-        exit_tpl = img
+        exit_tpls["next_activity"] = img
         _box = meta.get("box")
         if _box:
             detector.set_template_geometry(
@@ -288,7 +323,9 @@ def run(cfg: dict, stop_event: threading.Event,
                                       meta.get("screen_height", 0))
     except FileNotFoundError:
         pass
-    exit_enabled = exit_tpl is not None and "creative_hub" in nav_tpls
+    if "anna" in safety_tpls:
+        exit_tpls["anna"] = safety_tpls["anna"]
+    exit_enabled = bool(exit_tpls) and "creative_hub" in nav_tpls
 
     def stop():
         if stop_event.is_set():
@@ -296,7 +333,7 @@ def run(cfg: dict, stop_event: threading.Event,
         # Hook-independent stop. While holding W we inject ~33 keydowns/sec via
         # SendInput; that flood goes through the same low-level keyboard hook the
         # `keyboard` library uses for the F9 hotkey, and under it the hook can
-        # fail to deliver F9 — so the script "can't be stopped" mid-race. Reading
+        # fail to deliver F9 闁?so the script "can't be stopped" mid-race. Reading
         # the physical key state directly (GetAsyncKeyState, high bit = down)
         # bypasses the hook entirely. The W-hold thread calls stop() at ~33Hz so
         # even a quick tap is caught.
@@ -311,7 +348,7 @@ def run(cfg: dict, stop_event: threading.Event,
 
     def wait_for(label, template, key, timeout=float('inf'), warn=True):
         # warn=False suppresses the 10s "not detected" red warning for steps
-        # where a long wait is NORMAL — e.g. waiting for the Restart menu, which
+        # where a long wait is NORMAL 闁?e.g. waiting for the Restart menu, which
         # only appears once the whole race finishes (far more than 10s).
         # Detection still continues; only the noisy warning is silenced.
         status_cb(_at("status_waiting_for", lang, label=label))
@@ -367,27 +404,26 @@ def run(cfg: dict, stop_event: threading.Event,
         time.sleep(0.2)
 
     # Background keep-alive: re-assert "active" to the game window so it doesn't
-    # auto-pause while unfocused. Experimental — works only if the game trusts
+    # auto-pause while unfocused. Experimental 闁?works only if the game trusts
     # the activation messages (see capture.set_window_active). Runs for the whole
     # run (menus + race) on a daemon thread; stopped in the cleanup below.
     io.start_keepalive(stop, _fresh)
 
-    # ── Optional: navigate the menus to the Start screen ──
+    # 闁冲厜鍋撻柍鍏夊亾 Optional: navigate the menus to the Start screen 闁冲厜鍋撻柍鍏夊亾
     # Each step is detection-GATED and TIME-BOXED (unlike the in-race loop's
     # infinite wait): a wrong/stuck menu state won't self-correct, so aborting
     # beats hanging. Steps detect distinct screens in sequence, so there's no
     # lingering/re-press problem.
     _NAV_STEP_WINDOW = 12.0
-    # MY HISTORY → Race type: selecting the history entry loads the event for an
-    # uncertain time, and the first Enter can be dropped. We re-press Enter ONLY
-    # while MY HISTORY is still on screen (see _enter_until) — never on a blind
-    # timer — because every screen here (Race Type, car select, Start) advances
-    # on Enter, so a blind re-press could cascade into the race. After each press
-    # we wait _NAV_PRESS_COOLDOWN for the menu to transition off the source
-    # before re-checking (a registered Enter clears MY HISTORY promptly), up to
-    # _NAV_LOAD_WINDOW total (generous, to cover a slow load).
-    _NAV_PRESS_COOLDOWN = 1.2
-    _NAV_LOAD_WINDOW    = 45.0
+    # MY HISTORY -> Race type: selecting the history entry can hit the known
+    # "Downloading race info" dead zone. Press Enter once, then wait up to
+    # three minutes for Choose Race Type before relaunching. Do not re-press:
+    # stale/false source matches can shoot through Race Type / car select / Start.
+    _NAV_LOAD_WINDOW = 45.0
+    _RACE_HISTORY_LOAD_WINDOW = 180.0
+    _NAV_STUCK_PREV_WINDOW = 1.2
+    pending_history_relaunch = False
+    recovery_expected_step = None
 
     def _detect_nav(key, window_s):
         end = time.time() + window_s
@@ -404,117 +440,106 @@ def run(cfg: dict, stop_event: threading.Event,
             time.sleep(0.15)
         return None
 
-    def _enter_until(source_key, target_key, window):
-        """Advance from the SOURCE screen to the TARGET screen by pressing Enter,
-        re-pressing ONLY while the source screen is still positively detected —
-        never on a blind timer. Failsafe for the MY HISTORY step: the event loads
-        for an uncertain time and the confirming Enter can be dropped, so it must
-        be re-triggered. But every screen in this stretch (Race Type, car select,
-        Start) advances on Enter, so a blind re-press could cascade through all of
-        them into the race. Pressing only while `source` is still on screen makes
-        overshoot impossible: an already-advanced menu is never pressed.
-
-        Per iteration: target detected → return True. Source still detected → the
-        Enter was dropped / not yet processed → press Enter, then wait
-        _NAV_PRESS_COOLDOWN for the menu to leave source before re-checking (a
-        registered Enter clears MY HISTORY promptly, so this won't double-press).
-        Neither (loading/transition) → wait, do NOT press. Returns False on
-        timeout/stop (a clean abort, far safer than launching a race)."""
-        end = time.time() + window
-        presses = 0
-        while time.time() < end:
-            if stop():
-                return False
-            on_source = False
-            try:
-                frame = _grab()
-                if detector.detect(frame, target_key, nav_tpls[target_key],
-                                   _thresh(target_key), stable=False).matched:
-                    return True
-                on_source = detector.detect(
-                    frame, source_key, nav_tpls[source_key],
-                    _thresh(source_key), stable=False).matched
-            except Exception:
-                on_source = False
-            if on_source:
-                _kp('enter', post_wait=0.0)
-                presses += 1
-                if presses > 1:
-                    log_cb(_at("log_race_nav_retry", lang,
-                               label=_at("race_tpl_" + target_key, lang)))
-                wait(_NAV_PRESS_COOLDOWN)   # let a registered Enter clear source
-            else:
-                time.sleep(0.2)             # loading/transition — wait, don't press
-        return False
-
-    def _detect_start_state(window_s):
-        """Decide where we are: ('creative_hub'|'start_menu', result) for
+    def _detect_start_state(window_s, keys=None):
+        """Decide where we are: (creative_hub|any route step|start_menu, result) for
         whichever appears first, else (None, None)."""
+        scan_keys = tuple(keys) if keys is not None else (
+            "creative_hub", *_RACE_NAV_STEP_KEYS, "start_menu")
         end = time.time() + window_s
         while time.time() < end:
             if stop():
                 return (None, None)
             try:
                 frame = _grab()
-                rc = detector.detect(frame, "creative_hub",
-                                     nav_tpls["creative_hub"],
-                                     _thresh("creative_hub"), stable=False)
-                if rc.matched:
-                    return ("creative_hub", rc)
-                rs = detector.detect(frame, "start_menu",
-                                     templates["start_menu"],
-                                     _thresh("start_menu"), stable=False)
-                if rs.matched:
-                    return ("start_menu", rs)
+                for step_key in scan_keys:
+                    if step_key == "creative_hub":
+                        rr = detector.detect(frame, "creative_hub",
+                                             nav_tpls["creative_hub"],
+                                             _thresh("creative_hub"), stable=False)
+                    elif step_key in _RACE_NAV_STEP_KEYS:
+                        if step_key not in nav_tpls:
+                            continue
+                        rr = detector.detect(frame, step_key, nav_tpls[step_key],
+                                             _thresh(step_key), stable=False)
+                    elif step_key == "start_menu":
+                        rr = detector.detect(frame, "start_menu",
+                                             templates["start_menu"],
+                                             _thresh("start_menu"), stable=False)
+                    else:
+                        continue
+                    if rr.matched:
+                        return (step_key, rr)
             except Exception:
                 pass
             time.sleep(0.15)
         return (None, None)
 
-    def _navigate_to_event(ch_hit):
-        """Main menu → CREATIVE HUB → EventLab → Play Event → MY HISTORY →
-        Solo → car → Start screen. ch_hit = the creative_hub match already in
+    def _detect_safety_anchor(window_s):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None
+            try:
+                frame = _grab()
+                for key in _RECOVERY_SAFETY_ANCHOR_KEYS:
+                    if key not in safety_tpls:
+                        continue
+                    rr = detector.detect(frame, key, safety_tpls[key],
+                                         _thresh(key), stable=False)
+                    if rr.matched:
+                        return key
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return None
+
+    def _navigate_to_event(ch_hit, start_step=None):
+        nonlocal pending_history_relaunch, recovery_expected_step
+        """Main menu 闁?CREATIVE HUB 闁?EventLab 闁?Play Event 闁?MY HISTORY 闁?        Solo 闁?car 闁?Start screen. ch_hit = the creative_hub match already in
         hand. Returns True on success, False if a step's element never appears
         (abort) or we were stopped."""
-        announce(_at("log_race_nav_begin", lang))
-        lbl = _at("race_tpl_creative_hub", lang)
-        log_cb(_at("log_race_nav_click", lang, label=lbl))
-        wait(_NAV_SETTLE)
-        # CREATIVE HUB → EventLab, with the nav failsafe (re-click if a dropped
-        # click leaves us on the main menu). ch_hit is ignored — the helper
-        # re-detects for fresh coords.
-        if navutil.click_until_advanced(
-                _grab, detector, lambda loc: _click(loc[0], loc[1]),
-                ("creative_hub", nav_tpls["creative_hub"], _thresh("creative_hub")),
-                ("eventlab", nav_tpls["eventlab"], _thresh("eventlab")),
-                stop,
-                log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
-                       label=_at("race_tpl_creative_hub", lang), n=n))) is None:
-            if not stop():
-                log_cb(_at("log_race_nav_fail", lang,
-                           label=_at("race_tpl_eventlab", lang), secs="-"))
-            return False
         # Per step: (key, action, pre_wait). pre_wait is a settle BEFORE acting,
-        # for screens that animate in — the element is detected mid-transition
+        # for screens that animate in 闁?the element is detected mid-transition
         # but the game drops input until the transition finishes. A uniform
         # _NAV_SETTLE before every step keeps the click/Enter from landing too
         # early (the main fix for nav breaking in background mode).
-        # 4th field = retry_to: after Entering this step, re-press Enter until
-        # that next screen appears (failsafe for an uncertain load). Only
-        # MY HISTORY uses it (the event load time varies; a dropped Enter would
-        # otherwise time out and abort).
-        steps = [("eventlab", "click", _NAV_SETTLE, None),
-                 ("play_event", "click", _NAV_SETTLE, None),
-                 ("events_arrow", "click", _NAV_SETTLE, None),
-                 ("my_history", "enter", _NAV_SETTLE, "choose_race_type"),
-                 ("choose_race_type", "enter", _NAV_SETTLE, None),
-                 ("car_select", "enter", _NAV_SETTLE, None)]
-        for i, (key, action, pre_wait, retry_to) in enumerate(steps):
+        # 4th field = retry_to: after Entering this step, wait for that next
+        # screen. Single-press only; route recovery handles failures.
+        steps = _RACE_NAV_ROUTE_STEPS
+        start_index = 0
+        if start_step:
+            for idx, (key, _action, _pre_wait, _retry_to) in enumerate(steps):
+                if key == start_step:
+                    start_index = idx
+                    break
+        else:
+            announce(_at("log_race_nav_begin", lang))
+            lbl = _at("race_tpl_creative_hub", lang)
+            log_cb(_at("log_race_nav_click", lang, label=lbl))
+            wait(_NAV_SETTLE)
+            # CREATIVE HUB 闁?EventLab, with the nav failsafe (re-click if a dropped
+            # click leaves us on the main menu). ch_hit is ignored 闁?the helper
+            # re-detects for fresh coords.
+            if navutil.click_until_advanced(
+                    _grab, detector, lambda loc: _click(loc[0], loc[1]),
+                    ("creative_hub", nav_tpls["creative_hub"], _thresh("creative_hub")),
+                    ("eventlab", nav_tpls["eventlab"], _thresh("eventlab")),
+                    stop,
+                    log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
+                           label=_at("race_tpl_creative_hub", lang), n=n))) is None:
+                if not stop():
+                    log_cb(_at("log_race_nav_fail", lang,
+                               label=_at("race_tpl_eventlab", lang), secs="-"))
+                return False
+
+        for i in range(start_index, len(steps)):
+            key, action, pre_wait, retry_to = steps[i]
             lbl = _at("race_tpl_" + key, lang)
             t0 = time.time()
             r = _detect_nav(key, _NAV_STEP_WINDOW)
             secs = f"{time.time() - t0:.1f}"
             if r is None:
+                recovery_expected_step = key
                 if not stop():
                     log_cb(_at("log_race_nav_fail", lang, label=lbl, secs=secs))
                 return False
@@ -547,15 +572,28 @@ def run(cfg: dict, stop_event: threading.Event,
                     _click(r.location[0], r.location[1])
             elif retry_to:
                 log_cb(_at("log_race_nav_enter", lang, label=lbl))
-                # Source-gated: re-press Enter only while still on this step's
-                # screen (`key`, e.g. MY HISTORY), until the target (retry_to)
-                # appears — never blindly, so we can't cascade past Race Type /
-                # car select / Start into the race.
-                if not _enter_until(key, retry_to, _NAV_LOAD_WINDOW):
+                _kp('enter', post_wait=0.0)
+                wait_window = (
+                    _RACE_HISTORY_LOAD_WINDOW
+                    if key == "my_history" and retry_to == "choose_race_type"
+                    else _NAV_LOAD_WINDOW
+                )
+                # Single press, then wait for the next screen. Only retry Enter
+                # when the previous screen is still visible; blind re-presses can
+                # shoot through Race Type / car select / Start.
+                if _detect_nav(retry_to, wait_window) is None:
+                    if _detect_nav(key, _NAV_STUCK_PREV_WINDOW) is not None:
+                        log_cb(_at("log_race_nav_enter", lang, label=lbl))
+                        _kp('enter', post_wait=0.0)
+                        if _detect_nav(retry_to, wait_window) is not None:
+                            continue
+                    recovery_expected_step = retry_to
                     if not stop():
                         log_cb(_at("log_race_nav_fail", lang,
                                    label=_at("race_tpl_" + retry_to, lang),
-                                   secs=f"{_NAV_LOAD_WINDOW:.0f}"))
+                                   secs=f"{wait_window:.0f}"))
+                        if key == "my_history" and retry_to == "choose_race_type":
+                            pending_history_relaunch = True
                     return False
             else:
                 log_cb(_at("log_race_nav_enter", lang, label=lbl))
@@ -565,41 +603,88 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb(_at("log_race_nav_done", lang))
         return True
 
+    route_retries = recovery.route_retries(_fresh)
+
+    def _race_entry_route():
+        nonlocal recovery_expected_step
+        recovery_expected_step = None
+        _which, _hit = _detect_start_state(8.0)
+        if _which == "creative_hub":
+            return _navigate_to_event(_hit)
+        if _which in _RACE_NAV_STEP_KEYS and not require_nav:
+            return _navigate_to_event(_hit, start_step=_which)
+        if _which == "start_menu" and not require_nav:
+            log_cb(_at("log_race_at_start", lang))
+            return True
+        if require_nav:
+            recovery_expected_step = "creative_hub"
+            log_cb(_at("log_race_nav_fail", lang,
+                       label=_at("race_tpl_creative_hub", lang), secs="8"))
+            return False
+        return True
+
+    def _accept_recovery_anchor(which):
+        if which == "creative_hub":
+            return True
+        if require_nav:
+            return False
+        if which == "start_menu":
+            return True
+        if which in _RACE_RECOVERY_ANCHOR_KEYS:
+            return True
+        return False
+
+    def _recover_race_entry_route():
+        log_cb("  ! Race entry recovery: searching for a known route anchor.")
+        for attempt in range(7):
+            anchor_keys = recovery.backtrack_anchor_keys(
+                ("creative_hub", *_RACE_NAV_STEP_KEYS, "start_menu"),
+                recovery_expected_step)
+            which, _hit = _detect_start_state(1.2, keys=anchor_keys)
+            if _accept_recovery_anchor(which):
+                log_cb(f"  ! Race entry recovery: anchored at {which}.")
+                return True
+            safety = _detect_safety_anchor(0.8)
+            if safety is not None:
+                log_cb(f"  ! Race entry recovery: anchored at safety {safety}.")
+                return _recover_to_main_menu_from_safety_anchor(
+                    safety,
+                    lambda: _kp("escape", post_wait=post_kw),
+                    lambda: wait(_NAV_SETTLE),
+                    lambda: _detect_safety_anchor(1.2))
+            if attempt >= 6 or stop():
+                break
+            log_cb("  ! Race entry recovery: pressing ESC to back out one menu.")
+            _kp("escape", post_wait=post_kw)
+            wait(_NAV_SETTLE)
+        log_cb("  ! Race entry recovery: no safe anchor found.")
+        return False
+
     if require_nav and not nav_enabled:
         # Full Auto: race must start by navigating from the main menu, but the
-        # nav templates aren't all captured — can't proceed in the chain.
+        # nav templates aren't all captured 闁?can't proceed in the chain.
         log_cb(_at("log_race_nav_fail", lang,
                    label=_at("race_tpl_creative_hub", lang), secs="0"))
         io.cleanup()
         return False
     if nav_enabled and not stop():
-        _which, _hit = _detect_start_state(8.0)
-        if _which == "creative_hub":
-            if not _navigate_to_event(_hit):
-                log_cb(_at("log_race_stopped", cfg.get("lang", "en")))
-                status_cb(_at("status_stopped", lang))
-                io.cleanup()   # always unmute / stop keep-alive on nav abort
-                return False
-        elif _which == "start_menu" and not require_nav:
-            log_cb(_at("log_race_at_start", lang))
-        elif require_nav:
-            # Full Auto: each step starts from the main menu. A non-creative_hub
-            # start state (start_menu, or nothing within the window) means the
-            # chain desynced — stop cleanly instead of racing from there.
-            log_cb(_at("log_race_nav_fail", lang,
-                       label=_at("race_tpl_creative_hub", lang), secs="8"))
-            io.cleanup()
+        if not recovery.run_stage_route("Race entry", _race_entry_route, stop,
+                                        log_cb, route_retries,
+                                        recover_fn=_recover_race_entry_route):
+            if pending_history_relaunch and not stop():
+                game_relaunch.relaunch_game(_fresh, log_cb, stop_cb=stop)
+            log_cb(_at("log_race_stopped", cfg.get("lang", "en")))
+            status_cb(_at("status_stopped", lang))
+            io.cleanup()   # always unmute / stop keep-alive on nav abort
             return False
-        # else (standalone, neither): fall through to the loop's
-        # wait_for(start_menu), which handles wherever the user actually is.
 
     loop_count = 0
     def _release_w():
         # GameIO posts the keyup straight to the game window (background) or sends
-        # VK + scancode keyups (foreground) — focus-independent either way.
+        # VK + scancode keyups (foreground) 闁?focus-independent either way.
         io.release('w')
 
-    # ── Race exit → main menu (fires once, on the count-reached clean exit) ──
+    # 闁冲厜鍋撻柍鍏夊亾 Race exit 闁?main menu (fires once, on the count-reached clean exit) 闁冲厜鍋撻柍鍏夊亾
     # Generous window: after Continue the game shows a ~12s loading screen
     # before the "What's Next" menu appears.
     _EXIT_MENU_WINDOW    = 30.0
@@ -621,10 +706,32 @@ def run(cfg: dict, stop_event: threading.Event,
             time.sleep(0.2)
         return None
 
+    def _detect_exit_any(keys, window_s):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None, None
+            frame = None
+            for key in keys:
+                tpl = exit_tpls.get(key)
+                if tpl is None:
+                    continue
+                try:
+                    if frame is None:
+                        frame = _grab()
+                    r = detector.detect(frame, key, tpl,
+                                        _thresh(key), stable=False)
+                    if r.matched:
+                        return key, r
+                except Exception:
+                    pass
+            time.sleep(0.2)
+        return None, None
+
     def _return_to_menu():
-        """Results screen → main menu: Enter (Continue) → wait through the
-        loading screen for the "What's Next" menu → Esc (close it → open world)
-        → Esc (→ main menu) → confirm creative_hub. Best-effort / time-boxed:
+        """Results screen 闁?main menu: Enter (Continue) 闁?wait through the
+        loading screen for the "What's Next" menu 闁?Esc (close it 闁?open world)
+        闁?Esc (闁?main menu) 闁?confirm creative_hub. Best-effort / time-boxed:
         the run is already finishing, so a failed step logs and returns rather
         than hanging."""
         announce(_at("log_race_exit_begin", lang))
@@ -633,22 +740,25 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop():
             return
         t0 = time.time()
-        r = _detect_exit("next_activity", exit_tpl, _EXIT_MENU_WINDOW)
+        exit_anchor, r = _detect_exit_any(("next_activity", "anna"), _EXIT_MENU_WINDOW)
         if r is None:
             if not stop():
                 log_cb(_at("log_race_exit_fail", lang, secs=f"{time.time()-t0:.1f}"))
             return
         log_cb(_at("log_race_exit_menu_detected", lang,
                    conf=f"{r.score:.0%}, {r.source}", secs=f"{time.time()-t0:.1f}"))
-        # Esc the recommended menu (→ open world), then Esc again (→ main menu).
-        log_cb(_at("log_race_exit_esc_menu", lang))
-        _kp('escape', post_wait=post_kw)
-        if stop():
-            return
-        # The first Esc plays a transition INTO open-world gameplay; the second
-        # Esc only opens the main menu once that transition has settled.
-        wait(_EXIT_WORLD_WAIT)
-        if stop():
+        # Esc the recommended menu (闁?open world), then Esc again (闁?main menu).
+        if exit_anchor == "next_activity":
+            log_cb(_at("log_race_exit_esc_menu", lang))
+            _kp('escape', post_wait=post_kw)
+            if stop():
+                return
+            # The first Esc plays a transition INTO open-world gameplay; the second
+            # Esc only opens the main menu once that transition has settled.
+            wait(_EXIT_WORLD_WAIT)
+            if stop():
+                return
+        elif exit_anchor != "anna":
             return
         log_cb(_at("log_race_exit_esc_world", lang))
         _kp('escape', post_wait=post_kw)
@@ -663,25 +773,64 @@ def run(cfg: dict, stop_event: threading.Event,
             return
         log_cb(_at("log_race_at_menu", lang))
 
+    _PAUSE_RECOVERY_CHECK = 0.8
+
+    def _wait_for_restart_while_driving():
+        """Wait for race completion while healing the focus-loss pause menu.
+
+        If the user tabs away during the W-hold phase, FH can open the pause
+        menu even though fake focus is still being sent. When that happens the
+        same top-nav `creative_hub` template is visible; Esc closes the pause
+        menu back to driving, and the W-hold thread keeps reasserting throttle.
+        """
+        next_pause_check = 0.0
+        while not stop():
+            try:
+                frame = _grab()
+                r = detector.detect(frame, "restart_menu",
+                                    templates["restart_menu"],
+                                    _thresh("restart_menu"), stable=True)
+                if r.matched:
+                    log_cb(_at("log_detected", lang, label="Restart menu",
+                               conf=f"{r.score:.0%}"))
+                    return True
+                now = time.time()
+                if (io.bg and "creative_hub" in nav_tpls
+                        and get_foreground_window() != io.hwnd
+                        and now >= next_pause_check):
+                    next_pause_check = now + _PAUSE_RECOVERY_CHECK
+                    pm = detector.detect(frame, "creative_hub",
+                                         nav_tpls["creative_hub"],
+                                         _thresh("creative_hub"), stable=False)
+                    if pm.matched:
+                        log_cb(_at("log_race_pause_resume", lang,
+                                   conf=f"{pm.score:.0%}"))
+                        _kp('escape', post_wait=0.2)
+                        io.fresh_hold('w')
+            except Exception:
+                pass
+            time.sleep(check_iv)
+        return False
+
     while not stop():
         loop_count += 1
         section(f"-- {_at('log_loop', lang)} #{loop_count} --")
 
-        # ── 1. Wait for the Start Race screen (DETECTED, not timed — the
+        # 闁冲厜鍋撻柍鍏夊亾 1. Wait for the Start Race screen (DETECTED, not timed 闁?the
         #       load time after a restart varies). On loop 1 the user is
-        #       already here, so it detects immediately. ──────────────────
+        #       already here, so it detects immediately. 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
         wait_for("Start Race menu", templates["start_menu"], "start_menu")
         if stop(): break
 
-        # ── 2. Press Enter to start the race ──────────────────────────
+        # 闁冲厜鍋撻柍鍏夊亾 2. Press Enter to start the race 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
         press(START_RACE_KEY, "Start Race")
         # Silence the keep-alive across the input-free countdown: its WM_ACTIVATE/
         # SETFOCUS bursts hit the ~3s countdown as focus flicker and break the
-        # start. Covers Enter → countdown → W-hold; keep-alive auto-resumes after.
+        # start. Covers Enter 闁?countdown 闁?W-hold; keep-alive auto-resumes after.
         io.quiet_keepalive(_PRE_W_WAIT + 0.6)
         if stop(): break
 
-        # ── 3. Wait for the race to begin, then hold W ────────────────
+        # 闁冲厜鍋撻柍鍏夊亾 3. Wait for the race to begin, then hold W 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
         announce(_at("log_race_wait_start", lang))
         wait(_PRE_W_WAIT)
         if stop(): break
@@ -690,7 +839,7 @@ def run(cfg: dict, stop_event: threading.Event,
         status_cb(_at("status_racing", lang))
         # Hold W by re-asserting the keydown at ~30ms (the keyboard auto-repeat
         # rate) in a background thread. A single SendInput keydown isn't reliably
-        # treated as a sustained hold by the game — it can register as a tap, so
+        # treated as a sustained hold by the game 闁?it can register as a tap, so
         # the car coasts/slows. Re-pressing keeps it at full throttle whether the
         # game reads key STATE or keydown EVENTS. A single key_up at the end
         # releases it (auto-repeat is many keydowns + one keyup).
@@ -702,18 +851,17 @@ def run(cfg: dict, stop_event: threading.Event,
         _ht = threading.Thread(target=_hold_w, daemon=True)
         _ht.start()
 
-        # ── 4. Hold W until the Restart menu appears (ONLY detection) ─
+        # 闁冲厜鍋撻柍鍏夊亾 4. Hold W until the Restart menu appears (ONLY detection) 闁冲厜鍋?
         # The race lasts minutes, so the "not detected" warning is suppressed
-        # (warn=False) — a long wait here is normal, not a detection problem.
-        wait_for("Restart menu", templates["restart_menu"], "restart_menu",
-                 warn=False)
+        # (warn=False) 闁?a long wait here is normal, not a detection problem.
+        _wait_for_restart_while_driving()
         _hold.clear()
         _ht.join(timeout=0.3)
         _release_w()
         if stop(): break
         log_cb(_at("log_released_w", lang))
 
-        # One full race completed → report progress (n of max) to the UI bar.
+        # One full race completed 闁?report progress (n of max) to the UI bar.
         if progress_cb:
             progress_cb(loop_count, max_loops)
 
@@ -728,10 +876,10 @@ def run(cfg: dict, stop_event: threading.Event,
                 _return_to_menu()
             break
 
-        # ── 5. Release W (done above), press X to restart ─────────────
+        # 闁冲厜鍋撻柍鍏夊亾 5. Release W (done above), press X to restart 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
         press(RESTART_KEY, "Restart Race")
 
-        # ── 6. Wait, then press Enter to confirm the restart ──────────
+        # 闁冲厜鍋撻柍鍏夊亾 6. Wait, then press Enter to confirm the restart 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
         wait(_CONFIRM_WAIT)
         if stop(): break
         press(CONFIRM_KEY, "Confirm")

@@ -70,7 +70,7 @@ def _key_press(key, post_wait=0.5):
     _send_vk(key, key_up=True)
     time.sleep(post_wait)
 
-# Public alias — reused by the Buy worker in main_window.py so all four scripts
+# Public alias — shared with the Buy worker so all automation modules
 # share one IME-safe (scancode) key sender.
 key_press = _key_press
 

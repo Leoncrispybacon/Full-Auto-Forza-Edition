@@ -43,15 +43,14 @@ _KEYEVENTF_SCANCODE    = 0x0008
 _EXTENDED_VKS = frozenset({0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
                            0x2D, 0x2E, 0xA3, 0xA5})
 
-# How often the keep-alive re-asserts "active" to the game window. 0.5s is the
-# sweet spot: frequent enough to keep an unfocused game from auto-pausing, but
-# sparse enough not to interfere with menu input (a tighter 0.15s tick fired
-# WM_ACTIVATE/SETFOCUS bursts that dropped keystrokes during menu navigation).
+# How often the keep-alive re-asserts "active" to the game window. 0.5s keeps
+# the fake-focus traffic light; focus-loss race pause is handled separately in
+# race.py because faster fake-focus ticks do not prevent that pause.
 _KEEPALIVE_INTERVAL = 0.5
 
 # After any discrete injected input (key tap, click, scroll, key release), keep
-# the activation re-assert SILENT this long, so its WM_ACTIVATE/SETFOCUS burst
-# can't collide with the input the game is mid-processing. The collision was
+# the activation re-assert SILENT this long, so its fake-active burst can't
+# collide with the input the game is mid-processing. The collision was
 # the "focus flicker breaks it" cause — most visible during the race countdown,
 # but it disrupts menu taps/clicks in every function. NOT bumped by hold_press:
 # the sustained race throttle needs keep-alive running for the minutes-long,
@@ -138,11 +137,16 @@ def _send_scancode(key, key_up=False):
 class GameIO:
     """Per-run capture + input context. See module docstring."""
 
-    def __init__(self, cfg, log_cb=None):
+    def __init__(self, cfg, log_cb=None, crop_letterbox=False):
+        self.cfg = cfg or {}
         self._log = log_cb or (lambda m: None)
-        self._lang = cfg.get("lang", "en")
-        self.monitor_index = cfg.get("monitor_index", 1)
-        self._cap_method = cfg.get("background_capture", "window")
+        self._lang = self.cfg.get("lang", "en")
+        self.monitor_index = self.cfg.get("monitor_index", 1)
+        self._cap_method = self.cfg.get("background_capture", "window")
+        self._title = self.cfg.get("background_window_title", "Forza Horizon 6")
+        self._window_refresh_interval = max(
+            0.1, float(self.cfg.get("gameio_window_refresh_interval", 5.0) or 5.0))
+        self._next_window_refresh = time.monotonic() + self._window_refresh_interval
         self._ka_stop = threading.Event()
         self._ka_quiet_until = 0.0   # keep-alive skips activation until this time
         self._held = {}          # key -> True once first keydown sent (repeat bit)
@@ -155,21 +159,24 @@ class GameIO:
         self.hwnd = None
         self.bg = False
         self.win_capture = False
+        self._client_rect = None
         # Letterbox/pillarbox crop (detected once at start). _crop = (x,y,w,h)
         # in client-frame px, or None. _crop_x/_crop_y offset frame-local click
         # coords back to client coords.
         self._crop = None
         self._crop_x = 0
         self._crop_y = 0
+        self._crop_letterbox_enabled = bool(
+            crop_letterbox and not self.cfg.get("gameio_disable_letterbox_crop", False))
 
-        if cfg.get("background_input", True):
-            title = cfg.get("background_window_title", "Forza Horizon 6")
-            hwnd = capture.find_game_window(title)
+        if self.cfg.get("background_input", True):
+            hwnd = capture.find_game_window(self._title)
             if hwnd:
                 rect = capture.get_client_rect(hwnd)
                 if rect:
                     self.hwnd = hwnd
                     self.bg = True
+                    self._client_rect = rect
                     self.cap_left, self.cap_top, self.width, self.height = rect
                     self.win_capture = (self._cap_method == "window")
                     self._log(_at("log_bg_input_on", self._lang))
@@ -177,12 +184,61 @@ class GameIO:
                                   w=self.width, h=self.height))
                     if self.win_capture:
                         self._log(_at("log_bg_capture_window", self._lang))
-                    if cfg.get("crop_letterbox", True):
+                    # Crop is decided per-RUN, not globally: only enabled for
+                    # functions that start on the main menu (no by-design black
+                    # bars), so detection never mistakes in-menu garage/collection
+                    # bars for a real letterbox. Wheelspin + Full Auto pass True.
+                    if self._crop_letterbox_enabled:
                         self._detect_letterbox()
 
+    def _maybe_refresh_window(self, force=False):
+        if not self.bg:
+            return False
+        now = time.monotonic()
+        if not force and now < self._next_window_refresh:
+            return False
+        self._next_window_refresh = now + self._window_refresh_interval
+        try:
+            hwnd = capture.find_game_window(self._title) or self.hwnd
+            rect = capture.get_client_rect(hwnd) if hwnd else None
+        except Exception:
+            return False
+        if not rect:
+            return False
+        new = (hwnd, *rect)
+        old = (self.hwnd, *(self._client_rect or (
+            self.cap_left, self.cap_top, self.width, self.height)))
+        if new == old:
+            return False
+        self.hwnd = hwnd
+        self._client_rect = rect
+        self.cap_left, self.cap_top, self.width, self.height = rect
+        self.win_capture = (self._cap_method == "window")
+        self._crop = None
+        self._crop_x = 0
+        self._crop_y = 0
+        self._log(_at("log_bg_window_size", self._lang,
+                      w=self.width, h=self.height))
+        if self._crop_letterbox_enabled:
+            self._detect_letterbox(refresh=False)
+        return True
+
+    def refresh_window(self):
+        return self._maybe_refresh_window(force=True)
+
+    def describe_window(self):
+        fg = capture.get_foreground_window()
+        rect = self._client_rect or (self.cap_left, self.cap_top,
+                                     self.width, self.height)
+        return (f"hwnd={self.hwnd} fg={fg} is_fg={fg == self.hwnd} "
+                f"bg={self.bg} win_capture={self.win_capture} "
+                f"rect={rect} frame={self.width}x{self.height}")
+
     # ── Capture ──────────────────────────────────────────────
-    def _grab_raw(self):
+    def _grab_raw(self, refresh=True):
         """Raw client-area / monitor frame, BEFORE any letterbox crop."""
+        if refresh:
+            self._maybe_refresh_window()
         if self.win_capture:
             f = capture.grab_window(self.hwnd)
             if f is not None:
@@ -222,7 +278,7 @@ class GameIO:
         self.width, self.height = cw, ch
         return True
 
-    def _detect_letterbox(self):
+    def _detect_letterbox(self, refresh=True):
         """Detect black pillarbox/letterbox bars ONCE at start; store the crop
         and shrink width/height to the content size (used for template scaling).
         Bars are black on every screen, so any non-black startup frame works.
@@ -237,7 +293,7 @@ class GameIO:
             self._apply_crop(_SESSION_CROP)          # reuse cached result (rect or None)
             return
         try:
-            raw = self._grab_raw()
+            raw = self._grab_raw(refresh=refresh)
         except Exception:
             raw = None
         rect = capture.detect_content_rect(raw) if raw is not None else None
@@ -255,9 +311,12 @@ class GameIO:
             vk = _vk(key)
             if vk is not None:
                 ext = vk in _EXTENDED_VKS
-                capture.post_key(self.hwnd, vk, key_up=False, extended=ext)
+                down_ok = capture.post_key(self.hwnd, vk, key_up=False, extended=ext)
                 time.sleep(0.05)
-                capture.post_key(self.hwnd, vk, key_up=True, extended=ext)
+                up_ok = capture.post_key(self.hwnd, vk, key_up=True, extended=ext)
+                if self.cfg.get("gameio_log_postmessage", False):
+                    self._log(f"  > PostMessage {str(key).upper()} "
+                              f"hwnd={self.hwnd} down={down_ok} up={up_ok}")
         elif scancode:
             _send_scancode(key, False)
             time.sleep(0.05)
@@ -282,6 +341,18 @@ class GameIO:
                 self._held[key] = True
         else:
             _send_scancode(key, False)
+
+    def fresh_hold(self, key, settle: float = 0.05):
+        """Force a fresh held-key start: keyup, clear repeat state, keydown.
+
+        Used after menus that can clear the game's internal held-key state while
+        GameIO still believes the key is held, which would otherwise keep sending
+        repeat-style keydowns that may not restart movement.
+        """
+        self.release(key)
+        if settle:
+            time.sleep(settle)
+        self.hold_press(key)
 
     def release(self, key):
         """Release a held key. Background posts the keyup straight to the window
@@ -336,10 +407,14 @@ class GameIO:
         unfocused. No-op in the legacy (foreground) path or if disabled."""
         if not self.bg or not cfg.get("background_fake_focus", True):
             return
-        self._log(_at("log_bg_keep_active", self._lang))
+        if not cfg.get("gameio_quiet_keepalive_log", False):
+            self._log(_at("log_bg_keep_active", self._lang))
+        if capture.get_foreground_window() != self.hwnd:
+            capture.set_window_active(self.hwnd)
         def _loop():
             while not self._ka_stop.is_set() and not stop_cb():
-                if time.time() >= self._ka_quiet_until:
+                if (time.time() >= self._ka_quiet_until
+                        and capture.get_foreground_window() != self.hwnd):
                     capture.set_window_active(self.hwnd)
                 time.sleep(_KEEPALIVE_INTERVAL)
         threading.Thread(target=_loop, daemon=True).start()

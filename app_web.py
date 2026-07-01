@@ -1,28 +1,41 @@
 """
-app_web.py — pywebview entry point for FAFE's new web UI (Phase 1).
+app_web.py — pywebview entry point for FAFE's WebUI.
 
 Hosts webui/index.html in an Edge WebView2 window and exposes `Api` to the page
 as `pywebview.api`. The automation backend (config, capture, full_auto, …) is
 imported and driven UNCHANGED — this file is only the UI bridge.
 
-Phase 1 wires: initial state (config + monitors + license), per-key config
-persistence, monitor selection, and Full Auto start/stop with live log + status
-streaming (the real full_auto.run on a worker thread). Other tabs come next.
+The WebUI owns the desktop surface: initial state, settings, shortcuts, template
+capture, all public automation tabs, Full Auto gating, logs, reports, and the
+status overlay.
 
-Run:  python app_web.py     (the legacy CTk app still runs via forza_app.py)
+Run:  python app_web.py
 """
 import collections
 import ctypes
+from ctypes import wintypes
 import json
 import os
 import sys
 import threading
 import time
 
+# Cap native thread pools BEFORE cv2 / numpy / onnxruntime load. The WebUI entry
+# is now the only supported app entry point, so these caps live here.
+os.environ.setdefault("OMP_NUM_THREADS", "2")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
+os.environ.setdefault("MKL_NUM_THREADS", "2")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "2")
+os.environ.setdefault("OMP_WAIT_POLICY", "PASSIVE")
+os.environ.setdefault("KMP_BLOCKTIME", "0")
+
 import webview
 
 import config
 import capture
+import hdr
+import ocr_profile
+import updater
 try:
     import full_auto as _full_auto    # paid feature; OMITTED from teaser/public builds
 except Exception:
@@ -118,10 +131,203 @@ def _ensure_webview2() -> bool:
                 "), then reopen FAFE.")
     return False
 
+
+def _hotkey_vk(keyname):
+    """Map the app's single-key shortcut names to Win32 virtual-key codes."""
+    key = str(keyname or "").strip().lower()
+    fkeys = {f"f{i}": 0x6F + i for i in range(1, 25)}
+    named = {
+        "backspace": 0x08,
+        "tab": 0x09,
+        "enter": 0x0D,
+        "esc": 0x1B,
+        "escape": 0x1B,
+        "space": 0x20,
+        "page up": 0x21,
+        "page down": 0x22,
+        "end": 0x23,
+        "home": 0x24,
+        "left": 0x25,
+        "up": 0x26,
+        "right": 0x27,
+        "down": 0x28,
+        "insert": 0x2D,
+        "delete": 0x2E,
+        "caps lock": 0x14,
+    }
+    if key in fkeys:
+        return fkeys[key]
+    if key in named:
+        return named[key]
+    if len(key) == 1 and key.isalnum():
+        return ord(key.upper())
+    return None
+
+
+class _WinHotkeyThread:
+    """System-wide RegisterHotKey backend.
+
+    The `keyboard` package uses a low-level hook; Forza's borderless/foreground
+    input path can starve that hook. RegisterHotKey is dispatched by Windows'
+    normal hotkey mechanism instead, so use it first and keep `keyboard` only as
+    fallback for unsupported/failed registrations.
+    """
+    WM_HOTKEY = 0x0312
+    WM_QUIT = 0x0012
+    MOD_NOREPEAT = 0x4000
+
+    def __init__(self, bindings):
+        self._bindings = [(str(k or "").strip().lower(), cb)
+                          for k, cb in bindings if k]
+        self._registered = set()
+        self._ready = threading.Event()
+        self._thread_id = 0
+        self._thread = None
+
+    @property
+    def registered(self):
+        return set(self._registered)
+
+    def start(self):
+        if os.name != "nt" or not self._bindings:
+            return set()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        self._ready.wait(0.75)
+        return self.registered
+
+    def stop(self):
+        if not self._thread:
+            return
+        try:
+            if self._thread_id:
+                ctypes.windll.user32.PostThreadMessageW(
+                    self._thread_id, self.WM_QUIT, 0, 0)
+        except Exception:
+            pass
+        self._thread.join(timeout=0.75)
+
+    def _run(self):
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+        self._thread_id = kernel32.GetCurrentThreadId()
+        msg = wintypes.MSG()
+        # Create the thread message queue before RegisterHotKey/PostThreadMessage.
+        user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 0)
+
+        callbacks = {}
+        try:
+            for idx, (combo, cb) in enumerate(self._bindings, start=1):
+                vk = _hotkey_vk(combo)
+                if not vk:
+                    continue
+                if user32.RegisterHotKey(None, idx, self.MOD_NOREPEAT, vk):
+                    self._registered.add(combo)
+                    callbacks[idx] = cb
+            self._ready.set()
+            if not callbacks:
+                return
+            while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
+                if msg.message == self.WM_HOTKEY:
+                    cb = callbacks.get(int(msg.wParam))
+                    if cb:
+                        try:
+                            cb()
+                        except Exception:
+                            pass
+        finally:
+            for idx in callbacks:
+                try:
+                    user32.UnregisterHotKey(None, idx)
+                except Exception:
+                    pass
+            self._ready.set()
+
 try:
     import license_client
 except Exception:           # paywall module optional / not present on a build
     license_client = None
+
+
+MASTERY_GATED_TEMPLATE_KEYS = (
+    "ride_this_car",
+    "upgrade_tuning",
+    "car_mastery",
+    "mastery_tree",
+    "my_cars",
+    "my_cars_header",
+    "recently_added",
+)
+
+RELAUNCH_TEMPLATE_KEYS = (
+    "launch_start_prompt",
+    "launch_continue",
+)
+
+FULL_AUTO_EXPECTED_TEMPLATE_KEYS = (
+    "dodge",
+    "gts_acr",
+    "mazda",
+    "mad_mike_808",
+)
+
+_GRID_22B_FALLBACK = [(3, 0), (3, 1), (2, 1), (1, 1), (0, 1), (0, 0)]
+_GRID_GTSACR_FALLBACK = [(3, 0), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2)]
+_GRID_MAD_MIKE_FALLBACK = [(3, 0), (3, 1), (3, 2), (2, 2), (1, 2), (0, 2)]
+
+
+def _grid_as_wire(order):
+    return [[int(r), int(c)] for r, c in (order or [])]
+
+
+def _builtin_mastery_presets():
+    return [
+        {
+            "name": "Subaru 22B-STI",
+            "builtin": True,
+            "order": _grid_as_wire(getattr(
+                _full_auto, "_GRID_22B", _GRID_22B_FALLBACK)),
+        },
+        {
+            "name": "Dodge Viper GTS ACR",
+            "builtin": True,
+            "order": _grid_as_wire(getattr(
+                _full_auto, "_GRID_GTSACR", _GRID_GTSACR_FALLBACK)),
+        },
+        {
+            "name": "#123 Mad Mike 808 Wagon",
+            "builtin": True,
+            "order": _grid_as_wire(getattr(
+                _full_auto, "_GRID_MAD_MIKE", _GRID_MAD_MIKE_FALLBACK)),
+        },
+    ]
+
+
+def _legacy_mastery_presets_file(lang):
+    d = os.path.join(config.TEMPLATES_DIR, lang, "mastery_full")
+    return os.path.join(d, "mastery_presets.json")
+
+
+def _migrate_legacy_mastery_presets(preset_file):
+    presets = capture.load_grid_presets(preset_file)
+    seen = {p["name"].lower() for p in presets}
+    changed = False
+    for lang in getattr(config, "TEMPLATE_LANGS", ()):
+        legacy_file = _legacy_mastery_presets_file(lang)
+        if os.path.abspath(legacy_file) == os.path.abspath(preset_file):
+            continue
+        for preset in capture.load_grid_presets(legacy_file):
+            key = preset["name"].lower()
+            if key in seen:
+                continue
+            presets.append(preset)
+            seen.add(key)
+            changed = True
+    if changed:
+        for preset in presets:
+            capture.save_grid_preset(
+                preset_file, preset["name"], preset["order"])
+    return presets
 
 
 class Api:
@@ -217,7 +423,16 @@ class Api:
             monitors = capture.list_monitors()
         except Exception:
             monitors = []
-        licensed = True
+        try:
+            hdr_on = hdr.is_hdr_enabled(cfg.get("monitor_index", 1), monitors)
+            cfg, changed = hdr.maybe_enable_ocr_for_hdr(cfg, hdr_on)
+            if changed:
+                self._update_cfg(detector_enable_ocr=True)
+                self._log("HDR detected on the selected game monitor — "
+                          "OCR enabled automatically and saved.")
+        except Exception:
+            pass
+        licensed = False
         mid, store = "", None
         try:
             if license_client is not None:
@@ -229,7 +444,11 @@ class Api:
         return {"version": VERSION, "licensed": licensed, "config": cfg,
                 "monitors": monitors, "machine_id": mid, "store_url": store,
                 "frozen": _is_frozen(),
-                "first_run": self._first_run}
+                "first_run": self._first_run,
+                # Builds without the private Full Auto module are teaser builds.
+                # A private build leaves teaser mode only when full_auto is bundled.
+                "coming_soon": _full_auto is None,
+                "full_auto_bundled": _full_auto is not None}
 
     def _update_cfg(self, **kwargs):
         """Apply one or more config keys under a lock (load → update → save), so
@@ -252,6 +471,31 @@ class Api:
                       f"Move it elsewhere so settings persist.")
         return ok
 
+    def browse_game_custom_launch(self):
+        """Settings → game launch path: pick an exe/shortcut/script target."""
+        try:
+            win = webview.windows[0] if webview.windows else None
+            if not win:
+                return ""
+            paths = win.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=(
+                    "Launch targets (*.exe;*.lnk;*.bat;*.cmd)",
+                    "All files (*.*)",
+                ),
+            )
+            if not paths:
+                return ""
+            path = paths[0] if isinstance(paths, (list, tuple)) else paths
+            path = str(path or "").strip()
+            if path:
+                self.set_cfg("game_custom_launch", path)
+            return path
+        except Exception as e:
+            self._log("Game launch browse failed: " + str(e))
+            return ""
+
     def get_templates(self, tab):
         """Template chips for a tab — [{name, threshold, pct}] from the function's
         built-in template folder + its thresh_* config. Read-only for now (capture
@@ -263,6 +507,7 @@ class Api:
         lang = config.resolve_template_lang(cfg)
         getters = {
             "race": config.get_race_templates,
+            "mastery": config.get_mastery_templates,
             "buy": config.get_buy_templates,
             "wheelspin": config.get_wheelspin_templates,
             "full_auto": config.get_full_auto_templates,
@@ -272,21 +517,42 @@ class Api:
             return []
         try:
             folder = g(config.REFERENCE_RES, lang)
+            relaunch_folder = config.get_relaunch_templates(
+                config.REFERENCE_RES, lang)
             names = sorted(os.path.splitext(os.path.basename(p))[0]
                            for p in glob.glob(os.path.join(folder, "*.json")))
+            if tab == "mastery":
+                names = sorted(set(names).union(MASTERY_GATED_TEMPLATE_KEYS))
+            if tab == "full_auto":
+                names = sorted(set(names).union(FULL_AUTO_EXPECTED_TEMPLATE_KEYS))
+            if tab == "race":
+                relaunch_names = (
+                    os.path.splitext(os.path.basename(p))[0]
+                    for p in glob.glob(os.path.join(relaunch_folder, "*.json"))
+                )
+                names = sorted(set(names).union(relaunch_names)
+                               .union(RELAUNCH_TEMPLATE_KEYS))
         except Exception:
             return []
         out = []
         for n in names:
             thr = float(cfg.get("thresh_" + n, 0.70))
+            exists_folder = (
+                relaunch_folder
+                if tab == "race" and n in RELAUNCH_TEMPLATE_KEYS
+                else folder
+            )
             out.append({"name": n, "threshold": round(thr, 2),
-                        "pct": str(int(round(thr * 100))) + "%"})
+                        "pct": str(int(round(thr * 100))) + "%",
+                        "exists": os.path.exists(
+                            os.path.join(exists_folder, n + ".json"))})
         return out
 
-    def _tpl_folder(self, tab):
+    def _tpl_folder(self, tab, key=None):
         """Writable built-in template folder for a function tab, or None."""
         getters = {
             "race": config.get_race_templates,
+            "mastery": config.get_mastery_templates,
             "buy": config.get_buy_templates,
             "wheelspin": config.get_wheelspin_templates,
             "full_auto": config.get_full_auto_templates,
@@ -295,14 +561,17 @@ class Api:
         if g is None:
             return None
         cfg = config.load()
-        return g(config.REFERENCE_RES, config.resolve_template_lang(cfg))
+        lang = config.resolve_template_lang(cfg)
+        if tab == "race" and key in RELAUNCH_TEMPLATE_KEYS:
+            return config.get_relaunch_templates(config.REFERENCE_RES, lang)
+        return g(config.REFERENCE_RES, lang)
 
     def capture_template(self, tab, key):
         """Start a CAPS-LOCK region capture for one template and save it.
         CaptureSession draws its own OpenCV windows, so it's independent of the
         webview — the user presses the capture key over the GAME, drag-selects,
         ENTER saves. Streams status/log into the page and refreshes the chips."""
-        folder = self._tpl_folder(tab)
+        folder = self._tpl_folder(tab, key)
         if folder is None:
             return False
         cfg = config.load()
@@ -361,6 +630,40 @@ class Api:
             self._log("Save grid failed: " + str(e))
             return False
 
+    def get_mastery_presets(self):
+        cfg = config.load()
+        preset_file = config.get_mastery_presets_file(
+            config.resolve_template_lang(cfg))
+        presets = list(_builtin_mastery_presets())
+        try:
+            for preset in _migrate_legacy_mastery_presets(preset_file):
+                presets.append({
+                    "name": preset["name"],
+                    "builtin": False,
+                    "order": _grid_as_wire(preset["order"]),
+                })
+        except Exception as e:
+            self._log("Load mastery presets failed: " + str(e))
+        return {"presets": presets}
+
+    def save_mastery_preset(self, name, order):
+        cfg = config.load()
+        preset_file = config.get_mastery_presets_file(
+            config.resolve_template_lang(cfg))
+        clean_name = str(name or "").strip()
+        builtin_names = {p["name"].lower() for p in _builtin_mastery_presets()}
+        if clean_name.lower() in builtin_names:
+            return {"ok": False,
+                    "error": "That name is reserved by a built-in preset."}
+        try:
+            cells = [(int(p[0]), int(p[1])) for p in (order or [])]
+            capture.save_grid_preset(preset_file, clean_name, cells)
+            return {"ok": True,
+                    "presets": self.get_mastery_presets().get("presets", [])}
+        except Exception as e:
+            self._log("Save mastery preset failed: " + str(e))
+            return {"ok": False, "error": str(e)}
+
     @staticmethod
     def _int(v):
         try:
@@ -400,6 +703,7 @@ class Api:
             self._log(_at("startup_running", lang))
             if cfg.get("detector_enable_ocr"):
                 self._log(_at("log_ocr_enabled", lang))
+                self._log(ocr_profile.describe_effective_profile(cfg))
             self._status("Running", True)
             try:
                 runner(cfg, self._stop, self._log,
@@ -426,8 +730,9 @@ class Api:
         # Defense-by-absence: teaser/public builds ship WITHOUT full_auto.pyd, so
         # there's nothing to run even if every gate above is bypassed.
         if _full_auto is None:
-            self._log("Full Auto isn't included in this build.")
-            self._status("Coming soon", False)
+            self._log("Full Auto isn't included in this build — rebuild with "
+                      "FAFE_FULLAUTO=1.")
+            self._status("Not in build", False)
             return False
         # Enforce the paywall in the BACKEND: the JS view-gate is bypassable
         # (plaintext app.js, devtools), so re-check here before running anything.
@@ -472,7 +777,7 @@ class Api:
     def _block_count(self, cfg, prefix):
         """Garage-block car count: first partial column + middle full columns +
         last partial column, in the column-major 3-rows grid (same formula as the
-        CTk MasteryCarBlockWidget)."""
+        old desktop UI used)."""
         fr = self._int(cfg.get(prefix + "_block_first_row", 1)) or 1
         mid = self._int(cfg.get(prefix + "_block_middle_cols", 0))
         lr = self._int(cfg.get(prefix + "_block_last_row", 3)) or 3
@@ -521,40 +826,83 @@ class Api:
         threading.Thread(target=_run, daemon=True).start()
         return True
 
+    def check_updates(self):
+        """WebUI startup check: read GitHub's latest release tag, never download."""
+        if not config.load().get("update_check", True):
+            return False
+
+        def _found(tag, url):
+            self._js(f"showUpdate({json.dumps(str(tag))}, {json.dumps(str(url))})")
+
+        def _status(msg):
+            self._log("[Updater] " + str(msg))
+
+        updater.check_async(_found, on_status=_status)
+        return True
+
+    def open_update_page(self, url=None):
+        """Open the releases page in the browser; the app does not download."""
+        import webbrowser
+        try:
+            webbrowser.open(url or updater.RELEASES_PAGE)
+        except Exception:
+            pass
+        return True
+
+    def _clear_hotkeys(self):
+        try:
+            if getattr(self, "_win_hotkeys", None) is not None:
+                self._win_hotkeys.stop()
+                self._win_hotkeys = None
+        except Exception:
+            pass
+        try:
+            import keyboard
+            for h in getattr(self, "_hotkeys", []):
+                try:
+                    keyboard.remove_hotkey(h)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self._hotkeys = []
+
     def _register_hotkeys(self):
-        """(Re)bind the global OS hotkeys (work while the GAME is focused, not the
-        webview): F9 = start/stop (the safety stop), F12 = report, F10 = overlay.
-        Re-callable for live rebinding — removes the previously-registered handles
-        first (never unhook_all, which would clobber other hooks). CAPS-LOCK
-        capture is NOT a global hotkey — CaptureSession reads capture_key on demand.
-        Best-effort — some locked-down Windows setups reject add_hotkey."""
+        """(Re)bind global hotkeys. Prefer Win32 RegisterHotKey because Forza's
+        borderless/foreground input path can starve low-level keyboard hooks;
+        keep keyboard.add_hotkey as fallback for unsupported or failed keys."""
+        self._clear_hotkeys()
+        cfg = config.load()
+        bindings = [
+            (cfg.get("toggle_key", "f9"),
+             lambda: self._js(f"onHotkey({json.dumps('f9')})")),
+            (cfg.get("report_key", "f12"),
+             lambda: self._js(f"onHotkey({json.dumps('f12')})")),
+            (cfg.get("overlay_key", "f10"), self.toggle_overlay),
+        ]
+
+        registered = set()
+        try:
+            self._win_hotkeys = _WinHotkeyThread(bindings)
+            registered = self._win_hotkeys.start()
+        except Exception:
+            self._win_hotkeys = None
+            registered = set()
+
+        fallback = [(str(combo or "").strip().lower(), cb)
+                    for combo, cb in bindings
+                    if combo and str(combo).strip().lower() not in registered]
+        if not fallback:
+            return
         try:
             import keyboard
         except Exception:
             return
-        for h in getattr(self, "_hotkeys", []):
-            try:
-                keyboard.remove_hotkey(h)
-            except Exception:
-                pass
-        self._hotkeys = []
-        cfg = config.load()
-        mapping = {cfg.get("toggle_key", "f9"): "f9",
-                   cfg.get("report_key", "f12"): "f12"}
-        for combo, name in mapping.items():
+        for combo, cb in fallback:
             if not combo:
                 continue
             try:
-                self._hotkeys.append(keyboard.add_hotkey(
-                    combo, lambda n=name: self._js(f"onHotkey({json.dumps(n)})")))
-            except Exception:
-                pass
-        # Overlay toggle is a Python-side window action — bind it straight to the
-        # toggle (no JS round-trip), like the old app's F10.
-        okey = cfg.get("overlay_key", "f10")
-        if okey:
-            try:
-                self._hotkeys.append(keyboard.add_hotkey(okey, self.toggle_overlay))
+                self._hotkeys.append(keyboard.add_hotkey(combo, cb))
             except Exception:
                 pass
 
@@ -591,13 +939,16 @@ class Api:
         except Exception:
             pass
         try:
-            import keyboard
-            for h in getattr(self, "_hotkeys", []):
-                try:
-                    keyboard.remove_hotkey(h)
-                except Exception:
-                    pass
-            self._hotkeys = []
+            capture.unmute_tracked_processes()
+        except Exception:
+            pass
+        try:
+            from gameio import set_mute_held
+            set_mute_held(False)
+        except Exception:
+            pass
+        try:
+            self._clear_hotkeys()
         except Exception:
             pass
         try:
@@ -693,7 +1044,7 @@ class Api:
         return True
 
     def buy(self):
-        """Open the Lemon Squeezy checkout for the paid Full Auto unlock."""
+        """Open the configured checkout for the paid Full Auto unlock."""
         import webbrowser
         url = getattr(license_client, "STORE_URL", None) if license_client else None
         if url:

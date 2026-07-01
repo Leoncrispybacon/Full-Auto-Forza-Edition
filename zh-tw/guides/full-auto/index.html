@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全自動模式教學 - FAFE</title>
+<meta name="description" content="了解 FAFE 全自動模式如何將賽車、購車、熟練度解鎖、賣車與自動轉盤串成 Forza Horizon 6 免手動循環。">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/full-auto/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/full-auto/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/full-auto/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/full-auto/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Work+Sans:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;family=Big+Shoulders+Display:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+</style>
+</head>
+<body>
+<div style="background:#0B0F17;">
+
+<!-- ════════ TOP HEADER ════════ -->
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;">
+      <a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">關於</a>
+      <a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">全自動模式</a>
+      <a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">功能與教學</a>
+      <a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">開始使用</a>
+      <a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">設定</a>
+    </nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="語言" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/full-auto/">EN</option>
+        <option value="../../../zh-tw/guides/full-auto/" selected>繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">下載</a>
+    </div>
+  </div>
+</header>
+
+<!-- ════════ GUIDE BODY ════════ -->
+<main style="max-width:880px;margin:0 auto;padding:40px 40px 80px;">
+
+  <!-- breadcrumbs -->
+  <nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;">
+    <a href="../../" style="color:#5f7488;text-decoration:none;">首頁</a>
+    <span>/</span>
+    <a href="../../#guides" style="color:#5f7488;text-decoration:none;">教學</a>
+    <span>/</span>
+    <span style="color:#82A0B2;">全自動模式</span>
+  </nav>
+
+  <!-- title block -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#0B0F17;background:#7DB2FF;border-radius:4px;padding:3px 8px;">進階版</span>
+    <span style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;white-space:nowrap;">全自動模式</span>
+  </div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">全自動模式</h1>
+  <p style="font-size:1.18rem;line-height:1.6;color:#82A0B2;margin:0;max-width:680px;">全自動模式把 FAFE 的每個工具串成一套免手動的循環。啟動一次，它就會賽車、購買、解鎖熟練度、刪除並重複 — 直到你按下停止。</p>
+
+  <!-- on this page -->
+  <div style="margin-top:30px;background:#121A28;border:1px solid #243044;border-radius:12px;padding:20px 24px;">
+    <div style="font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#7DB2FF;margin-bottom:12px;">本頁內容</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 28px;">
+      <a href="#what" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">1 · 全自動模式做什麼</a>
+      <a href="#modes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">2 · 兩種模式</a>
+      <a href="#before" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">3 · 開始前準備</a>
+      <a href="#run" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">4 · 設定並執行</a>
+      <a href="#notes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">5 · 須知事項</a>
+    </div>
+  </div>
+
+  <!-- WHAT -->
+  <section id="what" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">全自動模式做什麼</h2>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 22px;">FAFE 的每個工具各自自動化一項工作。全自動模式把它們接連成一套刷取流程：透過賽車累積熟練點、購買適當數量的車、解鎖熟練度樹、刪除，然後循環 — 並可選擇先接上自動轉盤。每個階段之間的交接都採偵測判定，因此只有在確認目標畫面出現後，該階段才會執行。</p>
+    <div style="background:#0A0E14;border:1px solid #243044;border-radius:12px;padding:26px;overflow-x:auto;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#5f7488;margin-bottom:20px;">全自動循環</div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:660px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:999px;background:#0f2417;border:1.5px solid #22C55E;color:#22C55E;font-family:'Geist Mono',monospace;font-size:.66rem;font-weight:600;flex-shrink:0;">開始</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#161E28;border:1px solid #243044;color:#cdd9e5;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">賽車</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#161E28;border:1px solid #243044;color:#cdd9e5;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">購買</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#161E28;border:1px solid #243044;color:#cdd9e5;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">解鎖</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#161E28;border:1px solid #243044;color:#cdd9e5;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">刪除</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;transform:rotate(45deg);background:#1a140a;border:1.5px solid #6b5326;border-radius:8px;flex-shrink:0;"><span style="transform:rotate(-45deg);font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;color:#E0B27E;">模式？</span></span>
+      </div>
+      <div style="margin-top:20px;min-width:660px;">
+        <div style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7DB2FF;margin-bottom:11px;">購買階段 — 依模式選車</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <span style="background:#13241c;border:1px solid #2a4036;border-radius:8px;padding:9px 13px;font-family:'Geist Mono',monospace;font-size:.8rem;color:#cdd9e5;">22B-STI <span style="color:#6FD0C0;">· 轉盤</span></span>
+          <span style="background:#13241c;border:1px solid #2a4036;border-radius:8px;padding:9px 13px;font-family:'Geist Mono',monospace;font-size:.8rem;color:#cdd9e5;">#123 Mad Mike <span style="color:#6FD0C0;">· 轉盤 + DLC</span></span>
+          <span style="background:#1f1709;border:1px solid #4a3a1e;border-radius:8px;padding:9px 13px;font-family:'Geist Mono',monospace;font-size:.8rem;color:#cdd9e5;">Viper GTS ACR <span style="color:#E0B27E;">· 刷錢</span></span>
+        </div>
+      </div>
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7DB2FF;margin:22px 0 11px;min-width:660px;">模式？階段 — 刪除之後</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:0;min-width:660px;">
+        <div style="background:#0D1622;border:1px solid #2a4036;border-radius:10px;padding:15px 17px;">
+          <div style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6FD0C0;margin-bottom:11px;">若為轉盤模式</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:'Geist Mono',monospace;font-size:.8rem;color:#cdd9e5;">
+            <span style="background:#13241c;border:1px solid #2a4036;border-radius:8px;padding:7px 11px;">轉動轉盤（選用）</span>
+            <span style="color:#5f7488;">→</span>
+            <span style="color:#6FD0C0;">↻ 賽車</span>
+          </div>
+        </div>
+        <div style="background:#1a140a;border:1px solid #4a3a1e;border-radius:10px;padding:15px 17px;">
+          <div style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#E0B27E;margin-bottom:11px;">若為刷錢模式</div>
+          <div style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.8rem;color:#E0B27E;">↻ 直接回到賽車</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;"><span style="color:#7DB2FF;">↻</span> 持續循環，直到你按下停止 / F9</div>
+    </div>
+  </section>
+
+  <!-- MODES -->
+  <section id="modes" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 6px;letter-spacing:-.01em;">兩種模式</h2>
+    <p style="color:#82A0B2;font-size:1.02rem;line-height:1.7;margin:0 0 24px;">選擇每個循環要刷什麼。兩種模式共用相同的偵測、車輛數計算與串接流程。</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.18rem;color:#F4F8FD;margin:0 0 6px;">轉盤模式</h3>
+        <p style="color:#82A0B2;font-size:.92rem;line-height:1.55;margin:0 0 16px;">把熟練點轉成超級轉盤，刪除後可選擇接上自動轉盤。</p>
+        <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;">
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>購買 <strong style="color:#F4F8FD;font-weight:600;">Subaru 22B-STI</strong> — 或在擁有 Car Pass DLC 時購買 <strong style="color:#F4F8FD;font-weight:600;">#123 Mad Mike</strong></span></li>
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>刪除後可選擇接上自動轉盤</span></li>
+        </ul>
+      </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.18rem;color:#F4F8FD;margin:0 0 6px;">刷錢模式</h3>
+        <p style="color:#82A0B2;font-size:.92rem;line-height:1.55;margin:0 0 16px;">改為購買點數節點而非轉盤節點，完成後直接回到賽車循環。</p>
+        <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;">
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>購買 <strong style="color:#F4F8FD;font-weight:600;">Viper GTS ACR</strong> — 每台約 <strong style="color:#F4F8FD;font-weight:600;">88,000 點數</strong>利潤</span></li>
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>逐台刪除車輛，然後直接回到賽車循環</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- BEFORE -->
+  <section id="before" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">開始前準備</h2>
+    <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
+      <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">已解鎖全自動模式。</strong> <span style="color:#82A0B2;">在啟用一次性解鎖前，全自動分頁會維持鎖定。</span></div></li>
+      <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">遊戲在所選螢幕上。</strong> <span style="color:#82A0B2;">在「遊戲螢幕」選單中選擇 Forza Horizon 6 所在的螢幕。</span></div></li>
+      <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">已有熟練點（選用）。</strong> <span style="color:#82A0B2;">若你已有熟練點，購買階段會讀取目前可用的熟練點來決定本輪規模。</span></div></li>
+    </ul>
+  </section>
+
+  <!-- RUN -->
+  <section id="run" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 26px;letter-spacing:-.01em;">設定並執行</h2>
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">開啟全自動模式</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">在側邊欄頂端選擇 <strong style="color:#cdd9e5;font-weight:600;">全自動模式</strong>（標示 PRO）。</p><div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:340px;"><img src="../../../assets/site/fa-sidebar-tw.png" alt="側邊欄中的全自動模式 PRO 項目" width="311" height="77" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;"></div></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">選擇模式</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">選擇 <strong style="color:#cdd9e5;font-weight:600;">轉盤</strong> 或 <strong style="color:#cdd9e5;font-weight:600;">刷錢</strong>。轉盤模式可設定刪除後是否接上自動轉盤。</p><div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;"><img src="../../../assets/site/fa-modes-zh.png" alt="要刷什麼與賣出後的切換選項" width="1092" height="152" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;"></div></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">設定每循環賽車數</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">選擇每個循環在購買階段前要跑幾場 AFK 賽車。車輛數會依你的熟練點自動計算。</p><div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;"><img src="../../../assets/site/fa-races-zh.png" alt="每循環賽車數欄位" width="1082" height="92" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;"></div></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">4</div>
+        <div style="flex:1;min-width:0;">
+          <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">執行前檢查項目</h3>
+          <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">開始前請確認以下所有項目。前兩項每次工作階段都會重置；後兩項為一次性設定。</p>
+          <div style="margin-top:16px;background:#0A0E14;border:1px solid #243044;border-radius:12px;padding:20px 24px;">
+            <div style="font-family:'Geist Mono',monospace;font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#7DB2FF;margin-bottom:13px;">每次工作階段</div>
+            <ul style="list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:13px;">
+              <li style="display:flex;gap:12px;align-items:flex-start;font-size:.96rem;line-height:1.5;color:#cdd9e5;"><span style="width:20px;height:20px;border-radius:5px;background:#2563EB;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:1px;">✓</span><span>我正駕駛要用來刷取的車。</span></li>
+              <li style="display:flex;gap:12px;align-items:flex-start;font-size:.96rem;line-height:1.5;color:#cdd9e5;"><span style="width:20px;height:20px;border-radius:5px;background:#2563EB;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:1px;">✓</span><span>我要掛機的地圖是我最後遊玩的賽事。</span></li>
+            </ul>
+            <div style="font-family:'Geist Mono',monospace;font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#E0B27E;margin-bottom:13px;">一次性設定</div>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+              <li style="display:flex;gap:12px;align-items:flex-start;font-size:.96rem;line-height:1.5;color:#cdd9e5;"><span style="width:20px;height:20px;border-radius:5px;background:#2563EB;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:1px;">✓</span><span>只有 <strong style="color:#F4F8FD;font-weight:600;">一台</strong> Subaru 22B-STI 被標為最愛。<span style="color:#5f7488;">（超過一台會導致選車失敗）</span></span></li>
+              <li style="display:flex;gap:12px;align-items:flex-start;font-size:.96rem;line-height:1.5;color:#cdd9e5;"><span style="width:20px;height:20px;border-radius:5px;background:#2563EB;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:1px;">✓</span><span>你掛機用的車是採用 <strong style="color:#F4F8FD;font-weight:600;">原廠塗裝</strong> 的 22B-STI。<span style="color:#5f7488;">（自訂彩繪會導致車輛偵測失敗）</span></span></li>
+            </ul>
+            <div style="margin-top:18px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+              <img src="../../../assets/site/fa-mycars-en.png" alt="我的車庫 — 僅一台被標為最愛的原廠 22B-STI" width="3426" height="1782" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+              <div style="padding:10px 16px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;border-top:1px solid #1a2433;background:#0C1320;">正確示範 — 一台被標為最愛（♥）、採原廠塗裝的 22B-STI</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">5</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">按下開始</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">點擊 <strong style="color:#cdd9e5;font-weight:600;">開始</strong> 或按下 <strong style="color:#cdd9e5;font-weight:600;">F9</strong>。循環會自動執行；即時記錄會顯示每個階段。再次按下 <strong style="color:#cdd9e5;font-weight:600;">F9</strong> 即可停止。</p><p style="font-size:.95rem;color:#82A0B2;margin:10px 0 0;line-height:1.6;">你可以從遊戲的 <strong style="color:#cdd9e5;font-weight:600;">主選單</strong> 啟動全自動模式 — 或在 <strong style="color:#cdd9e5;font-weight:600;">遊戲未開啟時直接從 Windows</strong> 啟動；FAFE 會為你開啟遊戲。</p></div>
+      </div>
+    </div>
+    <div style="margin:24px 0 0;border:1px solid #243044;border-radius:12px;overflow:hidden;background:#0A0E14;box-shadow:0 24px 60px rgba(0,0,0,.45);">
+      <img src="../../../assets/site/race-main-menu-zh.png" alt="Forza Horizon 6 主選單 — 全自動模式的有效起點" width="1600" height="706" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:10px 16px;font-family:'Geist Mono',monospace;font-size:.76rem;color:#5f7488;border-top:1px solid #1a2433;background:#0C1320;">從主選單開始 — 或在遊戲未開啟時直接從 Windows 啟動</div>
+    </div>
+  </section>
+
+  <!-- NOTES -->
+  <section id="notes" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">須知事項</h2>
+    <div style="display:flex;flex-direction:column;gap:26px;">
+
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#7DB2FF;flex-shrink:0;margin-top:11px;"></span>
+        <div style="flex:1;min-width:0;">
+          <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 6px;">為刷取準備預算</h3>
+          <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">確認你有足夠資金持續循環。各模式的成本與回報如下，皆假設你每個循環開始時有 <strong style="color:#cdd9e5;font-weight:600;">999 熟練點</strong>：</p>
+
+          <div style="margin-top:16px;overflow-x:auto;border:1px solid #243044;border-radius:12px;">
+            <table style="width:100%;border-collapse:collapse;font-size:.93rem;min-width:520px;">
+              <thead>
+                <tr style="background:#121A28;">
+                  <th style="text-align:left;padding:12px 18px;font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#82A0B2;border-bottom:1px solid #243044;">車輛 · 模式</th>
+                  <th style="text-align:left;padding:12px 18px;font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#82A0B2;border-bottom:1px solid #243044;">成本</th>
+                  <th style="text-align:left;padding:12px 18px;font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#82A0B2;border-bottom:1px solid #243044;">每循環</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #1a2433;color:#F4F8FD;font-weight:600;">Subaru 22B-STI <span style="display:block;font-weight:400;font-size:.8rem;color:#6FD0C0;font-family:'Geist Mono',monospace;margin-top:2px;">轉盤</span></td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #1a2433;color:#cdd9e5;font-family:'Geist Mono',monospace;">2.24M CR</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #1a2433;color:#cdd9e5;">33 轉盤</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #1a2433;color:#F4F8FD;font-weight:600;">#123 Mad Mike <span style="display:block;font-weight:400;font-size:.8rem;color:#6FD0C0;font-family:'Geist Mono',monospace;margin-top:2px;">轉盤 · Car Pass DLC</span></td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #1a2433;color:#cdd9e5;font-family:'Geist Mono',monospace;">4.4M CR</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #1a2433;color:#cdd9e5;">47 轉盤</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;color:#F4F8FD;font-weight:600;">Viper GTS ACR <span style="display:block;font-weight:400;font-size:.8rem;color:#E0B27E;font-family:'Geist Mono',monospace;margin-top:2px;">刷錢</span></td>
+                  <td style="padding:14px 18px;color:#cdd9e5;font-family:'Geist Mono',monospace;">2.0M CR</td>
+                  <td style="padding:14px 18px;color:#cdd9e5;">每台 +88,000 CR · 一輪後約 <strong style="color:#22C55E;font-weight:600;">~5百萬 CR</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:16px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.6;color:#cdd9e5;">
+            <strong style="color:#F4F8FD;font-weight:600;">資金不足？</strong> 在設定中關閉 <strong style="color:#cdd9e5;font-weight:600;">擁有 Car Pass DLC</strong>，並執行 <strong style="color:#cdd9e5;font-weight:600;">混合</strong> 模式 — 它會以一輪刷錢搭配一輪 22B-STI 交替進行，讓刷取自給自足，能長時間持續運作。
+          </div>
+
+
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#7DB2FF;flex-shrink:0;margin-top:11px;"></span>
+        <div style="flex:1;min-width:0;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">新地圖或新調校？先暖身</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">在新地圖或新調校上跑幾場後，賽事評分選單會跳出。全自動模式目前無法關閉它而會卡住 — 請先用純 <strong style="color:#cdd9e5;font-weight:600;">AFK 賽車</strong> 跑幾輪來清除它。</p></div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#7DB2FF;flex-shrink:0;margin-top:11px;"></span>
+        <div style="flex:1;min-width:0;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">離開電腦？讓遊戲保持在前台</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">為了在你離開時取得最可靠的偵測，請讓 Forza Horizon 6 保持在前台。</p></div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#7DB2FF;flex-shrink:0;margin-top:11px;"></span>
+        <div style="flex:1;min-width:0;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">偵測失敗時自動復原</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">若 FAFE 無法比對到範本，它會執行復原程序回到正軌，而不是停止自動化。<a href="../troubleshooting/" style="color: rgb(125, 178, 255); text-decoration: none; font-weight: 600;">查看疑難排解提示 →</a></p></div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#7DB2FF;flex-shrink:0;margin-top:11px;"></span>
+        <div style="flex:1;min-width:0;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">卡在無限載入？它會重新啟動</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">若遊戲在選擇最後遊玩賽事後、賽事類型選單出現前卡在無止盡的載入畫面，FAFE 會自動關閉並重新啟動遊戲以繼續循環。</p></div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#7DB2FF;flex-shrink:0;margin-top:11px;"></span>
+        <div style="flex:1;min-width:0;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">維持 1080p / 60 FPS 以上</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">讓 Forza Horizon 6 以 <strong style="color:#cdd9e5;font-weight:600;">1080p 或更高</strong> 解析度與 <strong style="color:#cdd9e5;font-weight:600;">60 FPS 以上</strong> 執行。任一項越低，FAFE 越可能漏掉偵測或點擊。</p></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- prev / next -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:60px;">
+    <a href="../delete-used-cars/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#5f7488;margin-bottom:5px;">← 上一篇</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">刪除已用車輛</div>
+    </a>
+    <a href="../settings/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;text-align:right;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#5f7488;margin-bottom:5px;">下一篇 →</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">設定</div>
+    </a>
+  </div>
+
+</main>
+
+<!-- ════════ FOOTER ════════ -->
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · 適用於 Forza Horizon 6 · 非官方 · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">支持我</a>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

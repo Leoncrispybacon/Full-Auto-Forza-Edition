@@ -1,495 +1,258 @@
 <!DOCTYPE html>
-<html lang="en" data-page-lang="en">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script>document.documentElement.classList.add('lang-loading');</script>
-<title>FAFE – Forza Horizon 6 Automation Tool for Windows</title>
-<meta name="description" content="FAFE is a Windows automation tool for Forza Horizon 6 with AFK Races, mastery unlocks, automatic car buying, Wheelspins, and garage cleanup.">
+<title>FAFE - Forza Horizon 6 Automation Tool for Windows</title>
+<meta name="description" content="Automate Forza Horizon 6 with FAFE: AFK races, mastery-tree Wheelspin unlocks, batch car buying, Auto Wheelspins, garage cleanup, and Full Auto mode.">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/">
-<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/">
 <link rel="icon" type="image/png" href="../assets/site/fafe-icon.png">
-
-<meta property="og:title" content="FAFE – Forza Horizon 6 Automation Tool">
-<meta property="og:description" content="Automate AFK Races, mastery unlocks, car buying, Wheelspins, and garage cleanup on Windows.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/">
-<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview.png">
-<meta property="og:image:type" content="image/png">
-<meta property="og:image:width" content="1280">
-<meta property="og:image:height" content="720">
-<meta property="og:image:alt" content="Full Auto Forza Edition automation tool for Forza Horizon 6">
-<meta property="og:site_name" content="Full Auto Forza Edition">
-<meta property="og:locale" content="en_US">
-<meta property="og:locale:alternate" content="zh_TW">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="FAFE – Forza Horizon 6 Automation Tool">
-<meta name="twitter:description" content="Automate AFK Races, mastery unlocks, car buying, Wheelspins, and garage cleanup on Windows.">
-<meta name="twitter:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview.png">
-
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Full Auto Forza Edition",
-  "alternateName": "FAFE",
-  "applicationCategory": "UtilitiesApplication",
-  "operatingSystem": "Windows",
-  "softwareVersion": "1.8.0",
-  "description": "A Windows automation tool for Forza Horizon 6 with AFK Races, mastery unlocks, automatic car buying, Wheelspins, and garage cleanup.",
-  "url": "https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/",
-  "downloadUrl": "https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest",
-  "image": "https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/overview-en.png",
-  "inLanguage": "en",
-  "isAccessibleForFree": true,
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  }
-}
-</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  .lang-loading [data-lang],
-  .lang-loading .lang-select { visibility: hidden; }
-  body {
-    font-family: 'Microsoft JhengHei', 'PingFang TC', 'Helvetica Neue', sans-serif;
-    background: #0f0f0f;
-    color: #e0e0e0;
-    line-height: 1.7;
-  }
-
-  /* Language switcher */
-  .lang-bar {
-    background: #070a0f;
-    padding: 8px 24px;
-    display: flex;
-    justify-content: flex-end;
-    border-bottom: 1px solid #111;
-  }
-  .lang-select {
-    background: #1e293b;
-    color: #94a3b8;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    outline: none;
-  }
-  .lang-select:hover { border-color: #3b82f6; color: #e0e0e0; }
-
-  .hero {
-    background: linear-gradient(135deg, #0d1b2a 0%, #1a1a2e 60%, #16213e 100%);
-    padding: 64px 24px 48px;
-    text-align: center;
-    border-bottom: 1px solid #1e3a5f;
-  }
-  .hero h1 { font-size: 3rem; font-weight: 700; color: #fff; letter-spacing: 0.05em; margin-bottom: 8px; }
-  .hero h1 span { color: #3b82f6; }
-  .hero .subtitle { font-size: 1.1rem; color: #94a3b8; margin-bottom: 24px; }
-  .hero .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  .badge { background: #1e3a5f; color: #60a5fa; border: 1px solid #2563eb44; border-radius: 999px; padding: 6px 16px; font-size: 0.85rem; font-weight: 500; }
-
-  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
-
-  .section { padding: 56px 0; border-bottom: 1px solid #1f1f1f; }
-  .section:last-child { border-bottom: none; }
-  .section-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: #3b82f6; margin-bottom: 12px; }
-  .section h2 { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; }
-  .section p { color: #94a3b8; font-size: 1rem; margin-bottom: 16px; max-width: 680px; }
-
-  .screenshot { margin: 28px 0; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-  .screenshot img { width: 100%; height: auto; display: block; }
-  .screenshot .caption { background: #111827; padding: 10px 16px; font-size: 0.8rem; color: #64748b; text-align: center; }
-
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 32px; }
-  .feature-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; }
-  .feature-card .icon { display: inline-block; margin-bottom: 14px; padding: 4px 8px; border: 1px solid #334155; border-radius: 5px; color: #60a5fa; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; line-height: 1; text-transform: uppercase; }
-  .feature-card h3 { font-size: 1rem; font-weight: 600; color: #f1f5f9; margin-bottom: 8px; }
-  .feature-card p { font-size: 0.875rem; color: #64748b; margin: 0; }
-  .guide-link { display: block; color: inherit; text-decoration: none; transition: border-color .2s, transform .2s; }
-  .guide-link:hover { border-color: #3b82f6; transform: translateY(-2px); }
-
-  .steps { display: flex; flex-direction: column; gap: 20px; margin-top: 28px; }
-  .step { display: flex; gap: 20px; align-items: flex-start; }
-  .step-num { background: #1e3a5f; color: #60a5fa; border-radius: 999px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; margin-top: 2px; }
-  .step-content h3 { font-size: 1rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
-  .step-content p { font-size: 0.875rem; color: #64748b; margin: 0; }
-
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
-  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } .hero h1 { font-size: 2rem; } }
-
-  .tag { display: inline-block; background: #0f2027; color: #38bdf8; border: 1px solid #0369a144; border-radius: 4px; padding: 2px 8px; font-size: 0.8rem; font-weight: 600; margin-right: 6px; margin-bottom: 6px; }
-
-  .footer-support {
-    display: inline-flex; align-items: center; gap: 6px;
-    position: absolute; right: 24px;
-    background: #0070ba; color: #fff !important;
-    padding: 7px 16px; border-radius: 999px;
-    text-decoration: none; font-size: 0.82rem; font-weight: 600;
-    transition: background 0.15s;
-  }
-  .footer-support:hover { background: #005ea6; }
-
-  .footer {
-    background: #070a0f; padding: 20px 160px 20px 24px;
-    text-align: center; color: #334155; font-size: 0.85rem;
-    border-top: 1px solid #111;
-    position: relative; display: flex; align-items: center; justify-content: center;
-  }
-  .footer a { color: #475569; text-decoration: none; transition: color 0.15s; }
-  .footer a:hover { color: #94a3b8; }
-
-  /* Grid diagram */
-  .grid-diagram { background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:28px; overflow-x:auto; }
-  .grid-cells { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-width:560px; margin:0 auto 24px; }
-  .cell { background:#1a2744; border:1px solid #1e3a5f; border-radius:8px; padding:14px 8px; text-align:center; position:relative; }
-  .cell.start { background:#1e3a5f; border:2px solid #3b82f6; }
-  .cell-num { font-size:1.4rem; font-weight:700; color:#475569; }
-  .cell.start .cell-num { color:#60a5fa; }
-  .cell-label { font-size:0.7rem; color:#93c5fd; margin-top:2px; }
-  .start-badge { position:absolute; top:6px; right:6px; background:#3b82f6; color:#fff; border-radius:4px; font-size:0.6rem; padding:2px 5px; font-weight:700; }
-  .grid-legend { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; font-size:0.8rem; color:#64748b; }
-  .grid-path { margin-top:20px; background:#0d1117; border-radius:8px; padding:16px; font-size:0.82rem; color:#64748b; line-height:1.8; }
-  .tip-box { background:#1a0f00; border:1px solid #78350f44; border-radius:8px; padding:16px; margin-top:16px; display:flex; gap:12px; align-items:flex-start; }
-  .tip-box-text { font-size:0.875rem; color:#fbbf24; }
-
-  [data-lang] { display: none; }
-  [data-lang].active { display: block; }
-  .features[data-lang], .steps[data-lang], .badges[data-lang] { display: none; }
-  .features[data-lang].active { display: grid; }
-  .steps[data-lang].active { display: flex; }
-  .badges[data-lang].active { display: flex; }
-
-  .download-wrap { text-align: center; margin-top: 28px; }
-  .download-btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 14px 32px; background: #2563eb; color: #fff;
-    border-radius: 10px; text-decoration: none;
-    font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em;
-    box-shadow: 0 4px 24px rgba(37,99,235,0.35);
-    transition: background 0.15s, transform 0.1s;
-  }
-  .download-btn:hover { background: #1d4ed8; transform: translateY(-2px); }
-  .download-version { font-size: 0.78rem; font-weight: 400; opacity: 0.75; margin-left: 4px; }
-
-  /* ── Collapsible tutorial ───────────────────────────── */
-  .tut-part { border: 1px solid #1e293b; border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
-  .tut-part-header {
-    width: 100%; display: flex; align-items: center; justify-content: space-between;
-    background: #111827; border: none; color: #f1f5f9;
-    padding: 16px 22px; cursor: pointer; font-size: 1rem; font-weight: 600;
-    text-align: left; transition: background 0.15s;
-  }
-  .tut-part-header:hover { background: #1e293b; }
-  .tut-chevron { color: #60a5fa; font-size: 0.8rem; transition: transform 0.2s; flex-shrink: 0; margin-left: 12px; }
-  .tut-part-header.open .tut-chevron { transform: rotate(180deg); }
-  .tut-part-body { padding: 0 22px; max-height: 0; overflow: hidden; transition: max-height 0.35s ease, padding 0.35s; }
-  .tut-part-body.open { max-height: 3000px; padding: 20px 22px 28px; }
-
-  .tut-notice {
-    background: #451a03; border: 1px solid #c2410c;
-    border-left: 4px solid #f97316;
-    border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;
-    font-size: 0.9rem; line-height: 1.6;
-  }
-  .tut-notice .notice-title { font-weight: 700; color: #fb923c; margin-bottom: 4px; font-size: 0.95rem; }
-  .tut-notice p { color: #fed7aa; margin: 0; }
-
-  /* ── Sidebar nav ────────────────────────────────────── */
-  .sidebar {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    left: 8px;
-    width: 140px;
-    z-index: 100;
-  }
-  .sidebar-title {
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
-    text-transform: uppercase; color: #475569; margin-bottom: 12px;
-    padding-left: 10px;
-  }
-  .sidebar a {
-    display: block; padding: 6px 10px; margin-bottom: 2px;
-    color: #64748b; text-decoration: none; font-size: 0.82rem;
-    border-radius: 6px; border-left: 2px solid transparent;
-    transition: color 0.15s, background 0.15s, border-color 0.15s;
-    line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .sidebar a:hover { color: #f1f5f9; background: #1e293b; }
-  .sidebar a.active { color: #60a5fa; border-left-color: #3b82f6; background: #1e3a5f22; font-weight: 600; }
-  .sidebar-divider { border: none; border-top: 1px solid #1e293b; margin: 6px 10px; }
-
-  /* Only show when viewport is wide enough that sidebar won't overlap content */
-  @media (max-width: 1200px) {
-    .sidebar { display: none; }
-  }
-
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
 </style>
 </head>
 <body>
+<div style="background:#0B0F17;">
 
-<!-- Language bar -->
-<div class="lang-bar">
-  <select class="lang-select" onchange="changeLanguage(this.value)">
-    <option value="zh-tw">繁體中文</option>
-    <option value="en">English</option>
-  </select>
-</div>
-
-<!-- Hero -->
-<div class="hero">
-  <img src="../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:84px;height:84px;margin-bottom:16px;border-radius:18px;box-shadow:0 8px 28px rgba(0,0,0,.5);">
-  <h1>Full Auto <span>Forza Edition</span></h1>
-
-
-
-  <div>
-    <p class="subtitle">Forza Horizon 6 automation tool · AFK races, mastery-tree Wheelspin unlocks, auto buy, auto Wheelspins, and garage cleanup — five modes, fully hands-free</p>
-    <div class="badges active">
-      <span class="badge">AFK Races</span>
-      <span class="badge">Auto Unlock Mastery Wheelspins</span>
-      <span class="badge">Auto Buy Cars in Batch</span>
-      <span class="badge">Auto Wheelspins</span>
-      <span class="badge">Delete Used Cars</span>
-      <span class="badge">Traditional Chinese / English</span>
-      <span class="badge">Multi-monitor Support</span>
+<!-- ════════ TOP HEADER ════════ -->
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:0 56px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="#top" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;">
+      <a href="#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">About</a>
+      <a href="#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">Full Auto</a>
+      <a href="#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Features &amp; Guides</a>
+      <a href="#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Getting Started</a>
+      <a href="#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Settings</a>
+    </nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="Language" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../en/" selected>EN</option>
+        <option value="../zh-tw/">繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">Download</a>
     </div>
   </div>
-</div>
+</header>
 
-<div class="download-wrap">
-<a class="download-btn" href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe">
-  <span>Download FAFE<span class="download-version">Latest · Windows</span></span>
-</a>
-</div>
-
-<div class="container"><div class="sidebar">
-  <div class="sidebar-title">
-    <span>Contents</span>
-  </div>
-  <a href="#about" id="nav-about">
-    <span>About</span>
-  </a>
-  <hr class="sidebar-divider">
-  <a href="#guides" id="nav-guides">
-    <span>Features &amp; Guides</span>
-  </a>
-  <hr class="sidebar-divider">
-  <a href="#howto" id="nav-howto">
-    <span>Getting Started</span>
-  </a>
-  <hr class="sidebar-divider">
-  <a href="#settings" id="nav-settings">
-    <span>Settings</span>
-  </a>
-  <hr class="sidebar-divider">
-
-  <a href="#disclaimer" id="nav-disclaimer">
-    <span>Disclaimer</span>
-  </a>
-</div>
-
-  <!-- About -->
-  <div class="section" id="about">
-
-
-    <div class="section-label">About</div>
-
-
-
-    <h2>What is Full Auto Forza Edition?</h2>
-
-
-
-
-
-    <p>Full Auto Forza Edition is an automation tool built for Forza Horizon 6 players. Using screenshot template matching and simulated input, it fully automates five of the most time-consuming repetitive tasks — AFK Races for skill points, unlocking Wheelspin rewards from compatible cars' mastery trees, batch-buying any purchasable car, auto-spinning Super or normal Wheelspins (with duplicate-reward handling), and deleting used cars from your garage. It reads the game window directly and sends input via window messages, so it keeps working even when the game is <strong>unfocused, covered by another window, or running in the background</strong>.</p>
-    <p>No game file modification, no code injection. The tool simply simulates keyboard and mouse actions, just like a human player would.</p>
-
-    <div class="screenshot">
-
-
-      <img src="../assets/site/overview-en.png" alt="FAFE English main interface" width="1788" height="1307" loading="lazy" decoding="async" style="width:100%;">
-
-
-      <div class="caption">Full Auto Forza Edition — Dark theme, multi-language support</div>
+<!-- ════════ HERO ════════ -->
+<section id="top" style="position:relative;overflow:hidden;background:radial-gradient(ellipse 58% 70% at 50% -6%, rgba(37,99,235,0.24), transparent 62%), #0B0F17;border-bottom:1px solid #1a2433;padding:96px 56px 104px;text-align:center;">
+  <div style="max-width:1400px;margin:0 auto;">
+    <div style="display:inline-flex;align-items:center;gap:9px;font-family:'Geist Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#82A0B2;background:#121A28;border:1px solid #243044;border-radius:999px;padding:7px 16px;">
+      <span style="width:8px;height:8px;border-radius:999px;background:#22C55E;box-shadow:0 0 10px #22C55E;"></span>Forza Horizon 6 · Windows · Five modes, fully hands-free
+    </div>
+    <h1 style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:clamp(3.6rem,8.6vw,8.6rem);line-height:.9;letter-spacing:.006em;text-transform:uppercase;color:#F4F8FD;margin:24px 0 0;">Full Auto <span style="color:#7DB2FF;">Forza Edition</span></h1>
+    <p style="max-width:740px;margin:24px auto 0;color:#82A0B2;font-size:1.22rem;line-height:1.6;">Automate the grind for Forza Horizon 6 — AFK Races, mastery-tree Wheelspin unlocks, batch car buying, Auto Wheelspins, and garage cleanup. It even runs while the game is unfocused or in the background.</p>
+    <div style="display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:32px;">
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:11px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:1.04rem;padding:15px 32px;border-radius:10px;box-shadow:0 8px 30px rgba(37,99,235,.42);white-space:nowrap;">Download FAFE <span style="font-family:'Geist Mono',monospace;font-weight:500;font-size:.78rem;opacity:.78;">Latest · Windows</span></a>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;color:#cdd9e5;text-decoration:none;font-weight:600;font-size:1rem;padding:14px 22px;border-radius:10px;border:1px solid #243044;background:#121A28;white-space:nowrap;">View on GitHub</a>
     </div>
   </div>
-
-  <div class="section" id="guides">
-    <div class="section-label">Features &amp; Guides</div>
-    <h2>What FAFE can do—and how to use it</h2>
-    <p>Each feature below opens its complete guide, so you can understand what it automates and then follow the exact setup steps.</p>
-    <div class="features">
-      <a class="feature-card guide-link" href="guides/forza-horizon-6-farming-guide/"><div class="icon">Overview</div><h3>Money, Credit &amp; Skill Point Farm Using FAFE</h3><p>Follow the complete public workflow from AFK races through mastery unlocks, Wheelspins and garage cleanup.</p></a>
-      <a class="feature-card guide-link" href="guides/first-time-setup/"><div class="icon">Setup</div><h3>First-time Setup</h3><p>Select the game monitor, language and initial controls. FAFE supports Traditional Chinese, English, multiple monitors and ultrawide displays.</p></a>
-      <a class="feature-card guide-link" href="guides/race-auto-grind/"><div class="icon">Automation</div><h3>AFK Races</h3><p>Detects the race start and results screens, holds W throughout the EventLab race, and restarts automatically when it ends.</p></a>
-      <a class="feature-card guide-link" href="guides/auto-unlock-spin-wheel-mastery-tree/"><div class="icon">Automation</div><h3>Auto Unlock Wheelspins from the Mastery Tree</h3><p>Configure a mastery-tree path and garage range for compatible cars. FAFE unlocks the selected nodes and moves to each next car automatically.</p></a>
-      <a class="feature-card guide-link" href="guides/auto-buy-cars-in-batch/"><div class="icon">Automation</div><h3>Auto Buy Cars in Batch</h3><p>Batch-buy any purchasable car after opening it in Car Collection, or start from the main menu with the automatic 22B-STI preset.</p></a>
-      <a class="feature-card guide-link" href="guides/delete-used-cars/"><div class="icon">Automation</div><h3>Delete Used Cars</h3><p>Delete a carefully confirmed garage range one car at a time; the game selects the next car automatically after each deletion.</p></a>
-      <a class="feature-card guide-link" href="guides/auto-wheelspin/"><div class="icon">Automation</div><h3>Auto Wheelspins</h3><p>Run Super or normal Wheelspins, collect their prizes and automatically keep or sell duplicate cars until the selected count is complete.</p></a>
-      <a class="feature-card guide-link" href="guides/troubleshooting/"><div class="icon">Help</div><h3>Troubleshooting</h3><p>Resolve input, timing and detection problems.</p></a>
-      <a class="feature-card guide-link" href="guides/game-overlay/"><div class="icon">Utility</div><h3>Game Overlay</h3><p>Use and position the floating status overlay.</p></a>
-      <a class="feature-card guide-link" href="guides/reporting-bugs/"><div class="icon">Support</div><h3>Reporting Bugs</h3><p>Create and share an actionable F12 report.</p></a>
-      <a class="feature-card guide-link" href="guides/settings/"><div class="icon">Configuration</div><h3>Settings</h3><p>Configure appearance, remappable hotkeys, language, timing controls and background mode.</p></a>
-      <a class="feature-card guide-link" href="guides/mechanics/"><div class="icon">Technical</div><h3>How It Works</h3><p>Learn how built-in templates auto-scale to your resolution and how background capture and input keep FAFE working while Forza is unfocused or covered.</p></a>
+  <!-- wide app showcase -->
+  <div style="max-width:1560px;margin:64px auto 0;border:1px solid #243044;border-radius:14px;overflow:hidden;background:#0A0E14;box-shadow:0 50px 130px rgba(0,0,0,.65), 0 0 0 1px rgba(37,99,235,.05);text-align:left;">
+    <div style="display:flex;align-items:center;gap:7px;padding:11px 16px;background:#121A28;border-bottom:1px solid #1a2433;">
+      <span style="width:10px;height:10px;border-radius:999px;background:#2b3b50;"></span>
+      <span style="width:10px;height:10px;border-radius:999px;background:#2b3b50;"></span>
+      <span style="width:10px;height:10px;border-radius:999px;background:#2b3b50;"></span>
+      <span style="margin-left:10px;font-family:'Geist Mono',monospace;font-size:.76rem;color:#5f7488;">Full Auto Forza Edition — main interface</span>
     </div>
+    <img src="../assets/site/overview-v2-en.png" alt="FAFE main interface — AFK Races" width="1803" height="1275" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
   </div>
+</section>
 
-  <!-- How to use -->
-  <div class="section" id="howto">
-
-
-    <div class="section-label">Getting Started</div>
-
-
-    <h2>Three Steps to Start</h2>
-
-
-
-    <div class="steps">
-      <div class="step"><div class="step-num">1</div><div class="step-content"><h3>Pick your game monitor</h3><p>Select the monitor your game is on from the Game Monitor picker (top-right). Detection templates ship built in and auto-scale to your resolution — Race, Buy and Auto Wheelspins need <strong>no capturing</strong>.</p></div></div>
-    <div class="step"><div class="step-num">2</div><div class="step-content"><h3>Position the Game, Press Start</h3><p>Place Forza Horizon 6 on the required screen, then return to Full Auto Forza Edition and click "Start" or press <strong>F9</strong>. The tool counts down <strong>3 seconds</strong>. With background mode enabled, you do not need to switch back to the game.</p></div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-content"><h3>Let It Run</h3><p>The tool runs fully automatically. A live log shows every action in real time. To stop at any time, press <strong>F9</strong> or click "■ Stop".</p></div></div>
-    </div>
-
-    <div class="screenshot" style="margin-top:32px;">
-
-
-      <img src="../assets/site/running-en.png" alt="FAFE automation running" width="1220" height="502" loading="lazy" decoding="async" style="width:100%;">
-
-
-      <div class="caption">Script running — countdown, game detection and live log all visible</div>
-    </div>
-  </div>
-
-  <!-- Settings -->
-  <div class="section" id="settings">
-
-
-    <div class="section-label">Advanced Settings</div>
-
-
-    <h2>Tune for Your PC</h2>
-    <div class="two-col">
+<!-- ════════ ABOUT ════════ -->
+<section id="about" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
+    <div style="display:grid;grid-template-columns:560px 1fr;gap:80px;align-items:center;">
       <div>
+        <div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;">About</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:2.2rem;line-height:1.12;color:#F4F8FD;margin:12px 0 18px;letter-spacing:-.015em;">What is Full Auto Forza Edition?</h2>
+        <p style="color:#cdd9e5;font-size:1.06rem;line-height:1.75;margin:0 0 16px;">FAFE automates five of the most time-consuming repetitive tasks in Forza Horizon 6 — AFK Races for skill points, unlocking Wheelspin rewards from mastery trees, batch-buying any purchasable car, auto-spinning Super or normal Wheelspins, and deleting used cars from your garage.</p>
+        <p style="color:#82A0B2;font-size:1.06rem;line-height:1.75;margin:0;">It reads the game window directly and sends input via window messages, so it keeps working even when the game is <strong style="color:#F4F8FD;font-weight:600;">unfocused, covered, or in the background</strong>. No file modification, no code injection — it simply simulates a human player.</p>
+      </div>
+      <div style="border:1px solid #243044;border-radius:12px;overflow:hidden;background:#0A0E14;box-shadow:0 30px 70px rgba(0,0,0,.5);">
+        <img src="../assets/site/running-v2-en.png" alt="FAFE automation running with live log" width="1125" height="378" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+        <div style="padding:11px 16px;font-family:'Geist Mono',monospace;font-size:.77rem;color:#5f7488;border-top:1px solid #1a2433;background:#0C1320;">Live log — every action in real time</div>
+      </div>
+    </div>
+  </div>
+</section>
 
+<!-- ════════ FULL AUTO (pro) ════════ -->
+<section id="full-auto" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
+    <div style="position:relative;background:#0C1A2E;border:1px solid #2563EB;border-radius:14px;padding:44px 48px 40px;overflow:hidden;box-shadow:0 0 0 1px rgba(37,99,235,.08), 0 36px 90px rgba(0,0,0,.45);">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 92% at 100% -10%, rgba(37,99,235,0.2), transparent 58%);pointer-events:none;"></div>
+      <div style="position:relative;">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div style="width:64px;height:64px;border-radius:14px;background:#13243d;border:1px solid #2b4d7a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="29" height="29" viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="10.3" width="16" height="10.7" rx="2.6" fill="#7DB2FF"></rect>
+              <path d="M7.4 10.3V7.4a4.6 4.6 0 0 1 9.2 0v2.9" stroke="#7DB2FF" stroke-width="2.2" fill="none"></path>
+              <circle cx="12" cy="15" r="1.5" fill="#13243d"></circle>
+            </svg>
+          </div>
+          <div>
+            <div style="font-family:'Geist Mono',monospace;font-size:.76rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#7DB2FF;">Pro</div>
+            <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:2.8rem;line-height:1;color:#F4F8FD;margin:5px 0 0;letter-spacing:-.02em;">Full Auto</h2>
+          </div>
+        </div>
+        <p style="color:#cdd9e5;font-size:1.1rem;line-height:1.65;margin:26px 0 0;max-width:760px;">Run the whole farm loop unattended: race for mastery points, buy the right number of cars, unlock their mastery trees, delete them, then either spin wheels or go straight back to racing.</p>
 
-        <p>Open <strong>Settings</strong> from the sidebar (bottom-left) to adjust:</p>
-        <div style="margin:16px 0;">
-
-
-          <span class="tag">UI Scale</span><span class="tag">Detection Interval</span><span class="tag">Key Wait</span><span class="tag">OCR</span><span class="tag">Theme</span><span class="tag">Overlay</span><span class="tag">Hotkey Binding</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:34px;">
+          <div>
+            <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.2rem;color:#F4F8FD;margin:0;">Wheelspin Mode</h3>
+            <p style="color:#82A0B2;font-size:.95rem;line-height:1.55;margin:8px 0 16px;">Turns mastery points into Super Wheelspins, then optionally connects Auto Wheelspin after deleting.</p>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Buys the <strong style="color:#F4F8FD;font-weight:600;">Subaru 22B-STI</strong> — or the <strong style="color:#F4F8FD;font-weight:600;">#123 Mad Mike</strong> if you own the Car Pass DLC</span></li>
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Optionally connects Auto Wheelspin after deleting</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.2rem;color:#F4F8FD;margin:0;">Money Mode</h3>
+            <p style="color:#82A0B2;font-size:.95rem;line-height:1.55;margin:8px 0 16px;">Buys for credit nodes instead of wheelspin nodes, then loops straight back to racing.</p>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Buys the <strong style="color:#F4F8FD;font-weight:600;">Viper GTS ACR</strong> — about <strong style="color:#F4F8FD;font-weight:600;">88,000 credits</strong> profit per car</span></li>
+              <li style="display:flex;gap:11px;align-items:flex-start;font-size:.96rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Deletes each car, then returns straight to the race loop</span></li>
+            </ul>
+          </div>
         </div>
 
+        <div style="margin-top:30px;background:#0A1422;border:1px solid #1c2c44;border-radius:10px;padding:20px 26px;">
+          <div style="font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7DB2FF;margin-bottom:14px;">Both modes</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 48px;">
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Detects available mastery points and calculates how many cars to process</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Real-time stage bar: Race → Buy → Unlock → Delete → Wheelspin / Repeat</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Runs buy, mastery unlock, and delete as one chained workflow if you already have mastery points. The buy function will start from reading your currently available mastery points.</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start;font-size:.95rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Hardware-bound license with 2 activations and 3-day offline grace</span></div>
+          </div>
+        </div>
 
-        <p>Every setting has a <strong>?</strong> button — click it for a full explanation. All changes save instantly. If your game misses key presses or clicks, increase the Key Wait or Click Wait values accordingly.</p>
-      </div>
-      <div class="screenshot" style="margin:0;">
+        <div style="border-top:1px solid #243044;margin:36px 0 24px;"></div>
 
-
-      <img src="../assets/site/settings-en.png" alt="FAFE settings window" width="1307" height="951" loading="lazy" decoding="async" style="width:100%;">
-
-
-        <div class="caption">Settings window</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:1.85rem;color:#F4F8FD;letter-spacing:-.01em;">$5.99 one-time unlock</span>
+            <span style="color:#5f7488;font-size:.9rem;">Regional price may vary with exchange rate.</span>
+          </div>
+          <a href="https://ko-fi.com/s/edbeb0552c" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:1.02rem;padding:14px 30px;border-radius:10px;box-shadow:0 8px 26px rgba(37,99,235,.4);white-space:nowrap;">Unlock Full Auto</a>
+        </div>
       </div>
     </div>
   </div>
+</section>
 
-  <!-- Disclaimer -->
-  <div class="section" id="disclaimer">
+<!-- ════════ FEATURES & GUIDES ════════ -->
+<section id="guides" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
+    <div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;">Features &amp; Guides</div>
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:2.2rem;line-height:1.12;color:#F4F8FD;margin:12px 0 14px;letter-spacing:-.015em;">What FAFE can do — and how to use it</h2>
+    <p style="color:#82A0B2;font-size:1.05rem;line-height:1.7;margin:0 0 32px;max-width:680px;">Each feature opens its complete guide, so you can understand what it automates and then follow the exact setup steps.</p>
 
+    <a href="guides/full-auto/" style="display:block;text-decoration:none;position:relative;background:#0C1A2E;border:1px solid #2563EB;border-radius:12px;padding:26px 30px;margin-bottom:22px;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 36% 130% at 100% 0%, rgba(37,99,235,0.16), transparent 60%);pointer-events:none;"></div>
+      <div style="position:relative;display:flex;align-items:flex-start;gap:22px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:11px;margin-bottom:7px;">
+            <span style="font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#0B0F17;background:#7DB2FF;border-radius:4px;padding:3px 7px;">Pro</span>
+            <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.2rem;color:#F4F8FD;margin:0;white-space:nowrap;">Full Auto Mode</h3>
+            <span style="font-family:'Geist Mono',monospace;font-size:.86rem;color:#7DB2FF;margin-left:auto;white-space:nowrap;">Read guide →</span>
+          </div>
+          <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.55;max-width:760px;">Chain every tool into one hands-off loop — Wheelspin Mode or Money Mode, with automatic mastery detection, live stage progress, and optional Auto Wheelspin after deleting.</p>
+        </div>
+      </div>
+    </a>
 
-    <div class="section-label">Disclaimer</div>
-
-
-    <h2>Please Read Before Use</h2>
-
-
-    <p>This tool only simulates keyboard and mouse input — no memory modification or game file tampering. That said, using any automation tool carries a risk of account action. Use at your own discretion.</p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;">
+      <a href="guides/forza-horizon-6-farming-guide/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#7DB2FF;border:1px solid #7DB2FF55;background:#7DB2FF1A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Overview</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Money, Credit &amp; Skill Point Farm</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">The complete public workflow from AFK races through mastery unlocks, Wheelspins and cleanup.</p></a>
+      <a href="guides/first-time-setup/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A99BF2;border:1px solid #A99BF255;background:#A99BF21A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Configuration</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">First-time Setup</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Select the game monitor, language and initial controls — 繁中 / English, multi-monitor, ultrawide.</p></a>
+      <a href="guides/settings/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A99BF2;border:1px solid #A99BF255;background:#A99BF21A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Configuration</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Settings</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Appearance, remappable hotkeys, language, timing controls and background mode.</p></a>
+      <a href="guides/race-auto-grind/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#6FD0C0;border:1px solid #6FD0C055;background:#6FD0C01A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Automation</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">AFK Races</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Detects the race start and results screens, holds W through the EventLab race, restarts automatically.</p></a>
+      <a href="guides/auto-unlock-spin-wheel-mastery-tree/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#6FD0C0;border:1px solid #6FD0C055;background:#6FD0C01A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Automation</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Unlock Wheelspins from Mastery</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Configure a mastery-tree path and garage range; FAFE unlocks the nodes and moves to each next car.</p></a>
+      <a href="guides/auto-buy-cars-in-batch/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#6FD0C0;border:1px solid #6FD0C055;background:#6FD0C01A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Automation</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Auto Buy Cars in Batch</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Batch-buy any purchasable car from Car Collection, or start from the menu with the 22B-STI preset.</p></a>
+      <a href="guides/auto-wheelspin/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#6FD0C0;border:1px solid #6FD0C055;background:#6FD0C01A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Automation</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Auto Wheelspins</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Run Super or normal Wheelspins, collect prizes, and keep or sell duplicates until the count is complete.</p></a>
+      <a href="guides/delete-used-cars/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#6FD0C0;border:1px solid #6FD0C055;background:#6FD0C01A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Automation</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Delete Used Cars</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Delete a confirmed garage range one car at a time; the game selects the next car automatically.</p></a>
+      <a href="guides/game-overlay/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#E0B27E;border:1px solid #E0B27E55;background:#E0B27E1A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Utility</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Game Overlay</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Use and position the floating status overlay while FAFE runs.</p></a>
+      <a href="guides/mechanics/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9FB4CC;border:1px solid #9FB4CC55;background:#9FB4CC1A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Knowledge</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">How It Works</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">How templates auto-scale to your resolution and how background capture keeps FAFE working.</p></a>
+      <a href="guides/troubleshooting/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#EB9DB6;border:1px solid #EB9DB655;background:#EB9DB61A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Support</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Troubleshooting</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Resolve input, timing and detection problems.</p></a>
+      <a href="guides/reporting-bugs/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:24px;"><span style="display:inline-block;font-family:'Geist Mono',monospace;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#EB9DB6;border:1px solid #EB9DB655;background:#EB9DB61A;border-radius:5px;padding:4px 8px;margin-bottom:13px;">Support</span><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 7px;">Reporting Bugs</h3><p style="font-size:.88rem;color:#82A0B2;margin:0;line-height:1.55;">Create and share an actionable F12 report.</p></a>
+    </div>
   </div>
+</section>
+
+<!-- ════════ GETTING STARTED ════════ -->
+<section id="howto" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
+    <div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;">Getting Started</div>
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:2.2rem;line-height:1.12;color:#F4F8FD;margin:12px 0 30px;letter-spacing:-.015em;">Three steps to start</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <div style="width:38px;height:38px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;font-family:'Geist Mono',monospace;">1</div>
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.1rem;color:#F4F8FD;margin:16px 0 7px;">Pick your game monitor</h3>
+        <p style="font-size:.92rem;color:#82A0B2;margin:0;line-height:1.6;">Select the monitor your game is on. Detection templates ship built in and auto-scale — Race, Buy and Auto Wheelspins need <strong style="color:#cdd9e5;font-weight:600;">no capturing</strong>.</p>
+      </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <div style="width:38px;height:38px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;font-family:'Geist Mono',monospace;">2</div>
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.1rem;color:#F4F8FD;margin:16px 0 7px;">Position the game, press Start</h3>
+        <p style="font-size:.92rem;color:#82A0B2;margin:0;line-height:1.6;">Place Forza Horizon 6 on the required screen, then click "Start" or press <strong style="color:#cdd9e5;font-weight:600;">F9</strong>. FAFE counts down 3 seconds — with background mode on, you don't switch back.</p>
+      </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <div style="width:38px;height:38px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;font-family:'Geist Mono',monospace;">3</div>
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.1rem;color:#F4F8FD;margin:16px 0 7px;">Let it run</h3>
+        <p style="font-size:.92rem;color:#82A0B2;margin:0;line-height:1.6;">FAFE runs fully automatically. A live log shows every action in real time. To stop at any time, press <strong style="color:#cdd9e5;font-weight:600;">F9</strong> or click "■ Stop".</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SETTINGS ════════ -->
+<section id="settings" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:88px 56px;">
+    <div style="display:grid;grid-template-columns:560px 1fr;gap:80px;align-items:center;">
+      <div>
+        <div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;">Advanced Settings</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:2.2rem;line-height:1.12;color:#F4F8FD;margin:12px 0 18px;letter-spacing:-.015em;">Tune for your PC</h2>
+        <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.7;margin:0 0 16px;">Open <strong style="color:#F4F8FD;font-weight:600;">Settings</strong> from the sidebar to fine-tune how FAFE runs.</p>
+        <p style="color:#82A0B2;font-size:1.04rem;line-height:1.7;margin:0;">Each setting's explanation sits right below its title, and every change saves instantly. Adjust the settings to your own liking.</p>
+      </div>
+      <div style="border:1px solid #243044;border-radius:12px;overflow:hidden;background:#0A0E14;box-shadow:0 30px 70px rgba(0,0,0,.5);">
+        <img src="../assets/site/settings-v2-en.png" alt="FAFE settings window" width="1201" height="1017" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+        <div style="padding:11px 16px;font-family:'Geist Mono',monospace;font-size:.77rem;color:#5f7488;border-top:1px solid #1a2433;background:#0C1320;">Settings window</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ DISCLAIMER ════════ -->
+<section id="disclaimer" style="border-bottom:1px solid #1a2433;">
+  <div style="max-width:1640px;margin:0 auto;padding:80px 56px;">
+    <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:34px 40px;">
+      <div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;">Disclaimer</div>
+      <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:10px 0 12px;letter-spacing:-.01em;">Please read before use</h2>
+      <p style="color:#82A0B2;font-size:1.02rem;line-height:1.75;margin:0;max-width:840px;">This tool only simulates keyboard and mouse input — no memory modification or game file tampering. That said, using any automation tool carries a risk of account action. Use at your own discretion. FAFE is an unofficial, fan-made project and is not affiliated with Forza, Playground Games, or Xbox Game Studios.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FOOTER ════════ -->
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 32px;">
+  <div style="max-width:1640px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
 
 </div>
-
-<div class="footer">
-  <a class="footer-support" href="https://paypal.me/Leonbacon" target="_blank">
-    <span>Support Me</span>
-  </a>
-
-
-  <span>Full Auto Forza Edition &nbsp;·&nbsp; For Forza Horizon 6 &nbsp;·&nbsp; Unofficial tool, not affiliated with Xbox Game Studios &nbsp;·&nbsp; <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank">GitHub</a> &nbsp;·&nbsp; <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank">Discord</a></span>
-</div>
-
-<script>
-
-function togglePart(btn) {
-  const isOpen = btn.classList.contains('open');
-  btn.classList.toggle('open');
-  btn.querySelector('.tut-chevron').textContent = isOpen ? '▼' : '▲';
-  btn.nextElementSibling.classList.toggle('open');
-}
-
-function setLang(lang) {
-  // Hide all lang elements
-  document.querySelectorAll('[data-lang]').forEach(el => {
-    el.classList.remove('active');
-    // For images, also hide via display
-    if (el.tagName === 'IMG') el.style.display = 'none';
-  });
-  // Show selected lang
-  document.querySelectorAll('[data-lang="' + lang + '"]').forEach(el => {
-    el.classList.add('active');
-    if (el.tagName === 'IMG') el.style.display = 'block';
-  });
-  // Update html lang attribute
-  document.documentElement.lang = lang === 'zh-tw' ? 'zh-TW' : 'en';
-}
-
-function changeLanguage(lang) {
-  try {
-    localStorage.setItem('preferredLanguage', lang);
-  } catch (error) {
-    // Language switching still works when storage is unavailable.
-  }
-  window.location.href = lang === 'zh-tw' ? '../zh-tw/' : '../en/';
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  try {
-    const lang = document.documentElement.dataset.pageLang;
-
-    setLang(lang);
-    document.querySelector('.lang-select').value = lang;
-  } finally {
-    document.documentElement.classList.remove('lang-loading');
-  }
-});
-
-(function() {
-  var sections = ['about','features','guides','howto','settings','disclaimer'];
-  function onScroll() {
-    var scrollY = window.scrollY + 120;
-    var current = sections[0];
-    sections.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el && el.offsetTop <= scrollY) current = id;
-    });
-    sections.forEach(function(id) {
-      var nav = document.getElementById('nav-' + id);
-      if (nav) nav.classList.toggle('active', id === current);
-    });
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-})();
-
-</script>
-
 </body>
 </html>

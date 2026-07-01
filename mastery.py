@@ -8,17 +8,17 @@ import time
 import threading
 import ctypes
 from ctypes import wintypes
-import pydirectinput
 
 from app_lang import t as _at
 import config
-from config import get_mastery_grid_file
-from capture import load_grid, get_monitor_dims, force_english_ime
+from config import get_mastery_grid_file, get_mastery_templates
+from capture import load_grid, load_template, force_english_ime
+from detector import ScreenDetector
 from gameio import GameIO
 
 # The mastery tree is a 4x4 grid; the in-game cursor always starts bottom-left.
 # We navigate it with WASD (one cell per press) + Enter to unlock — no mouse, so
-# it's fully background-safe (see grid_widget.py for the picker UI).
+# it's fully background-safe (the WebUI owns the picker UI).
 _GRID_ROWS, _GRID_COLS = 4, 4
 _GRID_START = (_GRID_ROWS - 1, 0)   # bottom-left
 # Grid-nav pacing. The post-Enter unlock settle (pause after unlocking a node,
@@ -159,11 +159,233 @@ _KEYS_CUTSCENE_WAIT     = 11.0
 _KEYS_SCREEN_WAIT       = 1.5
 _TAP_WAIT               = 0.25   # matches grid move rate; 0.1 dropped taps on slow PCs
 
+GATED_TEMPLATE_KEYS = (
+    "ride_this_car",
+    "upgrade_tuning",
+    "car_mastery",
+    "mastery_tree",
+    "my_cars",
+    "my_cars_header",
+    "recently_added",
+)
+_GATED_DETECT_WINDOW = 10.0
+
+
+def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
+                     end_at_mycars, lang, log_cb, status_cb, section,
+                     progress_cb, stop, wait, taps, announce, cut_wait, post_kw,
+                     grid_unlock_wait, initial_completed=0):
+    """Template-gated Mastery path: old keyboard route, checked by templates."""
+    detector = ScreenDetector(_fresh, on_auto_ocr=log_cb)
+    tpl_lang = config.resolve_template_lang(_fresh)
+    folder = get_mastery_templates(config.REFERENCE_RES, tpl_lang)
+    ref_folder = folder
+    prefer_ref = _fresh.get("template_prefer_reference", True)
+
+    def _thr(key):
+        return float(_fresh.get("thresh_" + key, 0.70))
+
+    templates = {}
+    for key in GATED_TEMPLATE_KEYS:
+        try:
+            img, scale, meta = load_template(
+                folder, key, io.width, io.height, grayscale=True,
+                ref_folder=ref_folder, prefer_ref=prefer_ref)
+            templates[key] = img
+            box = meta.get("box")
+            if box:
+                detector.set_template_geometry(
+                    key, box, meta.get("screen_width", io.width),
+                    meta.get("screen_height", io.height))
+            if meta.get("roi"):
+                detector.set_template_roi(key, meta["roi"],
+                                          meta.get("screen_width", 0),
+                                          meta.get("screen_height", 0))
+            log_cb(_at("log_template_loaded", lang, key=key,
+                       scale=f"{scale:.2f}"))
+        except FileNotFoundError:
+            log_cb(_at("log_template_missing", lang, key=key))
+            status_cb(_at("status_setup_incomplete", lang))
+            io.cleanup()
+            return False
+
+    def _detect(key, window_s=_GATED_DETECT_WINDOW):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None
+            try:
+                r = detector.detect(io.grab(), key, templates[key],
+                                    _thr(key), stable=False)
+                if r.matched:
+                    return r
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return None
+
+    def _wait_for_template(key):
+        announce(_at("log_mastery_gated_wait", lang, label=key))
+        r = _detect(key)
+        if r is None:
+            if not stop():
+                log_cb(_at("log_mastery_gated_fail", lang, label=key))
+            return False
+        log_cb(_at("log_detected", lang, label=key,
+                   conf=f"{r.score:.0%}, {r.source}"))
+        return True
+
+    def _press_for_template(key, target, post_wait=None):
+        log_cb(_at("log_pressing", lang, key=key.upper(), label=target))
+        io.press(key, post_wait=post_kw if post_wait is None else post_wait)
+        return _wait_for_template(target)
+
+    def _unlock_grid():
+        announce(_at("log_grid_unlock", lang, n=len(grid_order)))
+        cur = _GRID_START
+        for i, (gr, gc) in enumerate(grid_order, start=1):
+            if stop():
+                return False
+            keys = []
+            dr, dc = gr - cur[0], gc - cur[1]
+            keys += ['w'] * (-dr) if dr < 0 else ['s'] * dr
+            keys += ['a'] * (-dc) if dc < 0 else ['d'] * dc
+            log_cb(_at("log_grid_step", lang, i=i, n=len(grid_order),
+                       keys=' '.join(k.upper() for k in keys + ['enter'])))
+            for k in keys:
+                if stop():
+                    return False
+                io.press(k, scancode=True, post_wait=_GRID_MOVE_WAIT)
+            if stop():
+                return False
+            io.press('enter', post_wait=grid_unlock_wait)
+            cur = (gr, gc)
+        return True
+
+    log_cb(_at("log_mastery_gated_on", lang))
+    completed = max(0, int(initial_completed or 0))
+    success = False
+    while not stop():
+        if max_cars > 0 and completed >= max_cars:
+            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            success = True
+            break
+        car_num = completed + 1
+        first_attempt = car_num == initial_completed + 1
+        if progress_cb:
+            progress_cb(completed, max_cars)
+
+        idx = car_num - 1
+        nav_keys = (
+            _moves_between(_cell_at(start_loop, 0), _cell_at(start_loop, idx))
+            if first_attempt and idx > 0
+            else ([] if idx == 0
+                  else _moves_between(_cell_at(start_loop, idx - 1),
+                                      _cell_at(start_loop, idx))))
+        section(_at("log_car", lang, n=car_num) +
+                (f" / {max_cars}" if max_cars > 0 else ""))
+        if nav_keys:
+            announce(_at("log_navigating", lang,
+                         keys=' '.join(k.upper() for k in nav_keys)))
+            for key in nav_keys:
+                io.press(key, scancode=True)
+                time.sleep(0.4)
+            time.sleep(0.3)
+        else:
+            announce(_at("log_loop1_start", lang, row=start_loop))
+
+        if not _press_for_template("enter", "ride_this_car"):
+            break
+        if stop():
+            break
+        announce(_at("log_mkeys_ride", lang))
+        io.press('enter', post_wait=0.0)
+
+        announce(_at("log_mkeys_cutscene", lang))
+        wait(cut_wait)
+        if stop():
+            break
+        if not _press_for_template("esc", "upgrade_tuning",
+                                   post_wait=_POST_CUTSCENE_ESC_WAIT):
+            break
+        announce(_at("log_mkeys_upgrade", lang))
+        taps('down', 1)
+        if stop():
+            break
+        io.press('enter', post_wait=post_kw)
+        if not _wait_for_template("car_mastery"):
+            break
+        announce(_at("log_mkeys_mastery", lang))
+        taps('down', 7)
+        if stop():
+            break
+        io.press('enter', post_wait=0.0)
+
+        announce(_at("log_mkeys_wait_mastery", lang))
+        if _detect("mastery_tree", _GATED_DETECT_WINDOW) is None:
+            if not stop():
+                log_cb(_at("log_mastery_gated_fail", lang,
+                           label="mastery_tree"))
+            break
+        if not _unlock_grid():
+            break
+        completed = car_num
+        if progress_cb:
+            progress_cb(completed, max_cars)
+
+        announce(_at("log_esc_back", lang))
+        io.press('esc', post_wait=post_kw)
+        io.press('esc', post_wait=post_kw)
+        if stop():
+            break
+        if not _wait_for_template("my_cars"):
+            break
+        announce(_at("log_mkeys_mycars", lang))
+        taps('up', 1)
+        if stop():
+            break
+        io.press('enter', post_wait=post_kw)
+        if _detect("my_cars_header", _GATED_DETECT_WINDOW) is None:
+            if not stop():
+                log_cb(_at("log_mastery_gated_fail", lang,
+                           label="my_cars_header"))
+            break
+
+        is_last = max_cars > 0 and car_num >= max_cars
+        if is_last and end_at_mycars:
+            completed = car_num
+            if progress_cb:
+                progress_cb(completed, max_cars)
+            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            success = True
+            break
+
+        announce(_at("log_mkeys_sort", lang))
+        io.press('x', post_wait=post_kw)
+        if not _wait_for_template("recently_added"):
+            break
+        taps('down', 6)
+        if stop():
+            break
+        io.press('enter', post_wait=post_kw)
+        if is_last:
+            if progress_cb:
+                progress_cb(completed, max_cars)
+            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            success = True
+            break
+
+    io.cleanup()
+    log_cb(_at("log_mastery_stopped", lang))
+    status_cb(_at("status_stopped", lang))
+    return stop() or success
+
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
         grid_file: str = None, end_at_mycars: bool = False,
-        start_loop: int = None, grid_order: list = None, progress_cb=None):
+        start_loop: int = None, grid_order: list = None, progress_cb=None,
+        initial_completed: int = 0):
     # warn_cb is accepted for call-site compatibility but unused — this flow
     # never detects, so there's no "not detected" warning to raise.
     # grid_file: which mastery-tree path spec to use. None → the Mastery tab's
@@ -186,7 +408,7 @@ def run(cfg: dict, stop_event: threading.Event,
     _fresh = _cfg_mod.load()
     post_kw    = _POST_KEY_WAIT          # fixed (menu-step transitions)
     if start_loop is None:
-        start_loop = _fresh.get("mastery_start_loop", 1)
+        start_loop = _fresh.get("mastery_block_first_row", 1)
     start_loop = max(1, min(3, int(start_loop)))
     # Step waits — fixed constants (see top of section), except the cutscene
     # wait (default 11). No code FLOOR (the "skip cutscene" mod can hand-edit it
@@ -220,7 +442,8 @@ def run(cfg: dict, stop_event: threading.Event,
     if not grid_order:
         log_cb(_at("log_grid_missing", lang))
         status_cb(_at("status_setup_incomplete", lang))
-        return
+        io.cleanup()
+        return False
 
     def stop():
         return stop_event.is_set()
@@ -259,22 +482,37 @@ def run(cfg: dict, stop_event: threading.Event,
     io.mute(_fresh)
     io.start_keepalive(stop, _fresh)
 
-    car_num    = 0
+    if _fresh.get("mastery_gated_menus", True):
+        return _run_gated_menus(
+            _fresh, io, grid_order, start_loop, max_cars, end_at_mycars,
+            lang, log_cb, status_cb, section, progress_cb, stop, wait,
+            taps, announce, cut_wait, post_kw, grid_unlock_wait,
+            initial_completed=initial_completed)
+
+    completed  = max(0, int(initial_completed or 0))
+    success    = False
 
     while not stop():
-        car_num    += 1
-        is_first   = (car_num == 1)
+        if max_cars > 0 and completed >= max_cars:
+            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            success = True
+            break
+        car_num    = completed + 1
+        first_attempt = car_num == initial_completed + 1
         if progress_cb:                       # cars completed so far → UI bar fill
-            progress_cb(car_num - 1, max_cars)
+            progress_cb(completed, max_cars)
 
         # ── 1. Navigate to next car (top→bottom column-major) ──
         # The first car needs no nav (we start positioned on it). Otherwise emit
         # the moves from the previous car's grid cell to this one. start_loop is
         # the first car's row; Full Auto forces 1 (newest car, top-left).
         idx = car_num - 1
-        nav_keys = ([] if is_first
-                    else _moves_between(_cell_at(start_loop, idx - 1),
-                                        _cell_at(start_loop, idx)))
+        nav_keys = (
+            _moves_between(_cell_at(start_loop, 0), _cell_at(start_loop, idx))
+            if first_attempt and idx > 0
+            else ([] if idx == 0
+                  else _moves_between(_cell_at(start_loop, idx - 1),
+                                      _cell_at(start_loop, idx))))
         section(_at("log_car", lang, n=car_num) +
                 (f" / {max_cars}" if max_cars > 0 else ""))
 
@@ -361,7 +599,11 @@ def run(cfg: dict, stop_event: threading.Event,
         # sell step rides the non-target car first, then re-sorts itself, so we
         # skip step 11 (it would only reposition the cursor) and break.
         if is_last and end_at_mycars:
+            completed = car_num
+            if progress_cb:
+                progress_cb(completed, max_cars)
             log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            success = True
             break
 
         # ── 11. X + Down ×6 + Enter → sort by Recently Added ──
@@ -372,9 +614,15 @@ def run(cfg: dict, stop_event: threading.Event,
         io.press('enter', post_wait=post_kw)
 
         if is_last:
+            completed = car_num
+            if progress_cb:
+                progress_cb(completed, max_cars)
             log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
+            success = True
             break
+        completed = car_num
 
     io.cleanup()
     log_cb(_at("log_mastery_stopped", lang))
     status_cb(_at("status_stopped", lang))
+    return stop() or success

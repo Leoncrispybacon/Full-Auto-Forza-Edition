@@ -8,9 +8,9 @@ disagrees with anything here, this file wins.
 Product is **dark-mode only**. There is no light theme. Never generate
 light-background variants.
 
-There are **two surfaces** with their own concrete tokens: the **desktop app**
-(CustomTkinter / `theme.py`) and the **website** (static HTML/CSS under `en/`,
-`zh-tw/`, `assets/site/`). They share the same intent — dark, blue accent — but
+There are **two surfaces** with their own concrete tokens: the **desktop app WebUI**
+(`webui/`) and the **website** (static HTML/CSS under `en/`, `zh-tw/`,
+`assets/site/`). They share the same intent — dark, blue accent — but
 use different exact values. Web mockups should follow the **website** palette and
 fonts below; app mockups the **app** ones.
 
@@ -29,7 +29,7 @@ skeuomorphism.
 
 ---
 
-## Color — App (CustomTkinter / theme.py)
+## Color - App WebUI
 
 Use token names, not raw hex, when describing app components.
 
@@ -59,33 +59,35 @@ Use token names, not raw hex, when describing app components.
 
 ---
 
-## Color — Website (actual CSS: a Tailwind slate + blue scale)
+## Color — Website (mirrors the app palette as of the v2.0.0 site refresh)
 
-The site is built on Tailwind's slate/blue values — same dark+blue spirit as the
-app, slightly brighter accents. These are the values to use for web mockups.
+The website now follows the **app's dark tokens**, not the older, brighter Tailwind
+slate/blue scale — the site is being brought visually in line with the desktop app
+(a calm, precise "developer tool" look). Use these for web mockups. The prior Tailwind
+values (`#070A0F`, `#111827`, `#3B82F6`, `#94A3B8`, …) are **superseded** and survive
+only on guide pages not yet restyled.
 
 ### Surfaces & borders
 | Role | Hex | Notes |
 |------|-----|-------|
-| page bg (darkest) | `#070A0F` / `#0F0F0F` | homepage / guide body |
-| header & caption strip | `#0B1220` | site header, screenshot captions |
-| card / section | `#111827` | guide sections, feature cards |
-| notice / TOC (blue-tinted) | `#0C1A2E` | callouts, table-of-contents |
-| code background | `#1E293B` | inline `code` |
-| border (neutral) | `#334155` | cards, dividers |
-| border (subtle / blue-tinted) | `#1E293B` / `#1E3A5F` | hairlines / notice & step accents |
+| page bg (darkest) | `#0B0F17` | homepage / body; `#0A0E14` for inset/code areas |
+| card / section | `#121A28` | sections, feature cards |
+| raised panel | `#161E28` | inner panels, controls, code bg |
+| notice / blue-tinted panel | `#0C1A2E` | callouts, TOC, **the Full Auto panel** |
+| border (neutral) | `#243044` | cards, dividers (1px, low-contrast) |
+| border (soft) | `#1a2433` | hairlines |
 
 ### Accent / text
 | Role | Hex | Notes |
 |------|-----|-------|
-| accent (primary) | `#3B82F6` | blue-500 — hover borders, primary |
-| accent (strong) | `#2563EB` | blue-600 |
-| accent light | `#60A5FA` | blue-400 — links, eyebrow, step numbers |
-| code text | `#BFDBFE` | blue-200 on code bg |
-| heading text | `#F8FAFC` / `#F1F5F9` | h1 / h2 |
-| body text | `#E2E8F0` | paragraphs |
-| muted | `#94A3B8` | lede, captions |
-| dim (meta) | `#64748B` | breadcrumbs, dates, footer |
+| accent (primary) | `#2563EB` | links, primary buttons, active |
+| accent hover | `#1D4FD7` | hover for primary |
+| accent light | `#7DB2FF` | highlights, eyebrow, secondary title text |
+| code text | `#BFDBFE` | on raised panel bg |
+| heading text | `#F4F8FD` | h1 / h2 |
+| body text | `#cdd9e5` | paragraphs |
+| muted | `#82A0B2` | lede, captions |
+| dim (meta) | `#5f7488` | breadcrumbs, dates, footer |
 
 ### Forza-festival amber (website only, sparing)
 | Hex | Use |
@@ -103,10 +105,12 @@ app, slightly brighter accents. These are the values to use for web mockups.
 
 ## Typography
 
-No web fonts are loaded — both surfaces use a **system font stack** (fast, and it
-matches the native app look).
+Both surfaces share the app's typeface set — a **display** face for headings, a
+humanist **sans** for body, and a **mono** for numbers/labels — with system + CJK
+fallbacks. (This supersedes the older "system stack only" guidance: the site now loads
+the same families as the app so the two match.)
 
-### App (CustomTkinter, Windows)
+### App (WebUI, Windows)
 | Token | Family | Notes |
 |-------|--------|-------|
 | `font_title` / `font_button` | Segoe UI (Bold) | headers, buttons |
@@ -115,15 +119,20 @@ matches the native app look).
 
 Per-language pinning: **繁中/简中 → Microsoft JhengHei UI**, **English → Segoe UI**.
 
-### Website
-- Stack: **`"Segoe UI", "Microsoft JhengHei UI", sans-serif`** (guides);
-  homepage leads CJK-first: `'Microsoft JhengHei', 'PingFang TC', 'Helvetica Neue', sans-serif`.
-- Body line-height **1.75** (roomy, reading-oriented).
-- `h1`: `clamp(2rem, 5vw, 3.1rem)`, line-height 1.15, `#F8FAFC`.
-- `.lede`: 1.13rem, `#94A3B8`. `h2`: 1.45rem, `#F1F5F9`.
+### Website (app-aligned)
+- **Display (headings):** `'Bricolage Grotesque'` (the app's display face; the wordmark
+  may use `'Big Shoulders Display'`), falling back to `'Work Sans'` + system + CJK.
+- **Body:** `'Work Sans', system-ui, 'Segoe UI', <cjk>, sans-serif`.
+- **Mono (stat/label chips, code):** `'Geist Mono', ui-monospace, Consolas, <cjk>`.
+- **CJK fallback:** `'Microsoft JhengHei','Microsoft YaHei','PingFang TC','Noto Sans CJK TC'`
+  — keep it so 繁中 stays crisp; layouts must tolerate longer CJK strings.
+- Fonts are **loaded** (Google Fonts, with bundled TTFs under `assets/site/fonts/` for
+  offline parity) — matching the app, which loads the same families.
+- Body line-height ~1.6–1.75. `h1`: `clamp(2rem, 5vw, 3.1rem)`, lh 1.15, `#F4F8FD`.
+  `.lede`: ~1.13rem, `#82A0B2`. `h2`: ~1.45rem, `#F4F8FD`.
 - `.eyebrow` (kicker): 0.78rem, weight 700, `letter-spacing .12em`, UPPERCASE,
-  `#60A5FA` — the small blue label above each h1.
-- `code`: monospace, `#BFDBFE` on `#1E293B`.
+  `#7DB2FF` — the small blue label above each h1.
+- `code`: mono, `#BFDBFE` on `#161E28`.
 
 ---
 
@@ -158,14 +167,42 @@ Per-language pinning: **繁中/简中 → Microsoft JhengHei UI**, **English →
   pills, `#1E3A5F` bg / `#60A5FA` number) → `.screenshot` (zoomable, with a
   caption strip) → 2-column `.toc` → `.guide-grid` of cards → prev/next
   `.guide-pagination`.
-- **Homepage:** dark hero → a single **Features & Guides** section of clickable
-  cards (restrained text category labels, **no decorative emoji**) → download
-  button pointing at the latest `FAFE.zip` GitHub release asset → a Support/PayPal
-  link. The Horizon/festival element may use the amber set, sparingly.
+- **Homepage section order:** dark hero (radial blue glow, app-style) + an **installer**
+  download button → in-page nav → **What is FAFE** (`#about`) → **Full Auto**
+  (`#full-auto`, the paid section — see the Full Auto subsection below) → **Features &
+  Guides** (`#guides`, clickable cards, restrained text category labels, **no decorative
+  emoji**) → **Three Steps to Start** (`#howto`) → **Advanced Settings** (`#settings`) →
+  **Disclaimer** → footer Support/PayPal link. The Horizon/festival element may use the
+  amber set, sparingly.
+- **Download** points at the latest **installer**:
+  `…/releases/latest/download/FAFE_Setup.exe` (version-less name, auto-tracks latest; not
+  a zip — the installer avoids Windows' Mark-of-the-Web DLL block).
 - **Responsive:** ≤640px collapses the 2-column grids (guide grid, TOC,
   pagination) to a single column.
 - **Screenshots:** WebP, resized to ~≤1600px wide; every image needs
   `width`/`height`, lazy loading, async decoding, descriptive alt, and a caption.
+
+### Full Auto — the paid homepage section (`#full-auto`)
+Placed **between `#about` and `#guides`**, and linked in the in-page nav between "About"
+and "Features & Guides". The optional paid mode; everything else in FAFE stays free.
+- **Attention, restrained.** A distinct, self-contained panel on the blue-tinted surface
+  (`#0C1A2E`) with a subtle `#2563EB` accent border and a small uppercase eyebrow
+  ("PREMIUM" / 「進階模式」). Reads a notch above the feature cards, well below the hero —
+  no amber, no neon, no animation beyond the site's restrained glow.
+- **What it is:** Full Auto chains FAFE's individual tools into one hands-off loop — it
+  races, buys cars, unlocks mastery, sells, and repeats unattended. Mirror the app's own
+  locked/teaser preview so the site and app agree.
+- **Bullets:** two grind modes — **Wheelspin Grind** and **Money Grind**; automatic
+  mastery-point detection + car-count calculation; real-time stage progress; optional
+  Auto Wheelspin branch after selling.
+- **Pricing (one-time unlock):** `$5.99 one-time unlock` (`/en/`), `NT$190 一次買斷`
+  (`/zh-tw/`), with a small regional-equivalent-price note.
+- **CTA:** a single accent-blue button → `https://ko-fi.com/s/edbeb0552c`
+  (EN "Unlock Full Auto" · 繁中 「解鎖全自動模式」).
+- **Naming:** in 繁中 the mode is always **「全自動模式」** — never mix in English
+  "farming"/"掛機".
+- **Scope guard:** marketing copy, pricing, and the purchase link are public and belong
+  here; the chain's implementation details do **not** — keep them out of this file.
 
 ### App — Fluent sidebar layout
 - **Left sidebar** (~210px): FAFE wordmark; vertical nav (one per automation
