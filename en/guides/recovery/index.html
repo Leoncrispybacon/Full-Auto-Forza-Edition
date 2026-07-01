@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recovery System Guide - FAFE</title>
+<meta name="description" content="How FAFE recovers when a detection or menu hand-off fails: a bounded stage-level retry with safe-screen re-anchoring, and an automatic game relaunch for frozen loading screens.">
+<link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/">
+<link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/">
+<link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/recovery/">
+<link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/recovery/">
+<link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+</style>
+</head>
+<body>
+<div style="background:#0B0F17;">
+
+<!-- ════════ TOP HEADER ════════ -->
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;">
+      <a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">About</a>
+      <a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">Full Auto</a>
+      <a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Features &amp; Guides</a>
+      <a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Getting Started</a>
+      <a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Settings</a>
+    </nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="Language" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/recovery/" selected>EN</option>
+        <option value="../../../zh-tw/guides/recovery/">繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">Download</a>
+    </div>
+  </div>
+</header>
+
+<!-- ════════ GUIDE BODY ════════ -->
+<main style="max-width:880px;margin:0 auto;padding:40px 40px 80px;">
+
+  <!-- breadcrumbs -->
+  <nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;">
+    <a href="../../" style="color:#5f7488;text-decoration:none;">Home</a>
+    <span>/</span>
+    <a href="../../#guides" style="color:#5f7488;text-decoration:none;">Guides</a>
+    <span>/</span>
+    <span style="color:#82A0B2;">Recovery System</span>
+  </nav>
+
+  <!-- title block -->
+  <div style="margin-bottom:10px;">
+    <span style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9FB4CC;">Knowledge</span>
+  </div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">Recovery System</h1>
+  <p style="font-size:1.18rem;line-height:1.6;color:#82A0B2;margin:0;max-width:680px;">When a detection or a menu hand-off doesn't go as expected, FAFE doesn't just stop. Two layers try to get the run back on track before giving up.</p>
+
+  <!-- LAYERS -->
+  <section id="layers" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">The two recovery layers</h2>
+    <div style="background:#0A0E14;border:1px solid #243044;border-radius:12px;padding:26px;overflow-x:auto;">
+      <div style="display:flex;align-items:center;gap:10px;min-width:660px;flex-wrap:nowrap;">
+        <span style="background:#161E28;border:1px solid #243044;color:#cdd9e5;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">Stage route</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#E0B27E;flex-shrink:0;">fails?</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#0D1622;border:1px solid #2a4036;color:#6FD0C0;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">Layer 1 · retry + re-anchor</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#E0B27E;flex-shrink:0;">still stuck?</span>
+        <span style="color:#5f7488;flex-shrink:0;">→</span>
+        <span style="background:#1a140a;border:1px solid #4a3a1e;color:#E0B27E;border-radius:10px;padding:12px 15px;font-family:'Geist Mono',monospace;font-size:.84rem;white-space:nowrap;flex-shrink:0;">Layer 2 · relaunch the game</span>
+      </div>
+    </div>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:22px 0 0;">Layer 1 handles small hiccups without ever touching the game process. Layer 2 is the heavier fallback for when the game itself is the problem — a frozen loading screen, a crash, or the window closing.</p>
+  </section>
+
+  <!-- LAYER 1 -->
+  <section id="layer1" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">Layer 1 — stage-level retry</h2>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 22px;">Every stage of a route (entering a menu, confirming a screen, handing off to the next step) runs through a bounded retry loop. If a stage fails, FAFE doesn't immediately give up or barrel forward blind — it retries the same route a limited number of times, and between attempts it can re-anchor to a known-safe screen first.</p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">Bounded retries</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">A failed stage route is retried a small, configurable number of times before FAFE aborts that run. This is deliberately limited — an unrecoverable state shouldn't loop forever silently.</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">Safety anchors</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Two screens are treated as universal safe points: the <strong style="color:#cdd9e5;font-weight:600;">open world</strong> (driving free-roam) and the <strong style="color:#cdd9e5;font-weight:600;">main menu</strong>. Both are reachable from almost anywhere by pressing Escape repeatedly, and every major route knows how to restart itself from either one.</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">Retry budget resets on recovery</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">If a retry manages to re-anchor to a safe screen, the failure count resets — so one genuine recovery doesn't eat into the budget for a later, unrelated hiccup. Only consecutive, un-recovered failures count against the limit.</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">Won't repeat completed work</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">If the stage's actual work (a purchase, a spin, a race) already finished and only a later hand-off failed, FAFE recognizes that and moves on — it won't buy the same car twice just because the screen after it didn't confirm cleanly.</p></div>
+    </div>
+  </section>
+
+  <!-- LAYER 2 -->
+  <section id="layer2" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">Layer 2 — game relaunch</h2>
+    <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 26px;">If Layer 1 can't recover — most commonly an infinite loading screen after selecting your last-played event, before the race-type menu appears — FAFE treats the game itself as stuck and takes a heavier step.</p>
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Close the stuck game</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">FAFE asks the window to close gracefully, then force-closes it if it hasn't within about 10 seconds.</p></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Wait, then relaunch</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">After a short delay (8 seconds by default), FAFE relaunches the game through whichever platform it's running on — <strong style="color:#cdd9e5;font-weight:600;">Steam</strong>, <strong style="color:#cdd9e5;font-weight:600;">Xbox / Game Pass</strong>, or a custom launch command.</p></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Auto-navigate back to the main menu</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Once the game window reappears, FAFE walks the launch prompts itself (start prompt → continue → home → open world → main menu) so the loop can resume exactly where a manual restart would leave it.</p></div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">4</div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Resume the loop</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">AFK Races (and Full Auto, which runs Race internally) continues from the main menu as if nothing happened.</p></div>
+      </div>
+    </div>
+    <div style="margin-top:24px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.6;color:#cdd9e5;">
+      The same relaunch also covers the game simply <strong style="color:#F4F8FD;font-weight:600;">not being open yet</strong>: starting AFK Races or Full Auto with the game closed launches it and routes to the main menu automatically, instead of failing immediately.
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" style="margin-top:52px;">
+    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Settings</h2>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">Launch game when needed</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">On by default. Starts the game for AFK Races or Full Auto if no game window is detected, and handles the relaunch after a stuck loading screen. Turn it off if you'd rather FAFE just stop and let you handle it manually.</p></div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;"><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.05rem;color:#F4F8FD;margin:0 0 5px;">Relaunch delay</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">8 seconds by default — how long FAFE waits after closing a stuck game before launching it again, giving Steam / Xbox time to fully release the old session.</p></div>
+    </div>
+    <div style="margin-top:16px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.6;color:#cdd9e5;">
+      <strong style="color:#F4F8FD;font-weight:600;">In the Activity log:</strong> recovery steps are logged as they happen — lines like <span style="font-family:'Geist Mono',monospace;color:#7DB2FF;">retrying stage route</span>, <span style="font-family:'Geist Mono',monospace;color:#7DB2FF;">closing stuck game before relaunch</span>, and <span style="font-family:'Geist Mono',monospace;color:#7DB2FF;">relaunching game via steam</span> tell you exactly which layer kicked in and why.
+    </div>
+  </section>
+
+  <!-- prev / next -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:60px;">
+    <a href="../mechanics/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#5f7488;margin-bottom:5px;">← Previous</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">How It Works</div>
+    </a>
+    <a href="../troubleshooting/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 22px;text-align:right;">
+      <div style="font-family:'Geist Mono',monospace;font-size:.72rem;color:#5f7488;margin-bottom:5px;">Next →</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">Troubleshooting</div>
+    </a>
+  </div>
+
+</main>
+
+<!-- ════════ FOOTER ════════ -->
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
