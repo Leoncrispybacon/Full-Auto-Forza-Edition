@@ -100,6 +100,7 @@ class GameRelaunchTests(unittest.TestCase):
         self.assertIn("game_relaunch.relaunch_game", source)
         self.assertIn("_RACE_HISTORY_DEAD_ZONE_WINDOW = 60.0", source)
         self.assertIn("_HISTORY_RETRY_CHECK_WINDOW = 3.0", source)
+        self.assertIn("_HISTORY_POST_RETRY_RECOVERY_WINDOW = 10.0", source)
 
     def test_race_history_retries_only_when_still_on_history(self):
         source = Path("race.py").read_text(encoding="utf-8")
@@ -109,6 +110,7 @@ class GameRelaunchTests(unittest.TestCase):
         self.assertNotIn("def _enter_until", source)
         self.assertNotIn("log_race_nav_retry", source)
         self.assertIn('_detect_nav_any((retry_to, key), _HISTORY_RETRY_CHECK_WINDOW)', block)
+        self.assertIn("_HISTORY_POST_RETRY_RECOVERY_WINDOW", block)
         self.assertIn('_kp("enter", post_wait=0.0)', block)
         self.assertIn("_RACE_HISTORY_DEAD_ZONE_WINDOW", block)
 

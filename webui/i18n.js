@@ -109,6 +109,7 @@ const I18N = {
     locked_feat_license: "Hardware-bound license with 2 activations and 3-day offline grace",
     // settings
     set_back: "← Back", set_title: "Settings", set_appearance: "Appearance",
+    set_theme: "Theme", theme_default: "Default", theme_denia: "Dasvidaniya", theme_horizon: "Amber",
     set_app_lang: "App language", set_game_lang: "Game-menu language",
     set_game_lang_auto: "Auto (follow app)", set_overlay: "Game overlay",
     set_system: "System", set_shortcuts: "Shortcuts", set_timing: "Timing", set_license: "License",
@@ -256,6 +257,7 @@ const I18N = {
     locked_feat_bulk: "把購買、熟練度解鎖、賣車串成同一套流程",
     locked_feat_license: "硬體綁定授權，2 次啟用，3 天離線寬限",
     set_back: "← 返回", set_title: "設定", set_appearance: "外觀",
+    set_theme: "佈景主題", theme_default: "預設", theme_denia: "Dasvidaniya", theme_horizon: "Amber",
     set_app_lang: "應用程式語言", set_game_lang: "遊戲選單語言",
     set_game_lang_auto: "自動（跟隨應用程式）", set_overlay: "遊戲浮層",
     set_system: "系統", set_shortcuts: "快捷鍵", set_timing: "時間調整", set_license: "授權",

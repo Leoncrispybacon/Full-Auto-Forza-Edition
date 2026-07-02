@@ -28,6 +28,13 @@ class AutoOcrBorderlineTests(unittest.TestCase):
         self.assertIn('get("detector_min_threshold", 0.70)', detector_source)
         self.assertIn("slider.min = '0.70'", ui_source)
 
+    def test_ocr_default_lower_gate_is_not_garbage_low(self):
+        import detector
+
+        d = detector.ScreenDetector({"detector_enable_ocr": True})
+
+        self.assertEqual(d._ocr_skip_below, 0.40)
+
     def test_automations_forward_auto_ocr_note_to_logs(self):
         for path in ("race.py", "buy.py", "wheelspin.py", "mastery.py", "full_auto.py"):
             with self.subTest(path=path):

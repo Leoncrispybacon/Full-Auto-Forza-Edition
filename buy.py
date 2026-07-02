@@ -281,9 +281,13 @@ def run(cfg: dict, stop_event: threading.Event,
                 io.click(sub.location[0], sub.location[1], post_kw)
             elif not _nav_click("subaru"):
                 return False
-            log_cb(_at("log_buy_nav_key", lang, keys="S → Enter",
+            log_cb(_at("log_buy_nav_key", lang, keys="S → Enter → Enter",
                        label=_at("buy_tpl_target_car", lang)))
             press('s')
+            if stop():
+                return False
+            press('enter')
+            wait(0.5)
             if stop():
                 return False
             press('enter')
@@ -334,10 +338,14 @@ def run(cfg: dict, stop_event: threading.Event,
         # 7. From BRAT GL the 22B-STi is one row down, so move down once and
         #    select it with Enter. Keyboard nav is reliable here — detecting the
         #    tile collided with the look-alike Subaru tiles (BRAT GL etc.), so the
-        #    template detection for the target car is ditched in favour of S→Enter.
-        log_cb(_at("log_buy_nav_key", lang, keys="S → Enter",
+        #    template detection for the target car is ditched in favour of S→Enter→Enter.
+        log_cb(_at("log_buy_nav_key", lang, keys="S → Enter → Enter",
                    label=_at("buy_tpl_target_car", lang)))
         press('s')
+        if stop():
+            return False
+        press('enter')
+        wait(0.5)
         if stop():
             return False
         press('enter')

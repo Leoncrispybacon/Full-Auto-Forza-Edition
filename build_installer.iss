@@ -17,7 +17,7 @@
 ; -----------------------------------------------------------------------------
 
 #define MyAppName "Full Auto Forza Edition"
-#define MyAppVersion "2.0.4"
+#define MyAppVersion "2.0.5"
 #define MyAppExe "FAFE.exe"
 
 [Setup]

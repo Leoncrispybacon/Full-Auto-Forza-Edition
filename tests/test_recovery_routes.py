@@ -217,6 +217,17 @@ class StageRouteRecoveryTests(unittest.TestCase):
         self.assertIn("recover_fn=_recover_tech_points_route", block)
         self.assertIn("_load_recovery_safety_templates", block)
 
+    def test_tech_point_tabs_click_template_box_center(self):
+        source = Path("full_auto.py").read_text(encoding="utf-8")
+        block = source.split("def _read_tech_points", 1)[1].split(
+            "return points", 1)[0]
+
+        self.assertIn('key in ("cars_top_tab", "story_top_tab")', block)
+        self.assertIn("_content_box", source)
+        self.assertIn("dx + fx * dbox_w", block)
+        self.assertIn("_click_template_center(\"cars_top_tab\", r.location)", block)
+        self.assertIn("_click_template_center(\"story_top_tab\", rb.location)", block)
+
     def test_route_helper_no_longer_has_fault_injection_hook(self):
         source = Path("recovery.py").read_text(encoding="utf-8")
 
@@ -288,6 +299,17 @@ class StageRouteRecoveryTests(unittest.TestCase):
             block = source.split(marker, 1)[1].split("if not recovery.run_stage_route", 1)[0]
             with self.subTest(path=path):
                 self.assertIn("recovery.backtrack_anchor_keys", block)
+
+    def test_buy_nav_exit_uses_existing_four_esc_route(self):
+        source = Path("buy.py").read_text(encoding="utf-8")
+
+        self.assertIn("_EXIT_ESC_COUNT      = 4", source)
+
+    def test_buy_22b_keyboard_target_opens_after_second_enter(self):
+        source = Path("buy.py").read_text(encoding="utf-8")
+
+        self.assertIn('keys="S → Enter → Enter"', source)
+        self.assertGreaterEqual(source.count("wait(0.5)"), 2)
 
 
 if __name__ == "__main__":

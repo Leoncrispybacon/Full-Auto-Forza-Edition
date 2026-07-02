@@ -420,6 +420,7 @@ def run(cfg: dict, stop_event: threading.Event,
     # after a short settle; relaunch is reserved for the no-anchor dead zone.
     _NAV_LOAD_WINDOW = 45.0
     _HISTORY_RETRY_CHECK_WINDOW = 3.0
+    _HISTORY_POST_RETRY_RECOVERY_WINDOW = 10.0
     _RACE_HISTORY_DEAD_ZONE_WINDOW = 60.0
     pending_history_relaunch = False
     recovery_expected_step = None
@@ -526,11 +527,17 @@ def run(cfg: dict, stop_event: threading.Event,
             if which == retry_to:
                 return True
             if which == key:
-                recovery_expected_step = prev_key or key
-                if not stop():
-                    log_cb(_at("log_race_nav_fail", lang, label=lbl,
-                               secs=f"{_HISTORY_RETRY_CHECK_WINDOW:.0f}"))
-                return False
+                which, _hit = _detect_nav_any(
+                    (retry_to, key), _HISTORY_POST_RETRY_RECOVERY_WINDOW)
+                if which == retry_to:
+                    return True
+                if which == key:
+                    recovery_expected_step = prev_key or key
+                    if not stop():
+                        secs = _HISTORY_RETRY_CHECK_WINDOW + _HISTORY_POST_RETRY_RECOVERY_WINDOW
+                        log_cb(_at("log_race_nav_fail", lang, label=lbl,
+                                   secs=f"{secs:.0f}"))
+                    return False
 
         remaining = max(0.0, _RACE_HISTORY_DEAD_ZONE_WINDOW - (time.time() - started))
         which, _hit = _detect_nav_any((retry_to, key), remaining)

@@ -75,6 +75,18 @@ class FullAutoMadMikeTests(unittest.TestCase):
         self.assertIn('"mad_mike": 21', source)
         self.assertIn("target = _target_for_grind", source)
 
+    def test_target_car_tiles_are_double_clicked_to_open_details(self):
+        source = (ROOT / "full_auto.py").read_text(encoding="utf-8")
+        money = source.split("def _money_target_nav", 1)[1].split(
+            "def _mad_mike_target_nav", 1)[0]
+        mad_mike = source.split("def _mad_mike_target_nav", 1)[1].split(
+            "def _navigate_to_mastery_start", 1)[0]
+
+        for block in (money, mad_mike):
+            with self.subTest():
+                self.assertIn("wait(0.5)", block)
+                self.assertGreaterEqual(block.count("io.click(hit.location[0]"), 2)
+
     def test_tech_points_666_ocr_read_is_treated_as_999(self):
         import full_auto
 

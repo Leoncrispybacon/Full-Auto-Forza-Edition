@@ -433,6 +433,7 @@ class Api:
                 "key": str(cfg.get("toggle_key", "f9")).upper(),
                 "running": self._running_flag,
                 "lang": cfg.get("lang", "en"),
+                "theme": cfg.get("theme_preset", "default"),
                 # Only offer Full Auto in the overlay switcher when it's actually
                 # runnable (bundled + licensed) — teaser builds omit it.
                 "fa_available": (_full_auto is not None and self._licensed()),

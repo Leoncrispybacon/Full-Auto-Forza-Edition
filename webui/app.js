@@ -48,8 +48,7 @@ window.appendLog = (line) =>
     l.appendChild(row);
     l.scrollTop = l.scrollHeight;
   });
-window.setStatus = (text, running) => {
-  isRunning = !!running;
+function updateStatusUi(text, running) {
   document.querySelectorAll('.status').forEach(s => {
     s.classList.toggle('run', !!running);
     const t = s.querySelector('.statusText'); if (t) t.textContent = text;
@@ -57,7 +56,70 @@ window.setStatus = (text, running) => {
   // Grey the Start button(s) while a run is active (stop via F9).
   document.querySelectorAll('.start').forEach(b => b.classList.toggle('running', !!running));
   if (!running && typeof setStage === 'function') setStage(-1);   // clear the loop bar
+}
+window.setStatus = (text, running) => {
+  const wasRunning = isRunning;
+  const nextRunning = !!running;
+  isRunning = nextRunning;
+  const root = document.documentElement;
+  const deniaFx = wasRunning !== nextRunning && (state.cfg && state.cfg.theme_preset) === 'denia';
+  const apply = () => {
+    root.dataset.running = nextRunning ? '1' : '0';   // Denia theme: light idle / dark running
+    updateStatusUi(text, nextRunning);
+  };
+  if (deniaFx) transitionDenia(nextRunning, apply);
+  else apply();
 };
+// Themes: a theme = a document-level data-theme; components read var(--token) only.
+// Denia is reactive — light while idle, dark while running (data-running, set above).
+function applyTheme() {
+  const t = (state.cfg && state.cfg.theme_preset) || 'default';
+  const r = document.documentElement;
+  if (t && t !== 'default') r.setAttribute('data-theme', t); else r.removeAttribute('data-theme');
+  r.dataset.running = isRunning ? '1' : '0';
+}
+// Denia only: the character layer + the Start/Stop transition overlay (created once).
+function ensureThemeFx() {
+  if (!document.querySelector('.denia-figure')) document.body.appendChild(el('div')).className = 'denia-figure';
+  if (!document.getElementById('fxOverlay')) { const o = el('div'); o.className = 'fx-overlay'; o.id = 'fxOverlay'; document.body.appendChild(o); }
+}
+let _fxTimer = null;
+function transitionDenia(running, apply) {
+  const root = document.documentElement;
+  root.dataset.fafeTransition = running ? 'swallow' : 'burst';
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!document.startViewTransition || reduce) {
+    apply();
+    delete root.dataset.fafeTransition;
+    return;
+  }
+  const vt = document.startViewTransition(apply);
+  vt.ready.then(() => fxDenia(running)).catch(() => {});
+  vt.finished.finally(() => { delete root.dataset.fafeTransition; });
+}
+function fxDenia(running) {
+  const o = document.getElementById('fxOverlay'); if (!o) return;
+  clearTimeout(_fxTimer); o.classList.remove('on'); o.innerHTML = '';
+  // Translucent particles only — they float OVER the (always-visible) cross-fading UI.
+  if (running) {                     // Start → soft energy swirl
+    o.appendChild(el('div')).className = 'fx-hole-ring';
+    o.appendChild(el('div')).className = 'fx-hole-core';
+  } else {                           // Stop → bubble burst
+    for (let i = 0; i < 14; i++) {
+      const x = 4 + Math.random()*90, y = 6 + Math.random()*84, size = 34 + Math.random()*96;
+      const delay = (Math.random()*0.45).toFixed(2), dur = (0.95 + Math.random()*0.4).toFixed(2), rot = Math.floor(Math.random()*360);
+      const b = el('div'); b.className = 'fx-bubble';
+      b.style.cssText = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`
+        + `background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.95) 0 5%,rgba(255,255,255,.15) 16%,transparent 40%),`
+        + `radial-gradient(circle at 70% 74%,rgba(255,255,255,.55) 0 3%,transparent 22%),`
+        + `conic-gradient(from ${rot}deg,rgba(255,120,190,.42),rgba(120,175,255,.42),rgba(150,255,225,.36),rgba(205,150,255,.42),rgba(255,190,130,.34),rgba(255,120,190,.42));`
+        + `animation:fafeBubble ${dur}s cubic-bezier(.4,0,.5,1) ${delay}s forwards;`;
+      o.appendChild(b);
+    }
+  }
+  o.classList.add('on');
+  _fxTimer = setTimeout(() => { o.classList.remove('on'); o.innerHTML = ''; }, running ? 1400 : 1300);
+}
 // Global hotkeys routed from Python (work while the game is focused).
 window.onHotkey = (name) => {
   if (name === 'f9') {
@@ -818,6 +880,9 @@ function renderSettings() {
   lang.onchange = async () => { await API('set_cfg', 'lang', lang.value); location.reload(); };  // reload re-renders in the new language
   const tpl = document.getElementById('setTplLang'); tpl.value = state.cfg.template_lang || 'auto';
   tpl.onchange = () => { state.cfg.template_lang = tpl.value; API('set_cfg', 'template_lang', tpl.value); };
+  const th = document.getElementById('setTheme');
+  if (th) { th.value = state.cfg.theme_preset || 'default';
+            th.onchange = () => { state.cfg.theme_preset = th.value; API('set_cfg', 'theme_preset', th.value); applyTheme(); }; }
   const ov = document.getElementById('setOverlay');
   ov.classList.toggle('on', state.cfg.overlay_enabled !== false);
   ov.onclick = () => { const now = !ov.classList.contains('on'); ov.classList.toggle('on', now); state.cfg.overlay_enabled = now; API('set_overlay_enabled', now); };
@@ -1041,6 +1106,8 @@ function runPostSetupStartupTasks() {
 
 function finishInit() {
   const data = _initData;
+  applyTheme();                         // apply the saved theme before first paint
+  ensureThemeFx();                      // Denia character + transition-FX layers
   setLang(state.cfg.lang || 'en');     // pick the UI language before rendering
   applyI18n();                          // translate the static index.html chrome
   state.comingSoon = data.coming_soon === true;

@@ -910,7 +910,7 @@ class ScreenDetector:
         self._ocr_skip_above: float = float(
             self.cfg.get("detector_ocr_skip_above", 0.90))
         self._ocr_skip_below: float = float(
-            self.cfg.get("detector_ocr_skip_below", 0.20))
+            self.cfg.get("detector_ocr_skip_below", 0.40))
         # OCR VETO 鈥?OFF by default.  When on, a coincidental pixel match is
         # rejected if OCR reads the ROI and the text does NOT contain the hint.
         # It is DEFAULT OFF and, even when on, only fires when OCR actually read
@@ -1334,7 +1334,10 @@ class ScreenDetector:
                 image_score = max(image_score, self._ocr_confirm_score)
                 ocr_text = cached[1] + " [cached]"
             else:
-                bonus, ocr_text = self._ocr_bonus(area, key)
+                th = max(1, int(gray_tpl.shape[0] * gray_scale))
+                tw = max(1, int(gray_tpl.shape[1] * gray_scale))
+                ocr_area = self._matched_ocr_area(area, gray_loc, tw, th)
+                bonus, ocr_text = self._ocr_bonus(ocr_area, key)
                 if bonus > 0:
                     # Hint text confirmed on screen 鈥?genuine match.
                     image_score = max(image_score, self._ocr_confirm_score)
@@ -1351,6 +1354,19 @@ class ScreenDetector:
                    else self._stable_match(f"{key}:{source}", score, threshold))
         return MatchResult(matched, score, gray_conf, loc, gray_scale, source,
                            ocr_text=ocr_text)
+
+    def _matched_ocr_area(self, area: np.ndarray, loc, tw: int, th: int) -> np.ndarray:
+        h, w = area.shape[:2]
+        x, y = loc
+        pad_x = max(4, int(tw * 0.5))
+        pad_y = max(4, int(th * 0.5))
+        x0 = max(0, int(x) - pad_x)
+        y0 = max(0, int(y) - pad_y)
+        x1 = min(w, int(x) + int(tw) + pad_x)
+        y1 = min(h, int(y) + int(th) + pad_y)
+        if x1 <= x0 or y1 <= y0:
+            return area
+        return area[y0:y1, x0:x1]
 
     def read_text(self, frame: np.ndarray, key: str,
                   template: Optional[np.ndarray] = None) -> str:

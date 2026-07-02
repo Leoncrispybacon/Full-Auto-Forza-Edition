@@ -149,7 +149,7 @@ class GameIO:
         self._next_window_refresh = time.monotonic() + self._window_refresh_interval
         self._ka_stop = threading.Event()
         self._ka_quiet_until = 0.0   # keep-alive skips activation until this time
-        self._held = {}          # key -> True once first keydown sent (repeat bit)
+        self._held = {}          # key -> "post"/"send" for sustained holds
         self._muted_pid = None
         self._low_res_warned_size = None
 
@@ -248,6 +248,10 @@ class GameIO:
                 f"bg={self.bg} win_capture={self.win_capture} "
                 f"rect={rect} frame={self.width}x{self.height}")
 
+    def _game_foreground(self):
+        return bool(self.bg and self.hwnd
+                    and capture.get_foreground_window() == self.hwnd)
+
     # ── Capture ──────────────────────────────────────────────
     def _grab_raw(self, refresh=True):
         """Raw client-area / monitor frame, BEFORE any letterbox crop."""
@@ -321,7 +325,7 @@ class GameIO:
         """Tap a key. Background → PostMessage to the window; foreground →
         SendInput (dual VK+scan, or scancode-only for grid/gameplay keys)."""
         self.quiet_keepalive()
-        if self.bg:
+        if self.bg and not self._game_foreground():
             vk = _vk(key)
             if vk is not None:
                 ext = vk in _EXTENDED_VKS
@@ -346,15 +350,21 @@ class GameIO:
         """One keydown for a SUSTAINED hold (re-call at ~30ms). Background uses
         PostMessage with the auto-repeat bit after the first; foreground uses a
         flagged scancode (the gameplay/driving path)."""
-        if self.bg:
+        use_post = self.bg and not self._game_foreground()
+        prev = self._held.get(key)
+        if prev and prev != ("post" if use_post else "send"):
+            self.release(key)
+            prev = None
+        if use_post:
             vk = _vk(key)
             if vk is not None:
                 capture.post_key(self.hwnd, vk, key_up=False,
                                  extended=vk in _EXTENDED_VKS,
-                                 repeat=self._held.get(key, False))
-                self._held[key] = True
+                                 repeat=prev == "post")
+                self._held[key] = "post"
         else:
             _send_scancode(key, False)
+            self._held[key] = "send"
 
     def fresh_hold(self, key, settle: float = 0.05):
         """Force a fresh held-key start: keyup, clear repeat state, keydown.
@@ -372,7 +382,9 @@ class GameIO:
         """Release a held key. Background posts the keyup straight to the window
         (no focus change needed). Foreground sends VK + scancode keyups."""
         self.quiet_keepalive()
-        if self.bg:
+        method = self._held.get(key)
+        if self.bg and (method == "post"
+                        or (method is None and not self._game_foreground())):
             vk = _vk(key)
             if vk is not None:
                 capture.post_key(self.hwnd, vk, key_up=True,
@@ -398,19 +410,20 @@ class GameIO:
         # fx,fy are in the (possibly cropped) frame; add the crop origin back to
         # land on the real client pixel.
         cx, cy = self._crop_x, self._crop_y
-        if self.bg and self.win_capture:
+        if self.bg and not self._game_foreground() and self.win_capture:
             capture.post_client_click(self.hwnd, int(fx) + cx, int(fy) + cy, post_wait)
-        elif self.bg:
+        elif self.bg and not self._game_foreground():
             r = capture.get_client_rect(self.hwnd) or \
                 (self.cap_left, self.cap_top, self.width, self.height)
             capture.post_click(self.hwnd, int(fx) + cx + r[0],
                                int(fy) + cy + r[1], post_wait)
         else:
-            capture.mouse_click(fx, fy, self.cap_left, self.cap_top, post_wait)
+            capture.mouse_click(int(fx) + cx, int(fy) + cy,
+                                self.cap_left, self.cap_top, post_wait)
 
     def scroll(self, notches, post_wait=0.1):
         self.quiet_keepalive()
-        if self.bg:
+        if self.bg and not self._game_foreground():
             capture.post_scroll(self.hwnd, notches, post_wait)
         else:
             capture.mouse_scroll(notches, post_wait)
