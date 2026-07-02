@@ -1,18 +1,14 @@
-# Private licensing tooling — keys/secrets, never commit (also never reaches main)
+# Private licensing tooling - keys/secrets, never commit.
 /licensing/
 license_client.py
 
-# Private Full Auto (paid feature) — never commit / never reaches public main.
-# full_auto.py was tracked, so it's also untracked via `git rm --cached full_auto.py`
-# (the working file stays on disk for the private/paid build). NOTE: its OLD commits
-# on the Full-auto branch still contain it, so merge Full-auto -> main with a SQUASH
-# merge (git merge --squash) so that history doesn't carry the source over.
+# Paid Full Auto source stays local/protected. Public repo may contain the
+# paywall UI, docs, templates, and build hooks, but not the paid implementation
+# source or license client.
 full_auto.py
 DESIGN_FULL_AUTO.md
 PAID_FUNCTION.md
-# Full Auto template images (game screens for the paid feature). Untracked via
-# `git rm -r --cached templates/*/full_auto`; they stay on disk so the private
-# build still bundles them, but they never reach the public main.
+# Local-only Full Auto template images that should not be published.
 templates/**/full_auto/
 
 # Python
@@ -26,7 +22,7 @@ build/
 dist/
 *.spec
 
-# Release distribution (built output — not source)
+# Release distribution (built output - not source)
 FAFE_dist/
 FAFE/
 Output/
@@ -38,6 +34,13 @@ MicrosoftEdgeWebview2Setup.exe
 
 # Local agent/editor + scratch
 .claude/
+.qwen/
+docs/superpowers/
+AGENTS.md
+CLAUDE.md
+Codex.md
+patchnote.md
+QWEN.md
 debug/
 roi_preview.png
 webui_poc/
@@ -51,8 +54,11 @@ reports/
 
 # runtime diagnostics
 fafe_diag.log
+build_log.txt
+license.dat
 
-# User-captured custom templates (never commit — user data, any language)
+# User-captured custom templates (never commit - user data, any language)
 templates/**/custom/
+templates/*/mastery_full/mastery_presets.json
 compiled/
 nuitka_build/

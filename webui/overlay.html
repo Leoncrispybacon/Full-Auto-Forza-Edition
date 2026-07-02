@@ -6,62 +6,71 @@
 <title>FAFE Overlay</title>
 <style>
   @import url('fonts.css');
+  :root{
+    --bg:#0A0E14;--card:#121A28;--ctrl:#161E28;--border:#243044;--border-soft:#1a2433;
+    --accent:#2563EB;--accent-light:#7DB2FF;--accent-text:#fff;
+    --text:#F4F8FD;--text2:#82A0B2;--muted:#5f7488;--row:#cdd9e5;--row2:#A6B0BC;
+    --ok:#22C55E;--ok-text:#34D778;--danger:#DC2626; }
+  :root[data-theme="denia"]{--bg:#FBF3F8;--card:#FFFFFF;--ctrl:#F7EAF2;--border:#EFD6E4;--border-soft:#F5E4EE;--accent:#E7679E;--accent-light:#6D5DD3;--accent-text:#FFFFFF;--text:#160E1C;--text2:#5B4A64;--muted:#8C7B95;--row:#2E2537;--row2:#4E4257;--ok:#1F9D6B;--ok-text:#12855A;--danger:#E5484D;}
+  :root[data-theme="denia"][data-running="1"]{--bg:#0B0713;--card:#150E24;--ctrl:#1C1230;--border:#30204F;--border-soft:#1F1438;--accent:#A855F7;--accent-light:#6FE0FF;--accent-text:#FFFFFF;--text:#F3ECFF;--text2:#A99BC7;--muted:#786C90;--row:#D9CEEC;--row2:#B0A4C8;--ok:#2DD4BF;--ok-text:#5EEAD4;--danger:#F43F7E;}
+  :root[data-theme="horizon"]{--bg:#141009;--card:#1E1710;--ctrl:#241B12;--border:#3A2C1A;--border-soft:#241B10;--accent:#F97316;--accent-light:#FBBF24;--accent-text:#1B1206;--text:#FBF5EC;--text2:#B89B79;--muted:#8A7355;--row:#E8D9C2;--row2:#C6B096;--ok:#FBBF24;--ok-text:#FDE68A;--danger:#B45309;}
+
   * { box-sizing:border-box; }
-  html,body { margin:0; padding:0; height:100%; background:#0B0F17; font-family:'Work Sans',system-ui,sans-serif;
+  html,body { margin:0; padding:0; height:100%; background:var(--bg); font-family:'Work Sans',system-ui,sans-serif;
               user-select:none; cursor:move; overflow:hidden; }
   @keyframes ovSpin { to { transform:rotate(360deg); } }
   @keyframes ovDrive { from { transform:translateX(-82px); } to { transform:translateX(300px); } }
 
-  .card { height:100%; border:1px solid #243044; border-radius:8px; background:#0B0F17; overflow:hidden;
+  .card { height:100%; border:1px solid var(--border); border-radius:8px; background:var(--bg); overflow:hidden;
           display:flex; flex-direction:column; }
 
   /* header */
   .ov-head { height:36px; display:flex; align-items:center; gap:8px; padding:0 8px 0 12px;
-             background:#141B26; border-bottom:1px solid #1a2433; position:relative; z-index:30; }
+             background:var(--card); border-bottom:1px solid var(--border-soft); position:relative; z-index:30; }
   .ov-mark { font-family:'Big Shoulders Display'; font-weight:800; font-size:22px; line-height:1; letter-spacing:.02em;
-             background:linear-gradient(92deg,#F4F8FD 22%,#7DB2FF); -webkit-background-clip:text; background-clip:text; color:transparent; }
+             background:linear-gradient(92deg,var(--text) 22%,var(--accent-light)); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .ov-fnwrap { position:relative; }
-  .ov-func { font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:.1em; color:#82A0B2;
+  .ov-func { font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:.1em; color:var(--text2);
              background:transparent; border:none; cursor:pointer; display:flex; align-items:center; gap:5px; padding:2px 0; }
-  .ov-func:hover { color:#cdd8e4; }
-  .ov-func b { color:#5f7488; font-size:8px; font-weight:400; }
+  .ov-func:hover { color:var(--row); }
+  .ov-func b { color:var(--muted); font-size:8px; font-weight:400; }
   /* position:fixed + outside the card so the card's overflow:hidden can't clip it;
      max-height + scroll so it always fits inside a short overlay window. */
   .ov-menu { position:fixed; top:38px; right:10px; min-width:140px; max-height:calc(100vh - 46px); overflow-y:auto;
-             background:#141B26; border:1px solid #2c3a52;
+             background:var(--card); border:1px solid var(--border);
              border-radius:7px; padding:5px; display:none; flex-direction:column; gap:2px; z-index:40;
              box-shadow:0 12px 30px -10px rgba(0,0,0,.85); }
   .ov-menu.open { display:flex; }
-  .ov-menu button { text-align:left; background:transparent; border:none; color:#cdd8e4; font-family:'Work Sans';
+  .ov-menu button { text-align:left; background:transparent; border:none; color:var(--row); font-family:'Work Sans';
                     font-size:12px; padding:6px 10px; border-radius:5px; cursor:pointer; white-space:nowrap; }
-  .ov-menu button:hover { background:#1f2a3a; }
-  .ov-menu button.on { color:#7DB2FF; }
+  .ov-menu button:hover { background:var(--ctrl); }
+  .ov-menu button.on { color:var(--accent-light); }
   .ov-burger { display:flex; flex-direction:column; gap:3px; padding-left:4px; }
-  .ov-burger span { width:12px; height:1.5px; background:#3a4a5e; }
+  .ov-burger span { width:12px; height:1.5px; background:var(--muted); }
 
   /* status banner */
   .ov-banner { position:relative; display:flex; align-items:center; gap:12px; padding:14px;
-               background:linear-gradient(90deg,rgba(34,197,94,.16),rgba(34,197,94,.04)); overflow:hidden; }
-  .ov-bar { position:absolute; left:0; top:0; bottom:0; width:3px; background:#22C55E; }
+               background:linear-gradient(90deg,color-mix(in srgb,var(--ok) 16%,transparent),color-mix(in srgb,var(--ok) 4%,transparent)); overflow:hidden; }
+  .ov-bar { position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--ok); }
   .ov-trail { position:absolute; left:0; right:0; bottom:0; height:14px; overflow:hidden; pointer-events:none; }
-  .ov-trail .rail { position:absolute; left:0; right:0; bottom:3px; height:2px; background:rgba(34,197,94,.15); }
+  .ov-trail .rail { position:absolute; left:0; right:0; bottom:3px; height:2px; background:color-mix(in srgb,var(--ok) 15%,transparent); }
   .ov-car { position:absolute; bottom:0; left:0; display:flex; align-items:flex-end; animation:ovDrive 2.4s linear infinite; }
-  .ov-car .streak { height:2px; width:58px; background:linear-gradient(90deg,rgba(52,215,120,0),#34D778); margin-bottom:4px; }
-  .ov-spin { width:22px; height:22px; border-radius:50%; border:2.5px solid rgba(52,215,120,.25); border-top-color:#34D778;
+  .ov-car .streak { height:2px; width:58px; background:linear-gradient(90deg,transparent,var(--ok-text)); margin-bottom:4px; }
+  .ov-spin { width:22px; height:22px; border-radius:50%; border:2.5px solid color-mix(in srgb,var(--ok-text) 25%,transparent); border-top-color:var(--ok-text);
              flex:none; animation:ovSpin 1s linear infinite; }
   .ov-staterow { display:flex; align-items:baseline; gap:10px; }
-  .ov-state { font-size:20px; font-weight:700; color:#F4F8FD; line-height:1; }
-  .ov-timer { font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:#34D778;
+  .ov-state { font-size:20px; font-weight:700; color:var(--text); line-height:1; }
+  .ov-timer { font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:var(--ok-text);
               font-variant-numeric:tabular-nums; line-height:1; }
   .ov-banner.idle .ov-timer { display:none; }
-  .ov-sub { font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:.05em; color:#34D778; margin-top:4px;
+  .ov-sub { font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:.05em; color:var(--ok-text); margin-top:4px;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
   /* idle (not running): drop the green, stop the motion */
-  .ov-banner.idle { background:linear-gradient(90deg,rgba(130,160,178,.12),rgba(130,160,178,.03)); }
-  .ov-banner.idle .ov-bar { background:#3a4a5e; }
+  .ov-banner.idle { background:linear-gradient(90deg,color-mix(in srgb,var(--text2) 12%,transparent),color-mix(in srgb,var(--text2) 3%,transparent)); }
+  .ov-banner.idle .ov-bar { background:var(--muted); }
   .ov-banner.idle .ov-spin, .ov-banner.idle .ov-trail { display:none; }
-  .ov-banner.idle .ov-sub { color:#82A0B2; }
+  .ov-banner.idle .ov-sub { color:var(--text2); }
 
   /* header / banner / footer keep their natural height; log fills the rest */
   .ov-head, .ov-banner, .ov-foot { flex:none; }
@@ -73,15 +82,15 @@
   .ov-log { flex:1; min-height:0; overflow:hidden; padding:11px 14px 7px;
             font-family:'Geist Mono',monospace; font-size:11px; line-height:1.5;
             display:flex; flex-direction:column; justify-content:flex-end; gap:4px; }
-  .ov-log div { overflow-wrap:break-word; color:#6b7d92; }
-  .ov-log div.ok { color:#34D778; }
-  .ov-log div.last { color:#aeb9c6; }
+  .ov-log div { overflow-wrap:break-word; color:var(--row2); }
+  .ov-log div.ok { color:var(--ok-text); }
+  .ov-log div.last { color:var(--row); }
 
   /* footer */
   .ov-foot { display:flex; align-items:center; gap:8px; padding:8px 14px 12px; }
-  .ov-key { display:flex; align-items:center; justify-content:center; height:20px; padding:0 8px; background:#0c1320;
-            border:1px solid #2c3a52; border-radius:5px; font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; color:#cdd8e4; }
-  .ov-hint { font-size:12px; color:#82A0B2; }
+  .ov-key { display:flex; align-items:center; justify-content:center; height:20px; padding:0 8px; background:var(--bg);
+            border:1px solid var(--border); border-radius:5px; font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; color:var(--row); }
+  .ov-hint { font-size:12px; color:var(--text2); }
 </style>
 </head>
 <body>
@@ -137,7 +146,7 @@
     en:      { run:'Running', ready:'Ready', idle:'idle', start:'to start automation', stop:'to stop automation',
                funcs:{ full_auto:'Full Auto', race:'AFK Races', buy:'Buy Cars', wheelspin:'Auto Wheelspins', mastery:'Unlock Wheelspins', delete:'Delete Cars' } },
     'zh-tw': { run:'執行中',  ready:'就緒',  idle:'閒置', start:'開始自動化',          stop:'停止自動化',
-               funcs:{ full_auto:'全自動', race:'掛機刷車', buy:'自動購車', wheelspin:'自動轉盤', mastery:'解鎖轉盤', delete:'刪除車輛' } },
+               funcs:{ full_auto:'全自動', race:'掛機刷點', buy:'自動購車', wheelspin:'自動轉盤', mastery:'解鎖轉盤', delete:'刪除車輛' } },
   };
   let curLang = 'en';
   let curFaAvail = false;          // Full Auto only listed when runnable
@@ -152,6 +161,11 @@
     }
     if (d.key  !== undefined) document.getElementById('ovKey').textContent  = d.key  || 'F9';
     const running = !!d.running;
+    document.documentElement.dataset.running = running ? '1' : '0';   // Denia: light idle / dark running
+    if (d.theme !== undefined) {
+      if (d.theme && d.theme !== 'default') document.documentElement.setAttribute('data-theme', d.theme);
+      else document.documentElement.removeAttribute('data-theme');
+    }
     document.getElementById('ovBanner').classList.toggle('idle', !running);
     document.getElementById('ovState').textContent = running ? L.run : L.ready;
     if (running && d.started) startTimer(d.started); else stopTimer();

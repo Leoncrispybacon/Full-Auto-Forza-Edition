@@ -29,6 +29,7 @@ import threading
 
 import config
 import navutil
+import recovery
 from config import get_buy_templates
 from app_lang import t as _at
 from capture import (grab_frame, load_template, get_monitor_dims,
@@ -59,6 +60,7 @@ _MAX_BUY_ATTEMPTS = 3     # consecutive misses on one car before aborting
 # Subaru), not template detection — the tile collided with look-alike Subaru
 # tiles. So nav only needs the four screens it clicks/gates on.
 NAV_KEYS = ["collection_log", "discover_japan", "car_collection", "subaru"]
+_RECOVERY_SAFETY_ANCHOR_KEYS = ("anna", "collection_log")
 _LABELS = {
     "collection_log": "buy_tpl_collection_log",
     "discover_japan": "buy_tpl_discover_japan",
@@ -75,6 +77,17 @@ _TARGET_SETTLE       = 2.0    # settle after the 1-notch scroll before clicking 
 _EXIT_ESC_COUNT      = 4      # Esc presses from the detail view → main menu
 _EXIT_ESC_GAP        = 0.5    # gap between Esc presses
 _EXIT_CONFIRM_WINDOW = 10.0   # detect the main menu after the Esc chain
+
+
+def _load_recovery_safety_templates(detector, cfg, tpl_lang, width, height):
+    return recovery.load_recovery_safety_templates(
+        detector, cfg, tpl_lang, width, height)
+
+
+def _recover_to_main_menu_from_safety_anchor(anchor, press_escape, wait,
+                                             detect_anchor=None):
+    return recovery.recover_to_main_menu_from_safety_anchor(
+        anchor, press_escape, wait, detect_anchor)
 
 
 def run(cfg: dict, stop_event: threading.Event,
@@ -121,7 +134,7 @@ def run(cfg: dict, stop_event: threading.Event,
     folder   = get_buy_templates(_cfg_mod.REFERENCE_RES, tpl_lang)
     ref_folder = folder
     prefer_ref = _fresh.get('template_prefer_reference', True)
-    detector = ScreenDetector(_fresh)
+    detector = ScreenDetector(_fresh, on_auto_ocr=log_cb)
 
     def _load(key):
         img, scale, meta = load_template(folder, key, current_w, current_h,
@@ -148,6 +161,8 @@ def run(cfg: dict, stop_event: threading.Event,
         except FileNotFoundError:
             pass
     nav_enabled = all(k in nav_tpls for k in NAV_KEYS)
+    safety_tpls = _load_recovery_safety_templates(
+        detector, _fresh, tpl_lang, current_w, current_h)
 
     # Gate templates (best-effort, loaded into the same dict _detect indexes):
     # both present → confirmed/retrying buy loop; either absent → blind macro.
@@ -216,7 +231,7 @@ def run(cfg: dict, stop_event: threading.Event,
         io.click(r.location[0], r.location[1], post_kw)
         return True
 
-    def _navigate_to_target(start_hit):
+    def _navigate_to_target(start_hit=None, start_step="collection_log"):
         """Main menu → Collection Log → Discover Japan → Car Collection →
         Backspace (brand) → scroll to bottom → target car focused. start_hit =
         the collection_log match already in hand. Returns True on success,
@@ -237,7 +252,11 @@ def run(cfg: dict, stop_event: threading.Event,
                                                label=_at(_LABELS[prev_key], lang), n=n)))
 
         # 1. Collection Log → Discover Japan card
-        if _advance("collection_log", "discover_japan") is None:
+        if start_step == "buy_detail":
+            log_cb(_at("log_buy_macro_start", lang))
+            return True
+
+        if start_step == "collection_log" and _advance("collection_log", "discover_japan") is None:
             if not stop():
                 log_cb(_at("log_buy_nav_fail", lang,
                            label=_at("buy_tpl_discover_japan", lang), secs="-"))
@@ -245,7 +264,7 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop():
             return False
         # 2. Discover Japan → Car Collection grid
-        if _advance("discover_japan", "car_collection") is None:
+        if start_step in ("collection_log", "discover_japan") and _advance("discover_japan", "car_collection") is None:
             if not stop():
                 log_cb(_at("log_buy_nav_fail", lang,
                            label=_at("buy_tpl_car_collection", lang), secs="-"))
@@ -253,6 +272,29 @@ def run(cfg: dict, stop_event: threading.Event,
         if stop():
             return False
         # 3. Car Collection grid reached → Down + Enter
+        if start_step == "subaru":
+            if target_nav is not None:
+                return False
+            sub = detector.locate_text(io.grab(), "subaru")
+            if sub is not None:
+                log_cb(_at("log_buy_nav_click", lang, label=_at("buy_tpl_subaru", lang)))
+                io.click(sub.location[0], sub.location[1], post_kw)
+            elif not _nav_click("subaru"):
+                return False
+            log_cb(_at("log_buy_nav_key", lang, keys="S → Enter → Enter",
+                       label=_at("buy_tpl_target_car", lang)))
+            press('s')
+            if stop():
+                return False
+            press('enter')
+            wait(0.5)
+            if stop():
+                return False
+            press('enter')
+            if stop():
+                return False
+            log_cb(_at("log_buy_macro_start", lang))
+            return True
         lbl = _at("buy_tpl_car_collection", lang)
         log_cb(_at("log_buy_nav_key", lang, keys="Down → Enter", label=lbl))
         press('down')
@@ -296,10 +338,14 @@ def run(cfg: dict, stop_event: threading.Event,
         # 7. From BRAT GL the 22B-STi is one row down, so move down once and
         #    select it with Enter. Keyboard nav is reliable here — detecting the
         #    tile collided with the look-alike Subaru tiles (BRAT GL etc.), so the
-        #    template detection for the target car is ditched in favour of S→Enter.
-        log_cb(_at("log_buy_nav_key", lang, keys="S → Enter",
+        #    template detection for the target car is ditched in favour of S→Enter→Enter.
+        log_cb(_at("log_buy_nav_key", lang, keys="S → Enter → Enter",
                    label=_at("buy_tpl_target_car", lang)))
         press('s')
+        if stop():
+            return False
+        press('enter')
+        wait(0.5)
         if stop():
             return False
         press('enter')
@@ -339,6 +385,100 @@ def run(cfg: dict, stop_event: threading.Event,
 
     # ── Optional entry navigation ──
     did_nav = False
+    route_retries = recovery.route_retries(_fresh)
+    recovered_anchor = None
+
+    def _detect_buy_anchor(window_s, include_detail=False, keys=None):
+        keys = list(keys) if keys is not None else list(NAV_KEYS)
+        if target_nav is not None and "subaru" in keys:
+            keys.remove("subaru")
+        if include_detail and "buy_detail" in nav_tpls:
+            keys.append("buy_detail")
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return (None, None)
+            try:
+                frame = io.grab()
+                for key in keys:
+                    r = detector.detect(frame, key, nav_tpls[key],
+                                        _thr(key), stable=False)
+                    if r.matched:
+                        return (key, r)
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return (None, None)
+
+    def _detect_safety_anchor(window_s):
+        end = time.time() + window_s
+        while time.time() < end:
+            if stop():
+                return None
+            try:
+                frame = io.grab()
+                for key in _RECOVERY_SAFETY_ANCHOR_KEYS:
+                    if key not in safety_tpls:
+                        continue
+                    r = detector.detect(frame, key, safety_tpls[key],
+                                        _thr(key), stable=False)
+                    if r.matched:
+                        return key
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return None
+
+    def _buy_entry_route():
+        nonlocal did_nav, recovered_anchor
+        if recovered_anchor is not None:
+            which, start_hit = recovered_anchor, None
+            recovered_anchor = None
+        else:
+            which, start_hit = _detect_buy_anchor(_START_STATE_WINDOW)
+        if which in NAV_KEYS or which == "buy_detail":
+            if not _navigate_to_target(start_hit, start_step=which):
+                return False
+            did_nav = True
+            return True
+        if require_nav:
+            log_cb(_at("log_buy_nav_fail", lang,
+                       label=_at("buy_tpl_collection_log", lang),
+                       secs=f"{_START_STATE_WINDOW:.0f}"))
+            return False
+        return True
+
+    def _recover_buy_entry_route():
+        nonlocal recovered_anchor
+        rec_label = "Buy entry"
+        log_cb(_at("log_recovery_search", lang, label=rec_label))
+        for attempt in range(7):
+            anchor_keys = recovery.backtrack_anchor_keys(
+                (*NAV_KEYS, "buy_detail"))
+            which, _hit = _detect_buy_anchor(1.2, keys=anchor_keys)
+            if which is not None:
+                recovered_anchor = which
+                log_cb(_at("log_recovery_anchored", lang,
+                           label=rec_label, anchor=which))
+                return True
+            safety = _detect_safety_anchor(0.8)
+            if safety is not None:
+                log_cb(_at("log_recovery_anchored_safety", lang,
+                           label=rec_label, anchor=safety))
+                if _recover_to_main_menu_from_safety_anchor(
+                        safety,
+                        lambda: press('escape', post_wait=0.5),
+                        lambda: wait(0.5),
+                        lambda: _detect_safety_anchor(1.2)):
+                    recovered_anchor = "collection_log"
+                    return True
+            if attempt >= 6 or stop():
+                break
+            log_cb(_at("log_recovery_esc", lang, label=rec_label))
+            press('escape', post_wait=0.5)
+        log_cb(_at("log_recovery_no_anchor", lang, label=rec_label))
+        return False
+
     if require_nav and not nav_enabled:
         # Full Auto: buy must navigate from the main menu, but the nav templates
         # aren't all captured — can't proceed in the chain.
@@ -350,22 +490,12 @@ def run(cfg: dict, stop_event: threading.Event,
         # On the main menu (collection_log visible)? Then navigate. Otherwise
         # assume the user pre-positioned on the target car (legacy) and just
         # run the macro — no exit nav in that case (unknown menu depth).
-        start_hit = _detect("collection_log", _START_STATE_WINDOW)
-        if start_hit is not None:
-            if not _navigate_to_target(start_hit):
-                io.cleanup()
-                log_cb(_at("log_buy_stopped", lang))
-                status_cb(_at("status_stopped", lang))
-                return False
-            did_nav = True
-        elif require_nav:
-            # Full Auto: buy must start from the main menu (collection_log). Not
-            # finding it means the chain desynced — stop instead of running the
-            # macro on an unknown screen.
-            log_cb(_at("log_buy_nav_fail", lang,
-                       label=_at("buy_tpl_collection_log", lang),
-                       secs=f"{_START_STATE_WINDOW:.0f}"))
+        if not recovery.run_stage_route("Buy entry", _buy_entry_route, stop,
+                                        log_cb, route_retries,
+                                        recover_fn=_recover_buy_entry_route):
             io.cleanup()
+            log_cb(_at("log_buy_stopped", lang))
+            status_cb(_at("status_stopped", lang))
             return False
     elif not nav_enabled:
         log_cb(_at("log_buy_nav_skip", lang))

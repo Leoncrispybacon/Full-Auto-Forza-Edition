@@ -1,5 +1,5 @@
 # ============================================================
-#  app_lang.py — GUI string translations for forza_app
+#  app_lang.py — UI string translations for the WebUI and automation logs
 #  Separate from lang.py (which serves the terminal scripts)
 #  Supports: English (en), Traditional Chinese (zh-tw)
 # ============================================================
@@ -324,6 +324,42 @@ STRINGS = {
         "en":    "Mixed",
         "zh-tw": "混合",
     },
+    "full_auto_grind_mad_mike": {
+        "en":    "Wheelspin",
+        "zh-tw": "轉盤",
+    },
+    "grind_mad_mike": {
+        "en":    "Wheelspin",
+        "zh-tw": "轉盤",
+    },
+    "grind_mixed_mad_mike": {
+        "en":    "Mixed",
+        "zh-tw": "混合",
+    },
+    "car_pass_title": {
+        "en":    "Car Pass DLC",
+        "zh-tw": "Car Pass DLC",
+    },
+    "car_pass_prompt": {
+        "en":    "Do you own the Car Pass DLC?",
+        "zh-tw": "你有 Car Pass DLC 嗎？",
+    },
+    "car_pass_yes": {
+        "en":    "Yes",
+        "zh-tw": "有",
+    },
+    "car_pass_no": {
+        "en":    "No",
+        "zh-tw": "沒有",
+    },
+    "sys_car_pass_dlc_owned": {
+        "en":    "Own Car Pass DLC",
+        "zh-tw": "擁有 Car Pass DLC",
+    },
+    "sys_car_pass_dlc_owned_h": {
+        "en":    "Uses the #123 Mad Mike wheelspin route in Full Auto.",
+        "zh-tw": "Full Auto 會使用 #123 Mad Mike 輪盤路線。",
+    },
     "full_auto_branch_label": {
         "en":    "After selling:",
         "zh-tw": "賣出後：",
@@ -368,6 +404,10 @@ STRINGS = {
     "fa_check_stock_paint": {
         "en":    "The car I'm using to AFK is a 22B-STI with a stock paint job. (one-time setup — a custom livery breaks grind-car detection)",
         "zh-tw": "我用來掛機的車是「原廠塗裝」的 22B-STI。（一次性設定 — 自訂塗裝會導致練車偵測失敗）",
+    },
+    "fa_check_collection_unlock": {
+        "en":    "Check if your 22B-STI/Viper GTS ACR is unlocked in Car Collection before starting. (one-time setup)",
+        "zh-tw": "開始前確認你的 22B-STI / Viper GTS ACR 已在車輛收藏中解鎖。（一次性設定）",
     },
 
     "status_fa_checklist": {
@@ -425,6 +465,26 @@ STRINGS = {
     "log_fa_money_tpl_missing": {
         "en":    "  ✗ GTS ACR car template not captured — capture it in the Full Auto setup panel.",
         "zh-tw": "  ✗ 尚未擷取 GTS ACR 車輛樣本 — 請在全自動設定面板擷取。",
+    },
+    "log_fa_target_brand": {
+        "en":    "  Target brand found: {brand} ({conf})",
+        "zh-tw": "  已找到目標品牌：{brand} ({conf})",
+    },
+    "log_fa_target_brand_fail": {
+        "en":    "  Target brand not found: {brand} - aborting buy.",
+        "zh-tw": "  找不到目標品牌：{brand} - 中止購買。",
+    },
+    "log_fa_target_car": {
+        "en":    "  Target car found: {car} ({conf})",
+        "zh-tw": "  已找到目標車輛：{car} ({conf})",
+    },
+    "log_fa_target_car_fail": {
+        "en":    "  Target car not found: {car} - aborting buy.",
+        "zh-tw": "  找不到目標車輛：{car} - 中止購買。",
+    },
+    "log_fa_target_tpl_missing": {
+        "en":    "  Target template missing: {key} - capture it in the Full Auto setup panel.",
+        "zh-tw": "  缺少目標模板：{key} - 請在 Full Auto 設定中擷取。",
     },
     "log_fa_step_race": {
         "en":    "[1/5] AFK race…",
@@ -623,8 +683,8 @@ STRINGS = {
         "zh-tw": "  自動數量：{p} 點 → 本輪處理 {n} 台車。",
     },
     "log_fa_points_too_few": {
-        "en":    "  Only {p} points (< 30) — racing again to earn more.",
-        "zh-tw": "  僅有 {p} 點（少於 30）— 再次跑圖以累積。",
+        "en":    "  Only {p} points (< {c}) — racing again to earn more.",
+        "zh-tw": "  僅有 {p} 點（少於 {c}）— 再次跑圖以累積。",
     },
     "log_fa_points_no_progress": {
         "en":    "  ✗ Points didn't increase after racing — aborting (race not earning).",
@@ -1446,6 +1506,14 @@ STRINGS = {
         "en":    "Note: this bundle includes your settings and basic system info. Fine to share for support; review before posting publicly.",
         "zh-tw": "注意：此回報包含你的設定與基本系統資訊。提供給支援沒問題，公開分享前請先檢視。",
     },
+    "auto_report_saved": {
+        "en":    "Automatic bug report saved: {path}",
+        "zh-tw": "自動錯誤回報已儲存：{path}",
+    },
+    "auto_report_failed": {
+        "en":    "Automatic bug report failed: {error}",
+        "zh-tw": "自動錯誤回報失敗：{error}",
+    },
     "report_help_btn": {
         "en":    "Report a Bug",
         "zh-tw": "回報錯誤",
@@ -1625,6 +1693,58 @@ STRINGS = {
         "en":    "  Detecting against game window: {w}×{h} (don't move/resize it while running).",
         "zh-tw": "  以遊戲視窗為偵測範圍：{w}×{h}（執行期間請勿移動或縮放視窗）。",
     },
+    "log_route_retry": {
+        "en":    "  ! {label} route failed - retrying stage route {n}/{max}.",
+        "zh-tw": "  ! {label} 路線失敗 - 正在重試階段路線 {n}/{max}。",
+    },
+    "log_route_recovery_action_failed": {
+        "en":    "  ! {label} route recovery action failed - aborting.",
+        "zh-tw": "  ! {label} 路線復原動作失敗 - 中止。",
+    },
+    "log_route_recovery_anchored": {
+        "en":    "  ! {label} route recovery anchored - retry budget reset.",
+        "zh-tw": "  ! {label} 路線復原已定位 - 重試次數已重置。",
+    },
+    "log_route_recovery_failed": {
+        "en":    "  ! {label} route recovery failed - aborting.",
+        "zh-tw": "  ! {label} 路線復原失敗 - 中止。",
+    },
+    "log_recovery_search": {
+        "en":    "  ! {label} recovery: searching for a known route anchor.",
+        "zh-tw": "  ! {label} 復原：正在尋找可辨識的路線定位點。",
+    },
+    "log_recovery_search_safe": {
+        "en":    "  ! {label} recovery: searching for a safe anchor.",
+        "zh-tw": "  ! {label} 復原：正在尋找安全定位點。",
+    },
+    "log_recovery_anchored": {
+        "en":    "  ! {label} recovery: anchored at {anchor}.",
+        "zh-tw": "  ! {label} 復原：已定位在 {anchor}。",
+    },
+    "log_recovery_anchored_safety": {
+        "en":    "  ! {label} recovery: anchored at safety {anchor}.",
+        "zh-tw": "  ! {label} 復原：已定位在安全點 {anchor}。",
+    },
+    "log_recovery_backing_out": {
+        "en":    "  ! {label} recovery: backing out from {anchor}.",
+        "zh-tw": "  ! {label} 復原：正在從 {anchor} 退出。",
+    },
+    "log_recovery_esc": {
+        "en":    "  ! {label} recovery: pressing ESC to back out one menu.",
+        "zh-tw": "  ! {label} 復原：按下 ESC 返回上一層選單。",
+    },
+    "log_recovery_no_anchor": {
+        "en":    "  ! {label} recovery: no safe anchor found.",
+        "zh-tw": "  ! {label} 復原：找不到安全定位點。",
+    },
+    "log_recovery_main_menu_unsafe": {
+        "en":    "  ! {label} recovery: reached the main menu safety anchor, but this stage cannot safely restart there.",
+        "zh-tw": "  ! {label} 復原：已到達主選單安全定位點，但此階段無法安全地從這裡重新開始。",
+    },
+    "log_low_resolution_warning": {
+        "en":    "!!! WARNING !!! Game window is {w}x{h}, under 1080p. Running under 1080p massively increases the chance of detection failure and missed input.",
+        "zh-tw": "!!! WARNING !!! 遊戲視窗目前是 {w}x{h}，低於 1080p。低於 1080p 會大幅增加偵測失敗與輸入漏接的機率。",
+    },
     "log_bg_letterbox": {
         "en":    "  Black bars detected — cropping to game content {w}×{h} (window aspect ≠ game aspect).",
         "zh-tw": "  偵測到黑邊 — 裁切至遊戲畫面內容 {w}×{h}（視窗比例與遊戲比例不符）。",
@@ -1693,6 +1813,10 @@ STRINGS = {
         "en":    "  Holding W — waiting for race to end...",
         "zh-tw": "  按住 W — 等待比賽結束...",
     },
+    "log_race_pause_resume": {
+        "en":    "  Focus-loss pause menu detected ({conf}) — pressing ESC and resuming W.",
+        "zh-tw": "  偵測到失焦暫停選單（{conf}）— 按下 ESC 並重新按住 W。",
+    },
     "log_released_w": {
         "en":    "  Released W — race over.",
         "zh-tw": "  釋放 W — 比賽結束。",
@@ -1729,6 +1853,22 @@ STRINGS = {
     "log_grid_missing": {
         "en":    "  Mastery tree path not set — open Setup and pick the nodes on the grid.",
         "zh-tw": "  尚未設定熟練度路徑 — 請開啟設定並在格子上選取節點。",
+    },
+    "log_mastery_gated_on": {
+        "en":    "  Experimental gated Mastery menus ON.",
+        "zh-tw": "  Experimental gated Mastery menus ON.",
+    },
+    "log_mastery_gated_wait": {
+        "en":    "  Waiting for {label}...",
+        "zh-tw": "  Waiting for {label}...",
+    },
+    "log_mastery_gated_click": {
+        "en":    "  Click {label}",
+        "zh-tw": "  Click {label}",
+    },
+    "log_mastery_gated_fail": {
+        "en":    "  ERROR: {label} was not detected; stopping gated Mastery to avoid wrong inputs.",
+        "zh-tw": "  ERROR: {label} was not detected; stopping gated Mastery to avoid wrong inputs.",
     },
     # Mastery grid picker widget
     "grid_title": {
@@ -1840,14 +1980,6 @@ STRINGS = {
     "tip_mastery_cutscene_wait": {
         "en":    "How long to wait for the 'Ride This Car' cutscene before pressing ESC (in seconds).\nDefault 11. Increase if the cutscene runs longer on your machine. The slider min is 11, but if you use a mod that skips the cutscene you can set a lower value by editing mastery_cutscene_wait in config.json.",
         "zh-tw": "按下 ESC 前等待「乘坐這輛車」過場動畫的時間（秒）。\n預設 11。若你的電腦過場動畫較長，請增加。滑桿最低為 11；若你使用了略過過場動畫的模組，可直接編輯 config.json 的 mastery_cutscene_wait 設為更低的值。",
-    },
-    "tip_mastery_grid_unlock_wait": {
-        "en":    "How long to wait after unlocking each mastery-tree node before moving to the next (in seconds).\nDefault 1.25. Increase on weaker hardware if nodes don't register before the cursor moves on.",
-        "zh-tw": "解鎖每個熟練度樹節點後、移動到下一個之前的等待時間（秒）。\n預設 1.25。若硬體較弱、節點尚未生效游標就移動，請調高。",
-    },
-    "tip_menu_tap_wait": {
-        "en":    "Delay after each menu cursor tap (Up/Down arrows) in Mastery and Delete Cars (in seconds).\nDefault 0.25. Increase on weaker hardware if menu taps don't register before the next press.",
-        "zh-tw": "熟練度與刪除車輛中，每次選單游標點按（上/下方向鍵）後的延遲（秒）。\n預設 0.25。若硬體較弱、點按尚未生效就按下一鍵，請調高。",
     },
     "tip_mastery_grid_unlock_wait": {
         "en":    "How long to wait after unlocking each mastery-tree node before moving to the next (in seconds).\nDefault 1.25. Increase on weaker hardware if nodes don't register before the cursor moves on.",

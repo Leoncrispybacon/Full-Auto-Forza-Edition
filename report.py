@@ -19,6 +19,12 @@ from capture import grab_frame
 from app_lang import t as _at
 
 
+def _safe_name(name: str) -> str:
+    bad = '<>:"/\\|?*'
+    out = "".join("_" if c in bad else c for c in str(name or "").strip())
+    return out.rstrip(" .") or "FAFE report"
+
+
 def _write_png(path: str, frame) -> bool:
     """Write a BGR frame to PNG via imencode rather than cv2.imwrite, which
     fails on non-ASCII paths (e.g. CJK usernames in the reports path)."""
@@ -31,7 +37,8 @@ def _write_png(path: str, frame) -> bool:
 
 
 def generate_report(cfg: dict, monitor_index: int, logs: dict,
-                    log_cb=None, status_cb=None) -> str:
+                    log_cb=None, status_cb=None, trigger_name: str | None = None,
+                    open_folder: bool = True) -> str:
     """Build the report bundle and return the zip path ('' / folder on
     failure). Runs synchronously — call it from a background thread.
 
@@ -41,9 +48,12 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
     log = log_cb or (lambda m: None)
     status = status_cb or (lambda m: None)
 
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    now = datetime.datetime.now()
+    ts = now.strftime("%Y%m%d_%H%M%S")
     reports = os.path.join(config.BASE_DIR, "reports")
-    rdir = os.path.join(reports, f"FAFE_report_{ts}")
+    base = (f"{_safe_name(trigger_name)} - {now:%Y-%m-%d- %H-%M}"
+            if trigger_name else f"FAFE_report_{ts}")
+    rdir = os.path.join(reports, base)
     os.makedirs(rdir, exist_ok=True)
     # Surface the whole process in the LOG (not just the status bar) so the user
     # sees it start and gets the final path.
@@ -105,7 +115,7 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
         log(f"report: log.txt failed: {e!r}")
 
     # 3) Zip the folder for easy sharing
-    zpath = os.path.join(reports, f"FAFE_report_{ts}.zip")
+    zpath = os.path.join(reports, f"{base}.zip")
     try:
         with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as zf:
             for fn in sorted(os.listdir(rdir)):
@@ -117,8 +127,9 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
     log(_at("report_saved", lang, path=zpath))
     log(_at("report_privacy", lang))   # tell the user what's inside before sharing
     status(_at("report_saved", lang, path=zpath))
-    try:
-        os.startfile(reports)   # open the reports folder in Explorer
-    except Exception:
-        pass
+    if open_folder:
+        try:
+            os.startfile(reports)   # open the reports folder in Explorer
+        except Exception:
+            pass
     return zpath

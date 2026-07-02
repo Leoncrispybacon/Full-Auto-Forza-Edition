@@ -14,7 +14,7 @@ import threading
 if getattr(sys, 'frozen', False) or "__compiled__" in globals():
     BASE_DIR = os.path.dirname(sys.executable)
 else:
-    # Flat structure — config.py sits alongside forza_app.py
+    # Flat structure — config.py sits alongside app_web.py
     BASE_DIR = os.path.dirname(os.path.abspath(
         sys.argv[0] if '__file__' not in dir() else __file__))
     # If we're inside an app/ subfolder, go up one level
@@ -116,6 +116,16 @@ def get_full_auto_templates(res: str = REFERENCE_RES,
     return path
 
 
+def get_relaunch_templates(res: str = REFERENCE_RES,
+                           lang: str = DEFAULT_TEMPLATE_LANG) -> str:
+    """Templates used by the post-relaunch route from splash/intro screens back
+    to the main menu. Surfaced under Race setup because the relaunch watchdog is
+    triggered by race entry navigation."""
+    path = os.path.join(_lang_dir(lang), "relaunch", res)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
 def get_mastery_grid_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     """The mastery-tree unlock path spec (an ordered list of 4x4 grid cells).
     Resolution-independent — it's a logical cell sequence, not pixel coords — so
@@ -124,6 +134,16 @@ def get_mastery_grid_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     d = os.path.join(_lang_dir(lang), "mastery_full")
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "mastery_grid.json")
+
+
+def get_mastery_presets_file(lang: str = DEFAULT_TEMPLATE_LANG) -> str:
+    """User-saved mastery-tree route presets for the standalone Mastery tab.
+
+    Routes are logical 4x4 cell paths, not language-specific template assets, so
+    they live once under templates/ instead of under templates/<lang>/.
+    """
+    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    return os.path.join(TEMPLATES_DIR, "mastery_presets.json")
 
 
 # Full Auto's mastery unlock paths are HARD-CODED in full_auto.py (its grind cars
@@ -169,7 +189,7 @@ def _migrate_flat_templates():
 # Migrate any old flat layout, THEN ensure the per-language tree exists.
 _migrate_flat_templates()
 for _lang in TEMPLATE_LANGS:
-    for _mode in ("race", "mastery_full", "full_auto"):
+    for _mode in ("race", "mastery_full", "full_auto", "relaunch"):
         for _res in RESOLUTION_SETS:
             os.makedirs(os.path.join(TEMPLATES_DIR, _lang, _mode, _res),
                         exist_ok=True)
@@ -193,7 +213,7 @@ def _get_primary_monitor_index() -> int:
 # only to a setting still on the OLD default (so customizations are preserved).
 # Stored in config.json as "config_schema"; deliberately NOT in DEFAULTS, so the
 # missing-key back-fill can't stamp it current before _migrate() runs.
-CONFIG_SCHEMA = 1
+CONFIG_SCHEMA = 2
 
 
 DEFAULTS = {
@@ -218,11 +238,36 @@ DEFAULTS = {
     # panels (and the Capture shortcut). Off for normal users so they can't break
     # the built-in templates; toggle in Settings → Developer.
     "dev_mode":          False,
-    # OCR confirmation during detection. Default OFF: the onnxruntime inference
-    # is CPU-heavy and stutters the game (esp. on 1080p / lower-core machines),
-    # and pixel matching at native res is reliable on its own. Turn ON for more
-    # robust matching on atypical hardware (HDR/heavy-AA/non-native scaling).
-    "detector_enable_ocr": False,
+    # OCR confirmation during detection. Default ON because CPU-aware presets
+    # now reduce OCR scale/rate on stutter-prone hybrid Intel CPUs, and many
+    # displays/setups need OCR to confirm text templates reliably. The Settings
+    # UI stays a simple ON/OFF switch.
+    "detector_enable_ocr": True,
+    # Recovery stays route-local: when a major detection-gated stage route fails
+    # before its purpose is complete, retry that same route this many times.
+    "recovery_route_retries": 1,
+    # Stuck-loading recovery: only used by narrow watchdog paths that cannot be
+    # recovered through menu anchors. Platform is user-selected in Settings;
+    # "auto" is still accepted for older configs/tests.
+    "game_relaunch_enabled": True,
+    "game_platform": "steam",
+    "game_launch_path_answered": False,
+    "game_steam_uri": "steam://rungameid/2483190",
+    "game_custom_launch": "",
+    "gamepass_app_name": "Forza Horizon 6",
+    "gamepass_fallback_appid": "Microsoft.ForteBaseGame_8wekyb3d8bbwe!Forzahorizon6",
+    "game_relaunch_delay": 8.0,
+    "game_launch_start_timeout": 180.0,
+    "game_launch_continue_timeout": 120.0,
+    "game_launch_home_timeout": 240.0,
+    "game_launch_open_world_timeout": 45.0,
+    "game_launch_main_menu_timeout": 45.0,
+    # First-run style DLC question. `answered` is separate from `owned` so
+    # "No" persists and the app does not keep asking on every launch.
+    "car_pass_dlc_answered": False,
+    "car_pass_dlc_owned": False,
+    "thresh_launch_start_prompt": 0.70,
+    "thresh_launch_continue":     0.70,
     # Game-menu language for templates: "auto" (follow app UI lang) / cht / en
     "template_lang":      "auto",
     # Race settings
@@ -245,7 +290,9 @@ DEFAULTS = {
     "thresh_next_activity":        0.70,
     "race_check_interval":    0.5,
     "race_post_key_wait":     0.75,
-    # Mastery settings (keyboard-driven; no detection)
+    # Mastery settings. Blind keyboard mode remains the default; gated menu mode
+    # is experimental v2 work enabled only by editing config.json.
+    "mastery_gated_menus":   True,
     "mastery_start_loop":     1,
     # Cutscene ("Ride This Car") wait before ESC — default 11, user-raisable
     # via a Settings slider (min 11). The other mastery step waits
@@ -255,6 +302,10 @@ DEFAULTS = {
     # keyboard mastery-tree nav. Higher helps weaker hardware register the
     # unlock; default 1.25, Settings slider 1–2s.
     "mastery_grid_unlock_wait": 1.25,
+    "thresh_ride_this_car":       0.70,
+    "thresh_upgrade_tuning":      0.70,
+    "thresh_car_mastery":         0.70,
+    "thresh_mastery_tree":        0.70,
     # Standalone mastery garage block (which contiguous run of cars to unlock).
     # The My Cars grid fills column-major TOP→BOTTOM; the block is the first
     # car's row in column 0, N full columns between, and the last car's row in
@@ -286,6 +337,12 @@ DEFAULTS = {
     # points already banked). Both flow through buy, where the per-cycle count is
     # read from tech points. Cycle 2 onward always runs the full loop from racing.
     "full_auto_start_from":   "race",
+    # Per-function Setup-tab run counts — persisted so they carry over a relaunch.
+    # 0 = unlimited (run until stopped/detection caps it); full_auto_races = FA cycles.
+    "full_auto_races":        2,
+    "race_count":             0,
+    "buy_count":              0,
+    "wheelspin_count":        0,
     # Full Auto chain-only navigation templates (grouped by category in the
     # Setup panel). Currently the mastery positioning nav: main menu → My
     # Horizon → Return Home → CARS → My Cars → sort Recently Added → newest car.
@@ -308,10 +365,12 @@ DEFAULTS = {
     # Sell re-select grind car: brand button (manufacturer jump) + car tile.
     "thresh_grind_brand":     0.70,
     "thresh_grind_car":       0.70,
-    # Full Auto pre-flight checklist: the "car to the right isn't new" item is a
-    # one-time garage layout, so it persists (the driving/map/credits items are
-    # per-session and reset each launch).
+    # Full Auto pre-flight checklist: one-time garage/car setup checks persist;
+    # driving/map confirmations are per-session and reset each launch.
     "fa_check_neighbor_ok":   False,
+    "fa_check_favorite_ok":   False,
+    "fa_check_stock_paint_ok": False,
+    "fa_check_collection_unlock_ok": False,
     # Buy / Delete settings. 0.75 (not 0.5) because these run keys back-to-back
     # (Buy macro; Delete's Enter/Down×N/Enter; sell Down×2/Enter) — a 0.5s gap was
     # marginal and an FPS dip during a consecutive run dropped a key. 0.75 adds the
@@ -355,7 +414,7 @@ DEFAULTS = {
     # templates are never affected (they're the user's own capture).
     "template_prefer_reference": True,
     # UI / behavior toggles
-    "theme_preset":           "default",   # color scheme (see theme.THEME_PRESETS)
+    "theme_preset":           "default",
     "ui_scale":               "auto",
     "nodes_aspect_fix":       True,
     "auto_english_ime":       True,
@@ -380,7 +439,6 @@ DEFAULTS = {
     # game draws black letterbox/pillarbox bars inside the client. Detect them
     # once at run start and crop the capture to the game content so detection
     # (template scaling + ROIs) lines up. KILL-SWITCH: set false to disable.
-    "crop_letterbox":         True,
     # Mute ONLY the game's audio while an automation run is active (per-app;
     # leaves other apps' sound alone), and unmute when it stops. Settings toggle.
     "mute_game":              False,
@@ -443,6 +501,13 @@ def load() -> dict:
                 if abs(float(data.get(_k, 0.75)) - 0.5) < 1e-6:
                     data[_k] = 0.75
                     added = True
+        if schema < 2:
+            if data.get("mastery_gated_menus") is False:
+                data["mastery_gated_menus"] = True
+                added = True
+            if "recovery_test_point" in data:
+                data.pop("recovery_test_point", None)
+                added = True
         if schema < CONFIG_SCHEMA:
             data["config_schema"] = CONFIG_SCHEMA
             added = True
@@ -533,7 +598,7 @@ UI_SCALE_OPTIONS = ["auto", "100%", "125%", "150%", "175%", "200%", "250%"]
 
 
 def resolve_ui_scale(cfg: dict) -> float:
-    """Resolve the saved `ui_scale` setting to a CustomTkinter scaling factor.
+    """Resolve the saved `ui_scale` setting to a numeric scaling factor.
 
     Accepts "auto" (resolution-derived), a percentage string like "150%", or a
     raw float. Clamped to a sane range so a stale/bad value can't make the UI

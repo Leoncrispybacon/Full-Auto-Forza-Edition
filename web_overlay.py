@@ -93,6 +93,25 @@ class WebOverlay:
         h = max(_MIN_HEIGHT, min(_MAX_HEIGHT, round(sh * 0.26)))
         return (int(w), int(h))
 
+    def _clamp_pos(self, x, y, w, h):
+        try:
+            u = ctypes.windll.user32
+            sw, sh = int(u.GetSystemMetrics(0)), int(u.GetSystemMetrics(1))
+        except Exception:
+            sw, sh = 1920, 1080
+        pad = 8
+        max_x = max(pad, sw - int(w) - pad)
+        max_y = max(pad, sh - int(h) - pad)
+        return (max(pad, min(int(x), max_x)),
+                max(pad, min(int(y), max_y)))
+
+    def _screen_bounds(self):
+        try:
+            u = ctypes.windll.user32
+            return int(u.GetSystemMetrics(0)), int(u.GetSystemMetrics(1))
+        except Exception:
+            return 1920, 1080
+
     def create(self, x=60, y=60, visible=False):
         if self._win is not None:
             return
@@ -177,12 +196,23 @@ class WebOverlay:
             return
         try:
             u = ctypes.windll.user32
+            if u.IsZoomed(ctypes.c_void_p(hwnd)):
+                u.ShowWindow(ctypes.c_void_p(hwnd), 9)  # SW_RESTORE
             u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int,
                                        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
             HWND_TOPMOST = ctypes.c_void_p(-1)
             SWP_SHOWWINDOW = 0x0040
-            x, y = self._pos
-            w, h = getattr(self, "_size", (_MIN_WIDTH, _MIN_HEIGHT))
+            rect = self._rect()
+            if rect:
+                _, _, w, h = rect
+            else:
+                w, h = getattr(self, "_size", (_MIN_WIDTH, _MIN_HEIGHT))
+            sw, sh = self._screen_bounds()
+            if w >= sw - 16 and h >= sh - 16:
+                w, h = self._screen_size()
+            x, y = self._clamp_pos(*self._pos, w, h)
+            self._pos = (x, y)
+            self._size = (int(w), int(h))
             # Also SET the size (physical px) — guarantees the small size even if
             # pywebview's create-size is mis-scaled on a high-DPI handheld.
             u.SetWindowPos(hwnd, HWND_TOPMOST, int(x), int(y), int(w), int(h),
@@ -190,6 +220,17 @@ class WebOverlay:
             u.SetForegroundWindow(ctypes.c_void_p(hwnd))
         except Exception:
             pass
+
+    def _move_current_rect_onscreen(self):
+        rect = self._rect()
+        if not rect:
+            return
+        x, y, w, h = rect
+        nx, ny = self._clamp_pos(x, y, w, h)
+        self._pos = (nx, ny)
+        self._size = (int(w), int(h))
+        if (nx, ny) != (x, y):
+            self._move(nx, ny)
 
     # ── dragging (own implementation; easy_drag is broken here) ──
     def _drag_begin(self):
@@ -233,8 +274,7 @@ class WebOverlay:
             while self._dragging and (u.GetAsyncKeyState(VK_LBUTTON) & 0x8000):
                 pt = _POINT()
                 u.GetCursorPos(ctypes.byref(pt))
-                self._pos = (pt.x - self._drag_off[0], pt.y - self._drag_off[1])
-                self._move(*self._pos)
+                self._move(pt.x - self._drag_off[0], pt.y - self._drag_off[1])
                 time.sleep(0.008)
         except Exception:
             pass
@@ -258,6 +298,10 @@ class WebOverlay:
                                        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
             HWND_TOPMOST = ctypes.c_void_p(-1)
             SWP_NOSIZE, SWP_NOACTIVATE = 0x0001, 0x0010
+            rect = self._rect()
+            w, h = (rect[2], rect[3]) if rect else getattr(self, "_size", (_MIN_WIDTH, _MIN_HEIGHT))
+            x, y = self._clamp_pos(x, y, w, h)
+            self._pos = (x, y)
             u.SetWindowPos(hwnd, HWND_TOPMOST, int(x), int(y), 0, 0,
                            SWP_NOSIZE | SWP_NOACTIVATE)
         except Exception:
@@ -283,6 +327,7 @@ class WebOverlay:
         from detection frames and report the move so the position stays saved."""
         if not self._visible:
             return
+        self._move_current_rect_onscreen()
         self._apply_mask()
         rect = self._rect()
         if rect and self._on_move:
