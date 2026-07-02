@@ -910,7 +910,7 @@ class ScreenDetector:
         self._ocr_skip_above: float = float(
             self.cfg.get("detector_ocr_skip_above", 0.90))
         self._ocr_skip_below: float = float(
-            self.cfg.get("detector_ocr_skip_below", 0.40))
+            self.cfg.get("detector_ocr_skip_below", 0.30))
         # OCR VETO 鈥?OFF by default.  When on, a coincidental pixel match is
         # rejected if OCR reads the ROI and the text does NOT contain the hint.
         # It is DEFAULT OFF and, even when on, only fires when OCR actually read
@@ -947,6 +947,7 @@ class ScreenDetector:
         # Lets us bridge the cooldown gap so the stability filter still
         # passes on the frame(s) where OCR is cooling down.
         self._ocr_confirmed: dict[str, tuple[float, str]] = {}
+        self._full_roi_ocr_keys = {"wheelspin_collect", "wheelspin_collect_final"}
         # Cache prepared (gray, edge) versions of each template 鈥?keyed by
         # id(template) 鈥?to skip equalizeHist + Canny on every frame.
         self._template_cache: dict[int, tuple[np.ndarray, np.ndarray]] = {}
@@ -1336,7 +1337,7 @@ class ScreenDetector:
             else:
                 th = max(1, int(gray_tpl.shape[0] * gray_scale))
                 tw = max(1, int(gray_tpl.shape[1] * gray_scale))
-                ocr_area = self._matched_ocr_area(area, gray_loc, tw, th)
+                ocr_area = area if key in self._full_roi_ocr_keys else self._matched_ocr_area(area, gray_loc, tw, th)
                 bonus, ocr_text = self._ocr_bonus(ocr_area, key)
                 if bonus > 0:
                     # Hint text confirmed on screen 鈥?genuine match.

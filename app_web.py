@@ -44,6 +44,35 @@ from web_overlay import WebOverlay
 from version import VERSION
 from app_lang import t as _at
 
+_TITLE = f"Full Auto Forza Edition v{VERSION}"
+_TITLEBAR_COLORS = {
+    "default": ("#121A28", "#F4F8FD", "#243044"),
+    "denia": ("#FFFFFF", "#160E1C", "#EFD6E4"),
+    "horizon": ("#1E1710", "#FBF5EC", "#3A2C1A"),
+}
+
+
+def _colorref(hex_color: str) -> int:
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return r | (g << 8) | (b << 16)
+
+
+def _apply_titlebar_theme(theme: str) -> None:
+    """Tint the native Windows caption to match the WebUI theme."""
+    if os.name != "nt":
+        return
+    try:
+        ctypes.windll.user32.FindWindowW.restype = ctypes.c_void_p
+        hwnd = ctypes.windll.user32.FindWindowW(None, _TITLE)
+        if not hwnd:
+            return
+        dwm = ctypes.windll.dwmapi
+        for attr, color in zip((35, 36, 34), _TITLEBAR_COLORS.get(theme, _TITLEBAR_COLORS["default"])):
+            value = ctypes.c_int(_colorref(color))
+            dwm.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), attr, ctypes.byref(value), ctypes.sizeof(value))
+    except Exception:
+        pass
+
 
 def _is_frozen() -> bool:
     """True in a packaged build — PyInstaller (sys.frozen) OR Nuitka (__compiled__).
@@ -496,6 +525,10 @@ class Api:
         ok = self._update_cfg(**{key: value})
         if key == "lang":
             self._first_run = False   # a language was chosen → never re-show the picker
+        if ok and key in ("theme_preset", "lang"):
+            self._push_overlay()
+        if ok and key == "theme_preset":
+            _apply_titlebar_theme(str(value))
         if not ok:
             self._log(f"WARNING: couldn't save setting '{key}' to config.json — "
                       f"is FAFE in a write-protected folder (e.g. Downloads)? "
@@ -1159,7 +1192,7 @@ def main():
         return
     api = Api()
     window = webview.create_window(
-        f"Full Auto Forza Edition v{VERSION}",
+        _TITLE,
         _webui("index.html"),
         js_api=api,
         width=1240, height=860,
@@ -1167,6 +1200,7 @@ def main():
         min_size=(1040, 640),   # never thin enough to wrap the loop progress bar
     )
     api._window = window
+    window.events.loaded += lambda: _apply_titlebar_theme(config.load().get("theme_preset", "default"))
     api.create_overlay()        # second window (hidden unless overlay was left on)
     api._register_hotkeys()     # global F9 / F12 / F10 (work while the game is focused)
     # Closing the main window must tear down the overlay window + hotkeys too,

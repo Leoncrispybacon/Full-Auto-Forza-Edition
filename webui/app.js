@@ -372,7 +372,7 @@ function blockSelector(tab, startBtn) {
       const b = el('button'); b.className = 'block-cell ' + kind; b.innerHTML = '<span class="carico">' + CAR_SVG + '</span>';
       b.onclick = () => onPick(r); cells.appendChild(b); return b;
     });
-    const arrow = el('span', `color:${kind === 'first' ? '#2f5f48' : '#2f5f7a'}`, '↓'); arrow.className = 'block-arrow';
+    const arrow = el('span', `color:${kind === 'first' ? 'var(--ok)' : 'var(--accent-light)'}`, '↓'); arrow.className = 'block-arrow';
     if (kind === 'first') cellsRow.append(cells, arrow); else cellsRow.append(arrow, cells);
     col.appendChild(cellsRow); return { col, arr };
   }
@@ -396,7 +396,7 @@ function blockSelector(tab, startBtn) {
 
   const bar = el('div'); bar.className = 'block-bar';
   const segF = el('div'), segM = el('div'), segL = el('div');
-  segF.style.background = 'var(--ok)'; segM.style.background = '#3b82f6'; segL.style.background = '#38bdf8';
+  segF.style.background = 'var(--ok)'; segM.style.background = 'var(--accent)'; segL.style.background = 'var(--accent-light)';
   bar.append(segF, segM, segL); wrap.appendChild(bar);
 
   const legend = el('div'); legend.className = 'block-legend';
@@ -405,7 +405,7 @@ function blockSelector(tab, startBtn) {
     t.innerHTML = `<span class="sq" style="background:${color}"></span><span class="tl">${label}</span><span class="tv"></span>`;
     return t;
   }
-  const tagF = tag('#22C55E', t('block_firstcol')), tagM = tag('#3b82f6', t('block_middle')), tagL = tag('#38bdf8', t('block_lastcol'));
+  const tagF = tag('var(--ok)', t('block_firstcol')), tagM = tag('var(--accent)', t('block_middle')), tagL = tag('var(--accent-light)', t('block_lastcol'));
   const total = el('div'); total.className = 'block-total'; total.innerHTML = `<span class="t">${t('block_total')}</span><span class="v"></span>`;
   legend.append(tagF, tagM, tagL, total); wrap.appendChild(legend);
 
@@ -472,11 +472,11 @@ function gridEditor(startBtn) {
   const presetRow = el('div', 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px');
   presetRow.appendChild(el('span', 'font-size:12px;color:var(--text2);font-weight:600', t('grid_preset_label')));
   const presetSelect = document.createElement('select');
-  presetSelect.style.cssText = 'min-width:230px;background:#0b1422;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px';
+  presetSelect.style.cssText = 'min-width:230px;background:var(--ctrl);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px';
   presetRow.appendChild(presetSelect);
   wrap.appendChild(presetRow);
 
-  const board = el('div', 'position:relative;width:232px;height:232px;background-image:radial-gradient(#15293c 1px,transparent 1px);background-size:24.6px 24.6px;background-position:11px 11px');
+  const board = el('div', 'position:relative;width:232px;height:232px;background-image:radial-gradient(var(--border) 1px,transparent 1px);background-size:24.6px 24.6px;background-position:11px 11px');
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('width','232'); svg.setAttribute('height','232'); svg.setAttribute('viewBox','0 0 232 232');
   svg.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:visible';
@@ -486,7 +486,7 @@ function gridEditor(startBtn) {
   const actions = el('div', 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px');
   const clear = el('button', 'background:var(--danger);border:none;color:#fff;border-radius:7px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer', t('grid_clear'));
   clear.onclick = () => { path = []; commit(); };
-  const savePreset = el('button', 'background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer', t('grid_save_preset'));
+  const savePreset = el('button', 'background:color-mix(in srgb, var(--accent-light) 14%, transparent);border:1px solid color-mix(in srgb, var(--accent-light) 35%, transparent);color:var(--accent-light);border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer', t('grid_save_preset'));
   savePreset.onclick = async () => {
     if (!path.length) { alert(t('grid_preset_empty')); return; }
     const name = (prompt(t('grid_preset_name_prompt')) || '').trim();
@@ -555,22 +555,22 @@ function gridEditor(startBtn) {
     for (let k = 0; k < path.length - 1; k++) {
       const pl = document.createElementNS(SVG_NS, 'polyline');
       pl.setAttribute('points', routeSeg(path[k], path[k+1]).map(p => p.join(',')).join(' '));
-      pl.setAttribute('fill','none'); pl.setAttribute('stroke','#38bdf8'); pl.setAttribute('stroke-width','2');
+      pl.setAttribute('fill','none'); pl.setAttribute('stroke','var(--accent-light)'); pl.setAttribute('stroke-width','2');
       pl.setAttribute('stroke-linejoin','round'); pl.setAttribute('stroke-linecap','round'); pl.setAttribute('stroke-dasharray','4 6');
-      pl.style.cssText = 'filter:drop-shadow(0 0 5px rgba(56,189,248,.9));animation:dashmove 1s linear infinite';
+      pl.style.cssText = 'filter:drop-shadow(0 0 5px var(--accent-light));animation:dashmove 1s linear infinite';
       svg.appendChild(pl);
     }
     cells.replaceChildren();
     for (let i = 0; i < 16; i++) {
       const order = path.indexOf(i), sel = order !== -1, start = order === 0, last = sel && order === path.length - 1;
-      const accent = start ? '#22C55E' : '#38bdf8';
+      const accent = start ? 'var(--ok)' : 'var(--accent-light)';
       const b = el('button', null, start ? 'S' : (sel ? String(order + 1) : ''));
       b.style.cssText = 'width:46px;height:46px;cursor:pointer;display:flex;align-items:center;justify-content:center;' +
         'font-family:var(--mono);font-size:13px;font-weight:700;transition:all .15s;clip-path:' + NOTCH + ';border:none;' +
-        'background:' + (sel ? (start ? 'rgba(34,197,94,.16)' : 'rgba(56,189,248,.16)') : '#0b1422') + ';' +
-        'box-shadow:' + (sel ? 'inset 0 0 0 1.5px ' + accent : 'inset 0 0 0 1px #173043') + ';' +
-        'filter:' + (last ? 'drop-shadow(0 0 7px rgba(56,189,248,.85))' : 'none') + ';' +
-        'color:' + (sel ? (start ? '#4ade80' : '#7dd3fc') : '#27425e');
+        'background:' + (sel ? (start ? 'color-mix(in srgb, var(--ok) 16%, transparent)' : 'color-mix(in srgb, var(--accent-light) 16%, transparent)') : 'var(--ctrl)') + ';' +
+        'box-shadow:' + (sel ? 'inset 0 0 0 1.5px ' + accent : 'inset 0 0 0 1px var(--border)') + ';' +
+        'filter:' + (last ? 'drop-shadow(0 0 7px var(--accent-light))' : 'none') + ';' +
+        'color:' + (sel ? (start ? 'var(--ok)' : 'var(--accent-light)') : 'var(--muted)');
       b.onclick = () => { const j = path.indexOf(i); if (j !== -1) path.splice(j, 1); else path.push(i); commit(); };
       cells.appendChild(b);
     }

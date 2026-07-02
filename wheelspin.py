@@ -54,6 +54,9 @@ SKIP_WATCH_S     = 5.0
 # each duplicate handled REFRESHES the window, and the window expiring with no
 # (further) duplicate means none are left. Bounded so the dup phase can't hang.
 DUP_WINDOW_S     = 5.0
+# If collect/final never appears, scan every wheelspin-state template before
+# giving up to manual Stop. This avoids getting stuck between reward states.
+COLLECT_RECOVERY_S = 20.0
 # Polling interval for the detection loops (skip/collect/duplicate/tile waits).
 # Higher = fewer detections/sec = less CPU contention with the game (each detect
 # briefly uses multiple cores). 0.3s is the test value; the brief "Skip" prompt
@@ -277,7 +280,7 @@ def run(cfg: dict, stop_event: threading.Event,
 
     def _wait_collect(skip_deadline, is_last=False):
         """Wait until a spin's collect prompt shows; return
-        ('skip'|'collect'|'final', result), or (None, None) if stopped.
+        ('skip'|'duplicate'|'collect'|'final', result), or (None, None) if stopped.
           • 'skip'    — the brief reveal "Skip" prompt (Enter fast-forwards).
                         Only watched while now < skip_deadline (it appears only
                         during the reveal), so it's never polled indefinitely.
@@ -288,8 +291,11 @@ def run(cfg: dict, stop_event: threading.Event,
                         spin-again distinguisher is absent (genuinely out of spins).
                         Only polled when is_last is True to avoid false matches
                         on intermediate spins whose "…and Spin Again" overlaps.
-        collect/final are watched indefinitely (F9/Stop recovers a screen that
-        genuinely can't be detected). One grab serves all checks."""
+        collect/final are watched indefinitely. After 20s with no collect/final,
+        trigger recovery reporting and scan all wheelspin in-spin templates
+        (skip/duplicate/collect/final) on each frame. One grab serves all checks."""
+        started = time.time()
+        recovery_reported = False
         while not stop():
             try:
                 frame = io.grab()
@@ -307,6 +313,28 @@ def run(cfg: dict, stop_event: threading.Event,
                                         _thr(FINAL_KEY), stable=False)
                     if r.matched:
                         return ('final', r)
+                if time.time() - started >= COLLECT_RECOVERY_S:
+                    if not recovery_reported:
+                        recovery_reported = True
+                        log_cb(_at("log_recovery_search", lang,
+                                   label="Wheelspin collect"))
+                        recovery.trigger_report("Wheelspin collect recovery")
+                    for key, tpl in (
+                        (SKIP_KEY, skip_tpl),
+                        (TEMPLATE_KEY, dup_tpl),
+                        (COLLECT_KEY, collect_tpl),
+                        (FINAL_KEY, final_tpl),
+                    ):
+                        if tpl is None:
+                            continue
+                        r = detector.detect(frame, key, tpl, _thr(key), stable=False)
+                        if r.matched:
+                            return ({
+                                SKIP_KEY: 'skip',
+                                TEMPLATE_KEY: 'duplicate',
+                                COLLECT_KEY: 'collect',
+                                FINAL_KEY: 'final',
+                            }[key], r)
             except Exception:
                 pass
             time.sleep(_DETECT_IV)
@@ -490,6 +518,12 @@ def run(cfg: dict, stop_event: threading.Event,
                 announce(_at("log_spin_skip", lang))
                 press('enter', post_wait=0.0)          # fast-forward reveal
                 continue
+            if which == 'duplicate':
+                log_cb(_at("log_spin_detected", lang,
+                           label=_at("spin_tpl_duplicate", lang),
+                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                collected = True                       # already past collect; handle dup below
+                break
             if which == 'final':
                 # Account out of spins. ran_out only when EARLIER than the target
                 # (is_last already ends the run on its own).

@@ -26,6 +26,11 @@ def set_log_lang(lang):
     _log_lang = lang or "en"
 
 
+def trigger_report(label: str) -> None:
+    if _trigger_callback is not None:
+        _trigger_callback(label)
+
+
 def _as_attempt(value: RouteReturn) -> RouteAttempt:
     if isinstance(value, RouteAttempt):
         return value
@@ -132,9 +137,10 @@ def run_stage_route(label: str,
                        n=failures_since_anchor, max=max_retries))
             if not reported:
                 reported = True
-                cb = trigger_cb or _trigger_callback
-                if cb is not None:
-                    cb(f"{label} recovery")
+                if trigger_cb is not None:
+                    trigger_cb(f"{label} recovery")
+                else:
+                    trigger_report(f"{label} recovery")
             if recover_fn is not None:
                 if not recover_fn():
                     log_cb(_at("log_route_recovery_action_failed", _log_lang,

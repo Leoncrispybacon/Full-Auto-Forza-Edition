@@ -33,7 +33,15 @@ class AutoOcrBorderlineTests(unittest.TestCase):
 
         d = detector.ScreenDetector({"detector_enable_ocr": True})
 
-        self.assertEqual(d._ocr_skip_below, 0.40)
+        self.assertEqual(d._ocr_skip_below, 0.30)
+
+    def test_wheelspin_collect_uses_full_roi_ocr(self):
+        import detector
+
+        d = detector.ScreenDetector({"detector_enable_ocr": True})
+
+        self.assertIn("wheelspin_collect", d._full_roi_ocr_keys)
+        self.assertIn("wheelspin_collect_final", d._full_roi_ocr_keys)
 
     def test_automations_forward_auto_ocr_note_to_logs(self):
         for path in ("race.py", "buy.py", "wheelspin.py", "mastery.py", "full_auto.py"):

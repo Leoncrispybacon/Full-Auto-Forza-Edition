@@ -332,20 +332,20 @@ select.dropdown.accent option { background:var(--ctrl); color:var(--text); }
 .block-col { display:flex; flex-direction:column; align-items:center; gap:9px; flex:none; }
 .block-col .clbl { font-family:var(--mono); font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); }
 .block-cells { display:flex; flex-direction:column; gap:8px; }
-.block-cell { width:72px; height:48px; border-radius:8px; border:1px solid #2a3850; background:var(--bg); cursor:pointer;
+.block-cell { width:72px; height:48px; border-radius:8px; border:1px solid var(--border); background:var(--bg); cursor:pointer;
               display:flex; align-items:center; justify-content:center; padding:0; transition:border-color .12s,background .12s; }
-.block-cell .carico { display:flex; color:#3a4a5e; }                /* out of block = muted car */
+.block-cell .carico { display:flex; color:var(--muted); }                /* out of block = muted car */
 .block-cell .carico svg { display:block; }
 .block-cell.first.inblk .carico { color:var(--ok); }
-.block-cell.last.inblk  .carico { color:#38bdf8; }
-.block-cell.first.sel { border-color:var(--ok); background:rgba(34,197,94,.08); }
-.block-cell.last.sel  { border-color:#38bdf8; background:rgba(56,189,248,.08); }
+.block-cell.last.inblk  .carico { color:var(--accent-light); }
+.block-cell.first.sel { border-color:var(--ok); background:color-mix(in srgb, var(--ok) 12%, transparent); }
+.block-cell.last.sel  { border-color:var(--accent-light); background:color-mix(in srgb, var(--accent-light) 12%, transparent); }
 .block-arrow { font-size:14px; }
 .block-mid { flex:1; display:flex; flex-direction:column; align-items:center; gap:14px; padding:0 20px; }
 .block-step { display:flex; align-items:center; gap:10px; }
 .step-btn { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--ctrl); color:var(--text);
             font-size:18px; line-height:1; cursor:pointer; }
-.step-btn:hover { border-color:#34507e; }
+.step-btn:hover { border-color:var(--accent); }
 .block-midnum { -moz-appearance:textfield; appearance:none; border:1px solid var(--border); background:var(--bg);
                 font-family:var(--mono); font-size:20px; font-weight:600; color:var(--text); width:58px; text-align:center;
                 border-radius:7px; padding:2px 4px; outline:none; transition:border-color .15s; }
@@ -353,7 +353,7 @@ select.dropdown.accent option { background:var(--ctrl); color:var(--text); }
 /* hide spin buttons in number inputs (Chrome/Edge/Safari) */
 .block-midnum::-webkit-outer-spin-button, .block-midnum::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 .block-midcols { display:flex; align-items:center; justify-content:center; gap:6px; min-height:84px; }
-.block-midcols .adj { font-family:var(--mono); font-size:10px; color:#3a4a5e; letter-spacing:.06em; }
+.block-midcols .adj { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.06em; }
 .block-midcol { display:flex; flex-direction:column; gap:3px; }
 .block-midcol i { width:14px; height:24px; border-radius:3px; background:var(--ctrl); border:1px solid var(--border); display:block; }
 .block-bar { display:flex; height:10px; border-radius:5px; overflow:hidden; margin-top:22px; background:var(--bg); }
