@@ -1,6 +1,6 @@
 # Full Auto Forza Edition (FAFE)
 
-FAFE is a Windows automation tool for Forza Horizon 6. It is built for the parts of the game that become repetitive after the first few hundred times: AFK race farming, buying cars in batches, unlocking mastery-tree rewards, spinning Wheelspins, and deleting used cars.
+FAFE is a Windows automation tool for Forza Horizon 6. It is built for the parts of the game that become repetitive after the first few hundred times: AFK race farming, buying cars in batches, unlocking mastery-tree rewards, spinning Wheelspins, deleting used cars, and the paid Full Auto farm that chains those steps together.
 
 The app does not modify game files, inject code, or talk to the game process directly. It watches the screen, matches known UI elements, and sends normal keyboard or mouse input.
 
@@ -30,12 +30,16 @@ Runs normal Wheelspins or Super Wheelspins, collects rewards, and handles duplic
 
 Deletes cars one by one across a selected garage range. This is intentionally separated from buying and Wheelspins because deleting cars is destructive and should be started only when you are sure the selected range is correct.
 
+### Full Auto
+
+The paid Full Auto mode chains the supported functions into longer farming loops. It can race for mastery points, buy the selected grind car, unlock its mastery route, sell processed cars, and continue into the selected money or Wheelspin loop depending on your settings.
+
 ## Why it works on different setups
 
 - Background mode captures and controls the game through the game window, so FAFE can keep working while the game is unfocused or covered by another window.
 - Built-in templates are authored once and scaled to the current resolution.
 - Per-template thresholds and custom capture are available when a UI element looks different on your setup.
-- Optional OCR confirmation can be enabled for difficult text detection, but normal pixel matching is the default because it is lighter on the CPU.
+- OCR confirmation is enabled by default for difficult text detection, with CPU-aware tuning to keep the game smooth.
 - Traditional Chinese and English UI are included.
 - Hotkeys, UI scale, monitor selection, timing values, theme, and overlay behavior can be adjusted from Settings.
 
@@ -52,13 +56,11 @@ If the game is elevated and FAFE is not, Windows can silently block the injected
 
 ## Download and run
 
-1. Download the latest `FAFE.zip` from the [Releases page](https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest).
-2. Extract the zip somewhere writable, such as your Desktop or Downloads folder.
+1. Download the latest installer or `FAFE.zip` from the [Releases page](https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest).
+2. If using the zip, extract it somewhere writable, such as your Desktop or Downloads folder.
 3. Run `FAFE.exe`.
 4. Pick a function from the sidebar.
 5. Follow the guide for that function, then start it from the app or press `F9`.
-
-No installer is required.
 
 ## First-time setup
 
@@ -106,7 +108,7 @@ Each function expects a specific starting screen. Use the guide for that functio
 
 ### Performance feels worse while running
 
-Keep OCR disabled unless you need it. Pixel matching is the intended default path and is much lighter than OCR.
+Use Settings to disable OCR if your machine performs better without it. Most users should leave OCR on because it improves detection on difficult text prompts.
 
 ## Reporting bugs
 
@@ -119,6 +121,8 @@ Please do not send only "it doesn't work" if you can avoid it. A screenshot or F
 FAFE is a personal tool that grew into a public release. The goal is not to be clever for its own sake; the goal is to make the boring parts reliable enough that you can stop babysitting menus.
 
 The packaged release is the recommended way to use it. The source is here for transparency, issue investigation, and community fixes.
+
+Paid-content source files, including the Full Auto implementation and license client, are intentionally kept out of this public repository for protection. Paid builds are produced from this repository plus local protected source files that are compiled into the distributed app.
 
 ## Support
 
