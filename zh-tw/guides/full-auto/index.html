@@ -17,6 +17,34 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
   ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
@@ -47,7 +75,38 @@
 </header>
 
 <!-- ════════ GUIDE BODY ════════ -->
-<main style="max-width:880px;margin:0 auto;padding:40px 40px 80px;">
+<main class="g-main">
+
+<aside class="g-rail" aria-label="所有教學"><div class="g-rail-title">教學</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">總覽</div>
+<a href="../forza-horizon-6-farming-guide/">完整掛機刷取指南</a>
+</div>
+<div class="grp"><div class="cat" style="color:#A99BF2;">組態</div>
+<a href="../first-time-setup/">首次設定</a>
+<a href="../settings/">設定</a>
+</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">自動化</div>
+<a href="../full-auto/" aria-current="page">全自動模式</a>
+<a href="../race-auto-grind/">掛機刷點</a>
+<a href="../auto-buy-cars-in-batch/">自動購車</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/">熟練度解鎖</a>
+<a href="../auto-wheelspin/">自動轉盤</a>
+<a href="../delete-used-cars/">刪除車輛</a>
+</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">工具</div>
+<a href="../game-overlay/">遊戲浮層</a>
+</div>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">原理</div>
+<a href="../mechanics/">運作原理</a>
+<a href="../recovery/">自救系統</a>
+</div>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">支援</div>
+<a href="../troubleshooting/">疑難排解</a>
+<a href="../reporting-bugs/">回報問題</a>
+</div>
+</aside>
+
+<div class="g-content">
 
   <!-- breadcrumbs -->
   <nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;">
@@ -71,7 +130,7 @@
     <div style="font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#7DB2FF;margin-bottom:12px;">本頁內容</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 28px;">
       <a href="#what" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">1 · 全自動模式做什麼</a>
-      <a href="#modes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">2 · 兩種模式</a>
+      <a href="#modes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">2 · 三種模式</a>
       <a href="#before" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">3 · 開始前準備</a>
       <a href="#run" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">4 · 設定並執行</a>
       <a href="#notes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">5 · 須知事項</a>
@@ -80,7 +139,7 @@
 
   <!-- WHAT -->
   <section id="what" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">全自動模式做什麼</h2>
+    <h2 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">全自動模式做什麼</h2>
     <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 22px;">FAFE 的每個工具各自自動化一項工作。全自動模式把它們接連成一套刷取流程：透過賽車累積熟練點、購買適當數量的車、解鎖熟練度樹、刪除，然後循環 — 並可選擇先接上自動轉盤。每個階段之間的交接都採偵測判定，因此只有在確認目標畫面出現後，該階段才會執行。</p>
     <div style="background:#0A0E14;border:1px solid #243044;border-radius:12px;padding:26px;overflow-x:auto;">
       <div style="font-family:'Geist Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#5f7488;margin-bottom:20px;">全自動循環</div>
@@ -126,9 +185,9 @@
 
   <!-- MODES -->
   <section id="modes" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 6px;letter-spacing:-.01em;">兩種模式</h2>
-    <p style="color:#82A0B2;font-size:1.02rem;line-height:1.7;margin:0 0 24px;">選擇每個循環要刷什麼。兩種模式共用相同的偵測、車輛數計算與串接流程。</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <h2 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 6px;letter-spacing:-.01em;">三種模式</h2>
+    <p style="color:#82A0B2;font-size:1.02rem;line-height:1.7;margin:0 0 24px;">選擇每個循環要刷什麼。三種模式共用相同的偵測、車輛數計算與串接流程。</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;">
       <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
         <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.18rem;color:#F4F8FD;margin:0 0 6px;">轉盤模式</h3>
         <p style="color:#82A0B2;font-size:.92rem;line-height:1.55;margin:0 0 16px;">把熟練點轉成超級轉盤，刪除後可選擇接上自動轉盤。</p>
@@ -145,12 +204,20 @@
           <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>逐台刪除車輛，然後直接回到賽車循環</span></li>
         </ul>
       </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.18rem;color:#F4F8FD;margin:0 0 6px;">混合模式</h3>
+        <p style="color:#82A0B2;font-size:.92rem;line-height:1.55;margin:0 0 16px;">每個循環在刷錢與轉盤之間交替，讓刷錢循環賺到的點數支撐轉盤循環 — 讓刷取自給自足、可長時間持續。</p>
+        <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;">
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>每個循環交替，從<strong style="color:#F4F8FD;font-weight:600;">刷錢</strong>循環開始</span></li>
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>點數不足時最適合 — 在設定中關閉<strong style="color:#F4F8FD;font-weight:600;">擁有 Car Pass DLC</strong></span></li>
+        </ul>
+      </div>
     </div>
   </section>
 
   <!-- BEFORE -->
   <section id="before" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">開始前準備</h2>
+    <h2 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">開始前準備</h2>
     <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
       <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">已解鎖全自動模式。</strong> <span style="color:#82A0B2;">在啟用一次性解鎖前，全自動分頁會維持鎖定。</span></div></li>
       <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">遊戲在所選螢幕上。</strong> <span style="color:#82A0B2;">在「遊戲螢幕」選單中選擇 Forza Horizon 6 所在的螢幕。</span></div></li>
@@ -160,7 +227,7 @@
 
   <!-- RUN -->
   <section id="run" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 26px;letter-spacing:-.01em;">設定並執行</h2>
+    <h2 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 26px;letter-spacing:-.01em;">設定並執行</h2>
     <div style="display:flex;flex-direction:column;gap:22px;">
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
@@ -210,7 +277,7 @@
 
   <!-- NOTES -->
   <section id="notes" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">須知事項</h2>
+    <h2 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">須知事項</h2>
     <div style="display:flex;flex-direction:column;gap:26px;">
 
       <div style="display:flex;gap:18px;align-items:flex-start;">
@@ -295,6 +362,14 @@
       <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">設定</div>
     </a>
   </div>
+
+
+</div><!-- /.g-content -->
+
+<aside class="g-side" aria-label="本頁內容與協助">
+<div class="card"><h4>本頁內容</h4><nav class="toc"><a href="#s1">全自動模式做什麼</a><a href="#s2">三種模式</a><a href="#s3">開始前準備</a><a href="#s4">設定並執行</a><a href="#s5">須知事項</a></nav></div>
+<div class="card"><h4>需要協助？</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">到 Discord 詢問 →</a><a class="lnk" href="../reporting-bugs/">回報問題 →</a><a class="lnk" href="../troubleshooting/">疑難排解 →</a></div>
+</aside>
 
 </main>
 

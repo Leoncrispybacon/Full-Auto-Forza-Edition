@@ -3,44 +3,171 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>設定說明 | FAFE 指南</title>
-<meta name="description" content="🎨 外觀 主題： 整體配色（預設／午夜霓虹），切換後會重新啟動以套用。 語言： 介面語言（繁中／English），切換後重新啟動。 遊戲選單語言： 選擇要使用的樣本組（自動／繁中／English），請對應遊戲介面語言；自動＝跟隨介面語言。 介面縮放： 程式視窗大小（自動或 100%–250%），即時套用。 ">
+<title>設定教學 - FAFE</title>
+<meta name="description" content="每個設定旁都有 ? 說明按鈕，且即時儲存。依你的喜好自由調整。">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/settings/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/settings/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/settings/">
 <link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/settings/">
 <link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
-<link rel="stylesheet" href="../../../assets/site/guide.css">
-<script src="../../../assets/site/guide.js" defer></script>
-<meta property="og:title" content="設定說明 | FAFE 指南">
-<meta property="og:description" content="🎨 外觀 主題： 整體配色（預設／午夜霓虹），切換後會重新啟動以套用。 語言： 介面語言（繁中／English），切換後重新啟動。 遊戲選單語言： 選擇要使用的樣本組（自動／繁中／English），請對應遊戲介面語言；自動＝跟隨介面語言。 介面縮放： 程式視窗大小（自動或 100%–250%），即時套用。 ">
-<meta property="og:type" content="article">
-<meta property="article:modified_time" content="2026-06-21">
-<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/settings/">
-<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview-zh-tw-v2.png">
-<meta property="og:locale" content="zh_TW">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"設定說明","description":"🎨 外觀 主題： 整體配色（預設／午夜霓虹），切換後會重新啟動以套用。 語言： 介面語言（繁中／English），切換後重新啟動。 遊戲選單語言： 選擇要使用的樣本組（自動／繁中／English），請對應遊戲介面語言；自動＝跟隨介面語言。 介面縮放： 程式視窗大小（自動或 100%–250%），即時套用。 ","inLanguage":"zh-Hant","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/settings/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
-<a class="language-link" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/settings/" hreflang="en">English</a>
-</div></header>
-<main>
-<div class="breadcrumbs"><a href="../../">FAFE 首頁</a> / 第十部分 — 設定說明</div>
-<div class="eyebrow">第十部分 — 設定說明</div>
-<h1>設定說明</h1>
-<p class="guide-meta">適用 FAFE v1.8.0 · 最後更新：2026 年 6 月 21 日</p>
-<section class="tutorial-content"><div class="steps active"><div class="step"><div class="step-num">🎨</div><div class="step-content"><h3>外觀</h3><p><strong>主題：</strong>整體配色（預設／午夜霓虹），切換後會重新啟動以套用。<br><br><strong>語言：</strong>介面語言（繁中／English），切換後重新啟動。<br><br><strong>遊戲選單語言：</strong>選擇要使用的樣本組（自動／繁中／English），請對應遊戲介面語言；自動＝跟隨介面語言。<br><br><strong>介面縮放：</strong>程式視窗大小（自動或 100%–250%），即時套用。<br><br><strong>遊戲浮層：</strong>在遊戲上顯示浮動狀態卡（也可按 F10 切換）。</p></div></div>
-<div class="step"><div class="step-num">🖥️</div><div class="step-content"><h3>系統</h3><p><strong>執行時靜音：</strong>執行期間將<strong>遊戲</strong>音訊靜音（僅針對遊戲，不影響其他程式）。<br><br><strong>OCR 文字偵測：</strong>用 OCR 讀取畫面文字輔助確認比對。<strong>預設關閉</strong>（較省 CPU、修正卡頓）；畫面很小、像素比對較吃力時開啟特別有幫助。<br><br><strong>除錯快照：</strong>將標註後的偵測 PNG 存到 debug/ 資料夾（下次執行生效），用於診斷誤判。</p></div></div>
-<div class="step"><div class="step-num">⌨️</div><div class="step-content"><h3>快捷鍵</h3><p>可重新綁定：<strong>啟動／停止</strong>（預設 F9）、<strong>擷取</strong>（預設 CAPS LOCK）、<strong>回報</strong>（預設 F12）、<strong>浮層</strong>（預設 F10）。點按鈕後直接按下新按鍵即可更換。</p></div></div>
-<div class="step"><div class="step-num">🏁</div><div class="step-content"><h3>競速</h3><p><strong>偵測間隔：</strong>多久掃描一次遊戲畫面（0.5 = 每 0.5 秒），CPU 較弱可調長。<br><br><strong>按鍵後等待：</strong>每次送出按鍵後的等待時間，低 FPS 或載入較久時調高。</p></div></div>
-<div class="step"><div class="step-num">⭐</div><div class="step-content"><h3>解鎖轉輪</h3><p><strong>過場動畫等待：</strong>進入車輛後等待「駕駛此車」過場的時間。<br><br><strong>節點解鎖間隔：</strong>在熟練度樹上每次解鎖（按鍵）之間的間隔。<br><br><strong>選單點按間隔：</strong>連續選單按鍵之間的間隔。</p></div></div>
-<div class="step"><div class="step-num">🛒</div><div class="step-content"><h3>購買／刪除／轉輪</h3><p><strong>按鍵後等待：</strong>購買、刪除車輛、自動轉輪各自的按鍵間隔。覺得太慢可往左拉加快，但太快可能會漏接或出錯。</p></div></div>
-<div class="step"><div class="step-num">ℹ️</div><div class="step-content"><h3>通用</h3><p>每個設定旁都有 <strong>?</strong> 說明按鈕。所有設定<strong>即時儲存</strong>（主題與語言需重新啟動）。若在較慢的電腦上漏接按鍵或點擊，調高對應的「等待」數值即可。</p></div></div>
-</div></section>
-<section><h2>所有指南</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>掛機刷錢與技能點指南</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE 首頁</strong><span>所有指南</span></a></div></section>
+<div style="background:#0B0F17;">
+
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;"><a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">關於</a><a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">全自動模式</a><a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">功能與教學</a><a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">開始使用</a><a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">設定</a></nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="語言" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/settings/">EN</option>
+        <option value="../../../zh-tw/guides/settings/" selected>繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">下載</a>
+    </div>
+  </div>
+</header>
+
+<main class="g-main">
+
+<aside class="g-rail" aria-label="所有教學"><div class="g-rail-title">教學</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">總覽</div>
+<a href="../forza-horizon-6-farming-guide/">完整掛機刷取指南</a>
+</div>
+<div class="grp"><div class="cat" style="color:#A99BF2;">組態</div>
+<a href="../first-time-setup/">首次設定</a>
+<a href="../settings/" aria-current="page">設定</a>
+</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">自動化</div>
+<a href="../full-auto/">全自動模式</a>
+<a href="../race-auto-grind/">掛機刷點</a>
+<a href="../auto-buy-cars-in-batch/">自動購車</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/">熟練度解鎖</a>
+<a href="../auto-wheelspin/">自動轉盤</a>
+<a href="../delete-used-cars/">刪除車輛</a>
+</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">工具</div>
+<a href="../game-overlay/">遊戲浮層</a>
+</div>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">原理</div>
+<a href="../mechanics/">運作原理</a>
+<a href="../recovery/">自救系統</a>
+</div>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">支援</div>
+<a href="../troubleshooting/">疑難排解</a>
+<a href="../reporting-bugs/">回報問題</a>
+</div>
+</aside>
+
+<div class="g-content">
+
+<nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;white-space:nowrap;"><a href="../../" style="color:#5f7488;text-decoration:none;">首頁</a><span>/</span><a href="../../#guides" style="color:#5f7488;text-decoration:none;">教學</a><span>/</span><span style="color:#82A0B2;">設定</span></nav>
+<div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#A99BF2;margin-bottom:10px;">組態 · 第二部分</div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">設定說明</h1>
+  <p style="font-size:1.1rem;line-height:1.6;color:#82A0B2;margin:0;max-width:680px;">每個設定旁都有 <strong style="color:#cdd9e5;font-weight:600;">?</strong> 說明按鈕，且即時儲存。依你的喜好自由調整。</p>
+
+  <div style="margin-top:40px;display:flex;flex-direction:column;gap:30px;">
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <span style="width:7px;height:7px;border-radius:999px;background:#A99BF2;flex-shrink:0;margin-top:11px;"></span>
+      <div style="flex:1;min-width:0;"><h3 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">外觀</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;"><strong style="color:#cdd9e5;font-weight:600;">主題：</strong>整體配色（預設／午夜霓虹），切換後會重新啟動以套用。<br><strong style="color:#cdd9e5;font-weight:600;">語言：</strong>介面語言（繁中／English），切換後重新啟動。<br><strong style="color:#cdd9e5;font-weight:600;">遊戲選單語言：</strong>選擇要使用的樣本組（自動／繁中／English），請對應遊戲介面語言。<br><strong style="color:#cdd9e5;font-weight:600;">介面縮放：</strong>程式視窗大小（自動或 100%–250%），即時套用。<br><strong style="color:#cdd9e5;font-weight:600;">遊戲浮層：</strong>在遊戲上顯示浮動狀態卡（也可按 F10 切換）。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <span style="width:7px;height:7px;border-radius:999px;background:#A99BF2;flex-shrink:0;margin-top:11px;"></span>
+      <div style="flex:1;min-width:0;"><h3 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">系統</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;"><strong style="color:#cdd9e5;font-weight:600;">執行時靜音：</strong>執行期間將遊戲音訊靜音（僅針對遊戲，不影響其他程式）。<br><strong style="color:#cdd9e5;font-weight:600;">OCR 文字偵測：</strong>用 OCR 讀取畫面文字輔助確認比對。預設關閉（較省 CPU、修正卡頓）；畫面很小、像素比對較吃力時開啟特別有幫助。<br><strong style="color:#cdd9e5;font-weight:600;">除錯快照：</strong>將標註後的偵測 PNG 存到 debug/ 資料夾，用於診斷誤判。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <span style="width:7px;height:7px;border-radius:999px;background:#A99BF2;flex-shrink:0;margin-top:11px;"></span>
+      <div style="flex:1;min-width:0;"><h3 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">快捷鍵</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;">可重新綁定：<strong style="color:#cdd9e5;font-weight:600;">啟動／停止</strong>（預設 F9）、<strong style="color:#cdd9e5;font-weight:600;">擷取</strong>（預設 CAPS LOCK）、<strong style="color:#cdd9e5;font-weight:600;">回報</strong>（預設 F12）、<strong style="color:#cdd9e5;font-weight:600;">浮層</strong>（預設 F10）。點按鈕後直接按下新按鍵即可更換。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <span style="width:7px;height:7px;border-radius:999px;background:#A99BF2;flex-shrink:0;margin-top:11px;"></span>
+      <div style="flex:1;min-width:0;"><h3 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">競速</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;"><strong style="color:#cdd9e5;font-weight:600;">偵測間隔：</strong>多久掃描一次遊戲畫面，CPU 較弱可調長。<br><strong style="color:#cdd9e5;font-weight:600;">按鍵後等待：</strong>每次送出按鍵後的等待時間，低 FPS 或載入較久時調高。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <span style="width:7px;height:7px;border-radius:999px;background:#A99BF2;flex-shrink:0;margin-top:11px;"></span>
+      <div style="flex:1;min-width:0;"><h3 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">解鎖轉輪</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;"><strong style="color:#cdd9e5;font-weight:600;">過場動畫等待：</strong>進入車輛後等待「駕駛此車」過場的時間。<br><strong style="color:#cdd9e5;font-weight:600;">節點解鎖間隔：</strong>在熟練度樹上每次解鎖之間的間隔。<br><strong style="color:#cdd9e5;font-weight:600;">選單點按間隔：</strong>連續選單按鍵之間的間隔。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <span style="width:7px;height:7px;border-radius:999px;background:#A99BF2;flex-shrink:0;margin-top:11px;"></span>
+      <div style="flex:1;min-width:0;"><h3 id="s6" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">購買／刪除／轉輪</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;"><strong style="color:#cdd9e5;font-weight:600;">按鍵後等待：</strong>購買、刪除車輛、自動轉輪各自的按鍵間隔。覺得太慢可往左拉加快，但太快可能會漏接或出錯。</p></div>
+    </div>
+
+  </div>
+
+  <section style="margin-top:56px;padding-top:32px;border-top:1px solid #1a2433;">
+    <h2 style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5f7488;margin:0 0 16px;">更多教學</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <a href="../forza-horizon-6-farming-guide/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">完整掛機刷取指南</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">完整流程總覽</div>
+      </a>
+      <a href="../../#guides" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">所有教學</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">回到 FAFE 首頁</div>
+      </a>
+    </div>
+  </section>
+</div>
+
+<aside class="g-side" aria-label="本頁內容與協助">
+<div class="card"><h4>本頁內容</h4><nav class="toc"><a href="#s1">外觀</a><a href="#s2">系統</a><a href="#s3">快捷鍵</a><a href="#s4">競速</a><a href="#s5">解鎖轉輪</a><a href="#s6">購買／刪除／轉輪</a></nav></div>
+<div class="card"><h4>需要協助？</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">到 Discord 詢問 →</a><a class="lnk" href="../reporting-bugs/">回報問題 →</a><a class="lnk" href="../troubleshooting/">疑難排解 →</a></div>
+</aside>
+
 </main>
-<footer><div class="footer-inner"><a href="../../">FAFE 首頁</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
+
+</div>
 </body>
 </html>

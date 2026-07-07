@@ -3,49 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Buy Cars in Batch | FAFE Guide</title>
-<meta name="description" content="Batch-buy any purchasable car with FAFE by opening its Car Collection detail page first. Automatic navigation from the main menu uses the 22B-STI preset.">
+<title>Auto Buy Cars Guide - FAFE</title>
+<meta name="description" content="Repeatedly purchase any car that is available to buy. Choose the automatic 22B-STI preset or manually open the car you want first.">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-buy-cars-in-batch/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-buy-cars-in-batch/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/auto-buy-cars-in-batch/">
 <link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-buy-cars-in-batch/">
 <link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
-<link rel="stylesheet" href="../../../assets/site/guide.css">
-<script src="../../../assets/site/guide.js" defer></script>
-<meta property="og:title" content="Auto Buy Cars in Batch | FAFE Guide">
-<meta property="og:description" content="Batch-buy any purchasable car manually, or use FAFE's 22B-STI main-menu preset.">
-<meta property="og:type" content="article">
-<meta property="article:modified_time" content="2026-06-21">
-<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-buy-cars-in-batch/">
-<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview.png">
-<meta property="og:locale" content="en_US">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Auto Buy Cars in Batch","description":"Batch-buy any purchasable car with FAFE by opening its Car Collection detail page first. Automatic navigation from the main menu uses the 22B-STI preset.","inLanguage":"en","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-buy-cars-in-batch/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
-<a class="language-link" href="../../../zh-tw/guides/auto-buy-cars-in-batch/" hreflang="zh-Hant">繁體中文</a>
-</div></header>
-<main>
-<div class="breadcrumbs"><a href="../../">FAFE Home</a> / Part 4 — Auto Buy Cars in Batch</div>
-<div class="eyebrow">Part 4 — Auto Buy Cars in Batch</div>
-<h1>Auto Buy Cars in Batch</h1>
-<p class="guide-meta">Updated for FAFE v1.8.0 · Last updated June 21, 2026</p>
-<p class="lede">Use FAFE to repeatedly purchase any car that is available to buy. Choose the automatic 22B-STI preset or manually open the car you want first.</p>
-<section class="tutorial-content"><div class="steps">
-<div class="step"><div class="step-num">1</div><div class="step-content"><h3>Open Buy Cars</h3><p>Click <strong>🛒 Buy Cars</strong> in the FAFE sidebar.</p></div></div>
-<div class="step"><div class="step-num">2</div><div class="step-content"><h3>Choose how to position the car</h3><p><strong>Main-menu preset (22B-STI only):</strong> Leave Forza on the main menu. FAFE automatically navigates through <strong>Collection Journal → Discover Japan / Master Explorer → Car Collection → Subaru</strong>, opens the 22B-STI, and returns to the main menu when finished.</p><p><strong>Manual positioning (any purchasable car):</strong> Open <strong>Collection Journal → Car Collection</strong> yourself, select the car you want to buy, click it, and leave the game on its detail/purchase screen. FAFE will repeat the purchase sequence for that car.</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/auto-buy-manual-start-en.webp" width="1600" height="656" loading="lazy" decoding="async" alt="Forza Horizon 6 Car Collection detail screen for the Subaru Impreza 22B-STI">
-  <div class="caption">Manual-start example: open the target car and leave its Car Collection detail screen displayed. The 22B-STI shown here is only an example; the same position works with any purchasable car.</div>
+<div style="background:#0B0F17;">
+
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;"><a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">About</a><a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">Full Auto</a><a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Features &amp; Guides</a><a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Getting Started</a><a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Settings</a></nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="Language" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/auto-buy-cars-in-batch/" selected>EN</option>
+        <option value="../../../zh-tw/guides/auto-buy-cars-in-batch/">繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">Download</a>
+    </div>
+  </div>
+</header>
+
+<main class="g-main">
+
+<aside class="g-rail" aria-label="All guides"><div class="g-rail-title">Guides</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">Overview</div>
+<a href="../forza-horizon-6-farming-guide/">Complete Farming Guide</a>
 </div>
-<div class="step"><div class="step-num">3</div><div class="step-content"><h3>Choose the batch size and start</h3><p>Set how many cars to buy (<strong>0 = unlimited</strong>), then click ▶ Start or press <strong>F9</strong>. The countdown is <strong>3 seconds</strong>; with background mode enabled, you do not need to switch back to Forza.</p></div></div>
-<div class="step"><div class="step-num">4</div><div class="step-content"><h3>Let FAFE repeat the purchase</h3><p>FAFE presses <strong>Space → Down → Enter → Enter → Enter</strong>, with 0.5 seconds between inputs by default, then repeats until the batch is complete. You can adjust the interval in Settings.</p></div></div>
-<div class="step"><div class="step-num">5</div><div class="step-content"><h3>Stop</h3><p>Press <strong>F9</strong> or click ■ Stop at any time to stop cleanly.</p></div></div>
-</div></section>
-<div class="notice"><strong>Remember:</strong> the buying macro works with any purchasable car when you position it manually. Only automatic navigation from the main menu is preset for the 22B-STI.</div>
-<section><h2>All guides</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>Complete farming guide</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE Home</strong><span>All guides</span></a></div></section>
+<div class="grp"><div class="cat" style="color:#A99BF2;">Configuration</div>
+<a href="../first-time-setup/">First-time Setup</a>
+<a href="../settings/">Settings</a>
+</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">Automation</div>
+<a href="../full-auto/">Full Auto Mode</a>
+<a href="../race-auto-grind/">AFK Races</a>
+<a href="../auto-buy-cars-in-batch/" aria-current="page">Auto Buy Cars</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/">Mastery Unlock</a>
+<a href="../auto-wheelspin/">Auto Wheelspins</a>
+<a href="../delete-used-cars/">Delete Cars</a>
+</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">Utility</div>
+<a href="../game-overlay/">Game Overlay</a>
+</div>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">Knowledge</div>
+<a href="../mechanics/">How It Works</a>
+<a href="../recovery/">Recovery System</a>
+</div>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">Support</div>
+<a href="../troubleshooting/">Troubleshooting</a>
+<a href="../reporting-bugs/">Reporting Bugs</a>
+</div>
+</aside>
+
+<div class="g-content">
+
+<nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;white-space:nowrap;"><a href="../../" style="color:#5f7488;text-decoration:none;">Home</a><span>/</span><a href="../../#guides" style="color:#5f7488;text-decoration:none;">Guides</a><span>/</span><span style="color:#82A0B2;">Auto Buy Cars</span></nav>
+<div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6FD0C0;margin-bottom:10px;">Automation · Part 2</div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">Auto Buy Cars in Batch</h1>
+  <p style="font-size:1.1rem;line-height:1.6;color:#82A0B2;margin:0;max-width:680px;">Repeatedly purchase any car that is available to buy. Choose the automatic 22B-STI preset or manually open the car you want first.</p>
+
+  <div style="margin-top:40px;display:flex;flex-direction:column;gap:30px;">
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
+      <div style="flex:1;min-width:0;"><h3 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Open Buy Cars</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Click Buy Cars in the FAFE sidebar.</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Choose how to position the car</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;"><strong style="color:#cdd9e5;font-weight:600;">Main-menu preset (22B-STI only):</strong> leave Forza on the main menu. FAFE automatically navigates through Collection Journal → Discover Japan / Master Explorer → Car Collection → Subaru, opens the 22B-STI, and returns to the main menu when finished.<br><br><strong style="color:#cdd9e5;font-weight:600;">Manual positioning (any purchasable car):</strong> open Collection Journal → Car Collection yourself, select the car you want to buy, click it, and leave the game on its detail/purchase screen. FAFE repeats the purchase sequence for that car.</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+          <img src="../../../assets/site/auto-buy-manual-start-en.webp" alt="Forza Horizon 6 Car Collection detail screen for the Subaru Impreza 22B-STI" width="1600" height="656" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+          <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">Manual-start example: open the target car and leave its Car Collection detail screen displayed. The same position works with any purchasable car.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
+      <div style="flex:1;min-width:0;"><h3 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Choose the batch size and start</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Set how many cars to buy (0 = unlimited), then click ▶ Start or press <strong style="color:#cdd9e5;font-weight:600;">F9</strong>. The countdown is 3 seconds; with background mode enabled, you don't need to switch back to Forza.</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">4</div>
+      <div style="flex:1;min-width:0;"><h3 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Let FAFE repeat the purchase</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">FAFE presses Space → Down → Enter → Enter → Enter, with 0.5 seconds between inputs by default, then repeats until the batch is complete. You can adjust the interval in Settings.</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">5</div>
+      <div style="flex:1;min-width:0;"><h3 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Stop</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Press <strong style="color:#cdd9e5;font-weight:600;">F9</strong> or click ■ Stop at any time to stop cleanly.</p></div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:36px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.6;color:#cdd9e5;max-width:680px;">
+    <strong style="color:#F4F8FD;font-weight:600;">Remember:</strong> the buying macro works with any purchasable car when you position it manually. Only automatic navigation from the main menu is preset for the 22B-STI.
+  </div>
+
+  <section style="margin-top:56px;padding-top:32px;border-top:1px solid #1a2433;">
+    <h2 style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5f7488;margin:0 0 16px;">More guides</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <a href="../forza-horizon-6-farming-guide/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">Complete Farming Guide</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">Full workflow overview</div>
+      </a>
+      <a href="../../#guides" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">All Guides</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">Back to FAFE Home</div>
+      </a>
+    </div>
+  </section>
+</div>
+
+<aside class="g-side" aria-label="On this page and help">
+<div class="card"><h4>On this page</h4><nav class="toc"><a href="#s1">Open Buy Cars</a><a href="#s2">Choose how to position the car</a><a href="#s3">Choose the batch size and start</a><a href="#s4">Let FAFE repeat the purchase</a><a href="#s5">Stop</a></nav></div>
+<div class="card"><h4>Need a hand?</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">Ask in Discord →</a><a class="lnk" href="../reporting-bugs/">Report a bug →</a><a class="lnk" href="../troubleshooting/">Troubleshooting →</a></div>
+</aside>
+
 </main>
-<footer><div class="footer-inner"><a href="../../">FAFE Home</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
+
+</div>
 </body>
 </html>

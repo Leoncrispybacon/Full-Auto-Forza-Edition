@@ -3,194 +3,288 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forza Horizon 6 Money, Credit &amp; Skill Point Farm Using FAFE</title>
-<meta name="description" content="Learn how to use FAFE for Forza Horizon 6 money, credit and skill point farming with AFK races, mastery-tree Wheelspin unlocks and automatic Wheelspins.">
+<title>Complete Farming Guide - FAFE</title>
+<meta name="description" content="FAFE automates the repetitive parts of earning skill points, batch-buying cars, unlocking Wheelspin rewards from compatible cars' mastery trees and collecting Wheelspin rewards. This guide explains...">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/forza-horizon-6-farming-guide/">
 <link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/">
 <link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
-<link rel="stylesheet" href="../../../assets/site/guide.css">
-<script src="../../../assets/site/guide.js" defer></script>
-<meta property="og:title" content="Forza Horizon 6 Money, Credit &amp; Skill Point Farm Using FAFE">
-<meta property="og:description" content="A complete guide to FAFE's AFK Races, mastery-tree unlock and Wheelspin farming tools.">
-<meta property="og:type" content="article">
-<meta property="article:modified_time" content="2026-06-21">
-<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/">
-<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview.png">
-<meta property="og:locale" content="en_US">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "TechArticle",
-  "headline": "Forza Horizon 6 Money, Credit & Skill Point Farm Using FAFE",
-  "description": "A complete guide to using FAFE for AFK races, skill points, mastery-tree Wheelspin unlocks and Wheelspins.",
-  "inLanguage": "en",
-  "mainEntityOfPage": "https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/forza-horizon-6-farming-guide/",
-  "author": {"@type": "Person", "name": "Leoncrispybacon"},
-  "about": {"@type": "SoftwareApplication", "name": "Full Auto Forza Edition", "alternateName": "FAFE", "operatingSystem": "Windows"}
-}
-</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-  <a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
-  <a class="language-link" href="../../../zh-tw/guides/forza-horizon-6-farming-guide/" hreflang="zh-Hant">繁體中文</a>
-</div></header>
-<main>
-  <div class="breadcrumbs"><a href="../../">FAFE Home</a> / Farming Guide</div>
-  <div class="eyebrow">Complete FAFE Guide</div>
-  <h1>Forza Horizon 6 Money, Credit &amp; Skill Point Farm Using FAFE</h1>
-<p class="guide-meta">Updated for FAFE v1.8.0 · Last updated June 21, 2026</p>
-  <p class="lede">FAFE automates the repetitive parts of earning skill points, batch-buying cars, unlocking Wheelspin rewards from compatible cars' mastery trees and collecting Wheelspin rewards. This guide explains the complete public workflow and how to run each mode safely.</p>
+<div style="background:#0B0F17;">
 
-  <div class="notice"><strong>Important:</strong> FAFE's free public tools are separate automation modes. You start each stage yourself; the public app does not claim to inject credits or complete the entire workflow as one hidden cheat. Rewards and profit depend on the game.</div>
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;"><a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">About</a><a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">Full Auto</a><a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Features &amp; Guides</a><a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Getting Started</a><a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">Settings</a></nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="Language" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/forza-horizon-6-farming-guide/" selected>EN</option>
+        <option value="../../../zh-tw/guides/forza-horizon-6-farming-guide/">繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">Download</a>
+    </div>
+  </div>
+</header>
 
-  <nav class="toc" aria-label="Table of contents">
-    <strong>On this page</strong>
-    <ul>
-      <li><a href="#workflow">Farming workflow</a></li>
-      <li><a href="#setup">Initial setup</a></li>
-      <li><a href="#skill-points">AFK Races</a></li>
-      <li><a href="#buy-cars">Auto Buy Cars</a></li>
-      <li><a href="#mastery">Mastery-tree Wheelspins</a></li>
-      <li><a href="#wheelspins">Auto Wheelspins</a></li>
-      <li><a href="#delete-cars">Delete Used Cars</a></li>
-      <li><a href="#settings">Reliability settings</a></li>
-      <li><a href="#troubleshooting">Troubleshooting</a></li>
-      <li><a href="#faq">FAQ</a></li>
-      <li><a href="#download">Download FAFE</a></li>
-    </ul>
-  </nav>
+<main class="g-main">
 
-  <section id="workflow">
-    <h2>How the FAFE farming workflow works</h2>
-    <ol>
-      <li><strong>AFK Races:</strong> repeat your selected EventLab race to build skill points while FAFE handles starting, driving and restarting.</li>
-      <li><strong>Buy Cars:</strong> manually open any purchasable car to buy it in batches, or start from the main menu to use the automatic 22B-STI preset.</li>
-      <li><strong>Unlock Wheelspins:</strong> process a selected garage block and unlock the mastery nodes you marked in the grid.</li>
-      <li><strong>Auto Wheelspins:</strong> run normal or Super Wheelspins, collect rewards and handle duplicate-car prompts.</li>
-      <li><strong>Delete Cars:</strong> remove used cars from a carefully confirmed garage range when cleanup is needed.</li>
-    </ol>
-    <p>This is why FAFE can help with searches such as <em>Forza Horizon 6 money farm</em>, <em>credit farm</em> and <em>skill point farm</em>: it reduces the repetitive input across the legitimate in-game reward loop rather than modifying your balance.</p>
+<aside class="g-rail" aria-label="All guides"><div class="g-rail-title">Guides</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">Overview</div>
+<a href="../forza-horizon-6-farming-guide/" aria-current="page">Complete Farming Guide</a>
+</div>
+<div class="grp"><div class="cat" style="color:#A99BF2;">Configuration</div>
+<a href="../first-time-setup/">First-time Setup</a>
+<a href="../settings/">Settings</a>
+</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">Automation</div>
+<a href="../full-auto/">Full Auto Mode</a>
+<a href="../race-auto-grind/">AFK Races</a>
+<a href="../auto-buy-cars-in-batch/">Auto Buy Cars</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/">Mastery Unlock</a>
+<a href="../auto-wheelspin/">Auto Wheelspins</a>
+<a href="../delete-used-cars/">Delete Cars</a>
+</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">Utility</div>
+<a href="../game-overlay/">Game Overlay</a>
+</div>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">Knowledge</div>
+<a href="../mechanics/">How It Works</a>
+<a href="../recovery/">Recovery System</a>
+</div>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">Support</div>
+<a href="../troubleshooting/">Troubleshooting</a>
+<a href="../reporting-bugs/">Reporting Bugs</a>
+</div>
+</aside>
+
+<div class="g-content">
+
+<nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;white-space:nowrap;"><a href="../../" style="color:#5f7488;text-decoration:none;">Home</a><span>/</span><a href="../../#guides" style="color:#5f7488;text-decoration:none;">Guides</a><span>/</span><span style="color:#82A0B2;">Complete Farming Guide</span></nav>
+<div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7DB2FF;margin-bottom:10px;">Overview · Complete Guide</div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2rem,3.8vw,2.7rem);line-height:1.12;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">Forza Horizon 6 Money, Credit &amp; Skill Point Farm Using FAFE</h1>
+  <p style="font-size:1.1rem;line-height:1.65;color:#82A0B2;margin:0;max-width:700px;">FAFE automates the repetitive parts of earning skill points, batch-buying cars, unlocking Wheelspin rewards from compatible cars' mastery trees and collecting Wheelspin rewards. This guide explains the complete public workflow and how to run each mode safely.</p>
+
+  <div style="margin-top:26px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.6;color:#cdd9e5;max-width:700px;">
+    <strong style="color:#F4F8FD;font-weight:600;">Important:</strong> FAFE's free public tools are separate automation modes. You start each stage yourself; the app does not claim to inject credits or complete the entire workflow as one hidden cheat. Rewards and profit depend on the game.
+  </div>
+
+  <div style="margin-top:30px;background:#121A28;border:1px solid #243044;border-radius:12px;padding:20px 24px;">
+    <div style="font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#7DB2FF;margin-bottom:12px;">On this page</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 28px;">
+      <a href="#workflow" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Farming workflow</a>
+      <a href="#setup" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Initial setup</a>
+      <a href="#skill-points" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">AFK Races</a>
+      <a href="#buy-cars" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Auto Buy Cars</a>
+      <a href="#mastery" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Mastery-tree Wheelspins</a>
+      <a href="#wheelspins" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Auto Wheelspins</a>
+      <a href="#delete-cars" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Delete Used Cars</a>
+      <a href="#settings" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Reliability settings</a>
+      <a href="#troubleshooting" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">Troubleshooting</a>
+      <a href="#faq" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">FAQ</a>
+    </div>
+  </div>
+
+  <section id="workflow" style="margin-top:52px;">
+    <h2 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">How the FAFE farming workflow works</h2>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;gap:14px;align-items:flex-start;"><span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#7DB2FF;flex-shrink:0;margin-top:3px;">01</span><p style="margin:0;font-size:.98rem;color:#cdd9e5;line-height:1.6;"><strong style="color:#F4F8FD;font-weight:600;">AFK Races:</strong> repeat your selected EventLab race to build skill points while FAFE handles starting, driving and restarting.</p></div>
+      <div style="display:flex;gap:14px;align-items:flex-start;"><span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#7DB2FF;flex-shrink:0;margin-top:3px;">02</span><p style="margin:0;font-size:.98rem;color:#cdd9e5;line-height:1.6;"><strong style="color:#F4F8FD;font-weight:600;">Buy Cars:</strong> manually open any purchasable car to buy it in batches, or start from the main menu to use the automatic 22B-STI preset.</p></div>
+      <div style="display:flex;gap:14px;align-items:flex-start;"><span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#7DB2FF;flex-shrink:0;margin-top:3px;">03</span><p style="margin:0;font-size:.98rem;color:#cdd9e5;line-height:1.6;"><strong style="color:#F4F8FD;font-weight:600;">Unlock Wheelspins:</strong> process a selected garage block and unlock the mastery nodes you marked in the grid.</p></div>
+      <div style="display:flex;gap:14px;align-items:flex-start;"><span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#7DB2FF;flex-shrink:0;margin-top:3px;">04</span><p style="margin:0;font-size:.98rem;color:#cdd9e5;line-height:1.6;"><strong style="color:#F4F8FD;font-weight:600;">Auto Wheelspins:</strong> run normal or Super Wheelspins, collect rewards and handle duplicate-car prompts.</p></div>
+      <div style="display:flex;gap:14px;align-items:flex-start;"><span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#7DB2FF;flex-shrink:0;margin-top:3px;">05</span><p style="margin:0;font-size:.98rem;color:#cdd9e5;line-height:1.6;"><strong style="color:#F4F8FD;font-weight:600;">Delete Cars:</strong> remove used cars from a carefully confirmed garage range when cleanup is needed.</p></div>
+    </div>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 0;line-height:1.65;">This is why FAFE can help with searches such as <em>Forza Horizon 6 money farm</em>, <em>credit farm</em> and <em>skill point farm</em>: it reduces the repetitive input across the legitimate in-game reward loop rather than modifying your balance.</p>
   </section>
 
-  <section id="setup">
-    <h2>Initial setup</h2>
-    <ol>
+  <section id="setup" style="margin-top:48px;">
+    <h2 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Initial setup</h2>
+    <ol style="margin:0 0 18px;padding-left:22px;color:#cdd9e5;font-size:.98rem;line-height:1.75;">
       <li>Run Forza Horizon 6 in Borderless or Windowed mode.</li>
       <li>Select the correct game monitor in FAFE.</li>
       <li>Match FAFE's game-menu language to the language shown in Forza.</li>
       <li>Keep the game visible. It may be covered or unfocused in background mode, but it must not be minimized.</li>
       <li>If Forza runs as administrator, run FAFE as administrator too.</li>
     </ol>
-    <div class="screenshot" style="max-width:628px;margin:20px auto 4px;">
-      <img src="../../../assets/site/setup-monitor-selector-en.webp" width="628" height="81" loading="lazy" decoding="async" alt="FAFE Game monitor selector showing the primary display">
-      <div class="caption">Select the monitor where Forza Horizon 6 is running.</div>
+    <div style="border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:340px;">
+      <img src="../../../assets/site/setup-monitor-v2-en.png" alt="FAFE Game monitor selector" width="330" height="103" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">Select the monitor where Forza Horizon 6 is running.</div>
     </div>
-    <p>Use <strong>F9</strong> to start or stop. The countdown is <strong>3 seconds</strong>; with background mode enabled, you do not need to switch back to Forza. Test each mode with a small count while watching the Activity log before leaving it unattended.</p>
-    <p><a href="../first-time-setup/">Read the complete first-time setup guide →</a></p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 8px;line-height:1.65;">Use <strong style="color:#cdd9e5;font-weight:600;">F9</strong> to start or stop. The countdown is 3 seconds; with background mode enabled, you do not need to switch back to Forza. Test each mode with a small count while watching the Activity log before leaving it unattended.</p>
+    <a href="../first-time-setup/" style="color:#7DB2FF;text-decoration:none;font-weight:600;font-size:.95rem;">Read the complete first-time setup guide →</a>
   </section>
 
-  <section id="skill-points">
-    <h2>Forza Horizon 6 skill point farm with AFK Races</h2>
-    <p>Use a <strong>fully upgraded Subaru Impreza 22B-STI with its stock paint job</strong>. Enable Auto Steering, Traction Control and Stability Control; choose Manual or Automatic shifting according to the EventLab map; and set HUD &amp; Gameplay → Skills to Off. Make sure your last-played EventLab event is the race you intend to repeat. You can begin from the main menu or place the game on the Start Race screen.</p>
-    <ol>
+  <section id="skill-points" style="margin-top:48px;">
+    <h2 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Forza Horizon 6 skill point farm with AFK Races</h2>
+    <p style="font-size:.98rem;color:#cdd9e5;line-height:1.75;margin:0 0 14px;">Use a <strong style="color:#F4F8FD;font-weight:600;">fully upgraded Subaru Impreza 22B-STI with its stock paint job</strong>. Enable Auto Steering, Traction Control and Stability Control; choose Manual or Automatic shifting according to the EventLab map; and set HUD &amp; Gameplay → Skills to Off. Make sure your last-played EventLab event is the race you intend to repeat. You can begin from the main menu or place the game on the Start Race screen.</p>
+    <ol style="margin:0 0 18px;padding-left:22px;color:#cdd9e5;font-size:.98rem;line-height:1.75;">
       <li>FAFE detects the Start Race prompt and enters the event.</li>
       <li>After the countdown it holds W for the timed race.</li>
       <li>It detects the results/restart screen, releases W and restarts.</li>
       <li>The loop continues until the configured count is reached or you press F9.</li>
     </ol>
-    <div class="screenshot" style="margin-top:20px;">
-      <img src="../../../assets/site/race-start-menu-en.webp" width="1600" height="693" loading="lazy" decoding="async" alt="Forza Horizon 6 EventLab Start Race Event screen">
-      <div class="caption">One valid starting position: leave Start Race Event selected without beginning the race.</div>
+    <div style="border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+      <img src="../../../assets/site/race-start-menu-en.webp" alt="Forza Horizon 6 EventLab Start Race Event screen" width="1600" height="693" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">One valid starting position: leave Start Race Event selected without beginning the race.</div>
     </div>
-    <p>Run one observed loop first. If the game misses menu input, increase Race Post-key Wait. On a weaker CPU, raise the Race Detection Interval.</p>
-    <p><a href="../race-auto-grind/">Read the complete AFK Races guide →</a></p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 8px;line-height:1.65;">Run one observed loop first. If the game misses menu input, increase Race Post-key Wait. On a weaker CPU, raise the Race Detection Interval.</p>
+    <a href="../race-auto-grind/" style="color:#7DB2FF;text-decoration:none;font-weight:600;font-size:.95rem;">Read the complete AFK Races guide →</a>
   </section>
 
-  <section id="buy-cars">
-    <h2>Buy cars in batches</h2>
-    <p>FAFE can repeatedly purchase any car that is available through Car Collection. Open Car Collection yourself, select the car you want, and leave its detail page ready to buy. If you instead start from the main menu, FAFE follows its built-in route to the Subaru Impreza 22B-STI.</p>
-    <div class="screenshot" style="margin-top:20px;">
-      <img src="../../../assets/site/auto-buy-manual-start-en.webp" width="1600" height="656" loading="lazy" decoding="async" alt="Forza Horizon 6 Car Collection detail page ready for FAFE Auto Buy Cars in Batch">
-      <div class="caption">Manual starting position: open the target car's detail page and leave it ready to purchase.</div>
+  <section id="buy-cars" style="margin-top:48px;">
+    <h2 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Buy cars in batches</h2>
+    <p style="font-size:.98rem;color:#cdd9e5;line-height:1.75;margin:0 0 18px;">FAFE can repeatedly purchase any car that is available through Car Collection. Open Car Collection yourself, select the car you want, and leave its detail page ready to buy. If you instead start from the main menu, FAFE follows its built-in route to the Subaru Impreza 22B-STI.</p>
+    <div style="border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+      <img src="../../../assets/site/auto-buy-manual-start-en.webp" alt="Forza Horizon 6 Car Collection detail page ready for FAFE Auto Buy Cars in Batch" width="1600" height="656" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">Manual starting position: open the target car's detail page and leave it ready to purchase.</div>
     </div>
-    <p>Set a small purchase count first and confirm that one complete purchase returns to this same screen before running a larger batch.</p>
-    <p><a href="../auto-buy-cars-in-batch/">Read the complete Auto Buy Cars in Batch guide →</a></p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 8px;line-height:1.65;">Set a small purchase count first and confirm that one complete purchase returns to this same screen before running a larger batch.</p>
+    <a href="../auto-buy-cars-in-batch/" style="color:#7DB2FF;text-decoration:none;font-weight:600;font-size:.95rem;">Read the complete Auto Buy Cars in Batch guide →</a>
   </section>
 
-  <section id="mastery">
-    <h2>Prepare mastery-tree Wheelspin unlocks</h2>
-    <p>Sort My Cars by <strong>Recently Added</strong>. In FAFE, use the garage-block selector to mark one contiguous range containing only the cars you intend to process. The first car may use the top, middle or bottom row of the starting column. Navigation is top-to-bottom, column by column—not a snake.</p>
-    <p>Click every required mastery node in travel order from the S starting point. This works with any compatible car, not only the 22B-STI; keep cars with different tree layouts or desired paths out of the selected range. This mode uses WASD and Enter rather than screen templates.</p>
-    <div class="screenshot" style="margin-top:20px;">
-      <img src="../../../assets/site/mastery-unlock-path-en.webp" width="1205" height="711" loading="lazy" decoding="async" alt="FAFE Mastery tree unlock-path grid with nodes numbered in travel order">
-      <div class="caption">The blue numbers show the exact node order FAFE follows with WASD and Enter.</div>
+  <section id="mastery" style="margin-top:48px;">
+    <h2 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Prepare mastery-tree Wheelspin unlocks</h2>
+    <p style="font-size:.98rem;color:#cdd9e5;line-height:1.75;margin:0 0 14px;">Sort My Cars by <strong style="color:#F4F8FD;font-weight:600;">Recently Added</strong>. In FAFE, use the garage-block selector to mark one contiguous range containing only the cars you intend to process. The first car may use the top, middle or bottom row of the starting column. Navigation is top-to-bottom, column by column—not a snake.</p>
+    <p style="font-size:.98rem;color:#cdd9e5;line-height:1.75;margin:0 0 18px;">Click every required mastery node in travel order from the S starting point. This works with any compatible car, not only the 22B-STI; keep cars with different tree layouts or desired paths out of the selected range. This mode uses WASD and Enter rather than screen templates.</p>
+    <div style="border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:520px;">
+      <img src="../../../assets/site/mastery-path-v2-en.png" alt="FAFE Mastery tree unlock-path grid with nodes numbered in travel order and a route preset" width="780" height="631" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">The blue numbers show the exact node order FAFE follows with WASD and Enter.</div>
     </div>
-    <p>If a slower PC drops inputs, increase Cutscene Wait, Node Unlock Interval or Menu Tap Interval.</p>
-    <p><a href="../auto-unlock-spin-wheel-mastery-tree/">Read the complete mastery-tree Wheelspin guide →</a></p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 8px;line-height:1.65;">If a slower PC drops inputs, increase Cutscene Wait, Node Unlock Interval or Menu Tap Interval.</p>
+    <a href="../auto-unlock-spin-wheel-mastery-tree/" style="color:#7DB2FF;text-decoration:none;font-weight:600;font-size:.95rem;">Read the complete mastery-tree Wheelspin guide →</a>
   </section>
 
-  <section id="wheelspins">
-    <h2>Turn Wheelspins into credits and rewards</h2>
-    <p>Select normal or Super Wheelspin and choose how duplicate cars should be handled. FAFE starts the spin, attempts to skip the reveal, waits for the Collect prompt, collects the prizes and handles up to three duplicate menus.</p>
-    <div class="screenshot" style="margin-top:20px;">
-      <img src="../../../assets/site/wheelspin-my-horizon-en.webp" width="1600" height="705" loading="lazy" decoding="async" alt="Forza Horizon 6 MY HORIZON menu with Super Wheelspin and Wheelspin tiles">
-      <div class="caption">On MY HORIZON, choose the tile matching the wheel type selected in FAFE.</div>
+  <section id="wheelspins" style="margin-top:48px;">
+    <h2 id="s6" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Turn Wheelspins into credits and rewards</h2>
+    <p style="font-size:.98rem;color:#cdd9e5;line-height:1.75;margin:0 0 18px;">Select normal or Super Wheelspin and choose how duplicate cars should be handled. FAFE starts the spin, attempts to skip the reveal, waits for the Collect prompt, collects the prizes and handles up to three duplicate menus.</p>
+    <div style="border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+      <img src="../../../assets/site/wheelspin-my-horizon-en.webp" alt="Forza Horizon 6 MY HORIZON menu with Super Wheelspin and Wheelspin tiles" width="1600" height="705" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">On MY HORIZON, choose the tile matching the wheel type selected in FAFE.</div>
     </div>
-    <p>Choose <strong>Sell</strong> only if you are comfortable leaving duplicate sales unattended. A Super Wheelspin collects all three prizes together.</p>
-    <p><a href="../auto-wheelspin/">Read the complete Auto Wheelspins guide →</a></p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 8px;line-height:1.65;">Choose Sell only if you are comfortable leaving duplicate sales unattended. A Super Wheelspin collects all three prizes together.</p>
+    <a href="../auto-wheelspin/" style="color:#7DB2FF;text-decoration:none;font-weight:600;font-size:.95rem;">Read the complete Auto Wheelspins guide →</a>
   </section>
 
-  <section id="delete-cars">
-    <h2>Delete processed cars safely</h2>
-    <p>After you finish unlocking the desired mastery rewards, Delete Used Cars can remove a contiguous garage range one car at a time. Select the first and last cars with the same garage-block selector used by the mastery feature, then carefully confirm the range before starting.</p>
-    <div class="screenshot" style="max-width:467px;margin:20px auto 4px;">
-      <img src="../../../assets/site/garage-block-selector-en.webp" width="467" height="462" loading="lazy" decoding="async" alt="FAFE garage block selector showing the first car, last car and total car count">
-      <div class="caption">Check the first car, last car and total count. Every car inside this selected block will be deleted.</div>
+  <section id="delete-cars" style="margin-top:48px;">
+    <h2 id="s7" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Delete processed cars safely</h2>
+    <p style="font-size:.98rem;color:#cdd9e5;line-height:1.75;margin:0 0 18px;">After you finish unlocking the desired mastery rewards, Delete Used Cars can remove a contiguous garage range one car at a time. Select the first and last cars with the same garage-block selector used by the mastery feature, then carefully confirm the range before starting.</p>
+    <div style="border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:600px;">
+      <img src="../../../assets/site/garage-block-v2-en.png" alt="FAFE garage block selector showing the first car, last car and total car count" width="1028" height="547" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+      <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">Check the first car, last car and total count. Every car inside this selected block will be deleted.</div>
     </div>
-    <p>Deletion cannot be undone. Start with a very small range and keep unrelated or valuable cars outside the selected block.</p>
-    <p><a href="../delete-used-cars/">Read the complete Delete Used Cars guide →</a></p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:18px 0 8px;line-height:1.65;">Deletion cannot be undone. Start with a very small range and keep unrelated or valuable cars outside the selected block.</p>
+    <a href="../delete-used-cars/" style="color:#7DB2FF;text-decoration:none;font-weight:600;font-size:.95rem;">Read the complete Delete Used Cars guide →</a>
   </section>
 
-  <section id="settings">
-    <h2>Settings that improve reliability</h2>
-    <ul>
-      <li><strong>Background mode:</strong> works while the game is unfocused or covered; never minimize the game.</li>
-      <li><strong>OCR:</strong> leave it off for lower CPU use unless small-window text matching needs confirmation.</li>
-      <li><strong>Debug snapshots:</strong> enable only while diagnosing detection.</li>
-      <li><strong>Timing sliders:</strong> increase waits when low frame rate causes missed input.</li>
-      <li><strong>English IME:</strong> keep automatic switching enabled if a Chinese input method may consume game keys.</li>
+  <section id="settings" style="margin-top:48px;">
+    <h2 id="s8" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Settings that improve reliability</h2>
+    <ul style="margin:0;padding-left:22px;color:#cdd9e5;font-size:.98rem;line-height:1.8;">
+      <li><strong style="color:#F4F8FD;font-weight:600;">Background mode:</strong> works while the game is unfocused or covered; never minimize the game.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">OCR:</strong> leave it off for lower CPU use unless small-window text matching needs confirmation.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">Debug snapshots:</strong> enable only while diagnosing detection.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">Timing sliders:</strong> increase waits when low frame rate causes missed input.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">English IME:</strong> keep automatic switching enabled if a Chinese input method may consume game keys.</li>
     </ul>
   </section>
 
-  <section id="troubleshooting">
-    <h2>Troubleshooting and bug reports</h2>
-    <ul>
-      <li><strong>Input does nothing:</strong> check administrator privilege mismatch and the active input method.</li>
-      <li><strong>Detection keeps waiting:</strong> confirm the template language and expected game screen. Waiting indefinitely is intentional; press F9 to recover.</li>
-      <li><strong>Black or frozen capture:</strong> make sure the game is not minimized.</li>
-      <li><strong>High CPU usage:</strong> disable OCR and debug snapshots, and increase detection intervals.</li>
+  <section id="troubleshooting" style="margin-top:48px;">
+    <h2 id="s9" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Troubleshooting and bug reports</h2>
+    <ul style="margin:0 0 18px;padding-left:22px;color:#cdd9e5;font-size:.98rem;line-height:1.8;">
+      <li><strong style="color:#F4F8FD;font-weight:600;">Input does nothing:</strong> check administrator privilege mismatch and the active input method.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">Detection keeps waiting:</strong> confirm the template language and expected game screen. Waiting indefinitely is intentional; press F9 to recover.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">Black or frozen capture:</strong> make sure the game is not minimized.</li>
+      <li><strong style="color:#F4F8FD;font-weight:600;">High CPU usage:</strong> disable OCR and debug snapshots, and increase detection intervals.</li>
     </ul>
-    <p>When a problem occurs, stay on the exact failed screen and press <strong>F12</strong>. FAFE creates a zip containing an annotated detection screenshot and logs for the Discord bug-report channel.</p>
+    <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.65;">When a problem occurs, stay on the exact failed screen and press <strong style="color:#cdd9e5;font-weight:600;">F12</strong>. FAFE creates a zip containing an annotated detection screenshot and logs for the Discord bug-report channel.</p>
   </section>
 
-  <section id="faq">
-    <h2>Frequently asked questions</h2>
-    <h3>Does FAFE directly add money or credits?</h3>
-    <p>No. It automates keyboard and mouse input around in-game races, mastery nodes and Wheelspin rewards. It does not edit memory or your credit balance.</p>
-    <h3>Can FAFE farm while I use the PC?</h3>
-    <p>Background mode can capture and control a covered or unfocused game window. The game cannot be minimized because minimized games stop rendering usable frames.</p>
-    <h3>Is automation risk-free?</h3>
-    <p>No automation tool can promise zero account risk. Use it at your own discretion and test every mode before leaving it unattended.</p>
+  <section id="faq" style="margin-top:48px;">
+    <h2 id="s10" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.5rem;line-height:1.2;color:#F4F8FD;margin:0 0 20px;letter-spacing:-.01em;">Frequently asked questions</h2>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:20px 22px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1rem;color:#F4F8FD;margin:0 0 7px;">Does FAFE directly add money or credits?</h3>
+        <p style="font-size:.93rem;color:#82A0B2;margin:0;line-height:1.6;">No. It automates keyboard and mouse input around in-game races, mastery nodes and Wheelspin rewards. It does not edit memory or your credit balance.</p>
+      </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:20px 22px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1rem;color:#F4F8FD;margin:0 0 7px;">Can FAFE farm while I use the PC?</h3>
+        <p style="font-size:.93rem;color:#82A0B2;margin:0;line-height:1.6;">Background mode can capture and control a covered or unfocused game window. The game cannot be minimized because minimized games stop rendering usable frames.</p>
+      </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:10px;padding:20px 22px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1rem;color:#F4F8FD;margin:0 0 7px;">Is automation risk-free?</h3>
+        <p style="font-size:.93rem;color:#82A0B2;margin:0;line-height:1.6;">No automation tool can promise zero account risk. Use it at your own discretion and test every mode before leaving it unattended.</p>
+      </div>
+    </div>
   </section>
 
-  <section id="download">
-    <h2>Download FAFE</h2>
-    <p><a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe">Download the latest FAFE for Windows</a>, then return to the <a href="../../">FAFE homepage</a> for screenshots and feature details.</p>
+  <section style="margin-top:56px;padding-top:32px;border-top:1px solid #1a2433;">
+    <h2 style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5f7488;margin:0 0 16px;">All guides</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <a href="../full-auto/" style="display:block;text-decoration:none;background:#0C1A2E;border:1px solid #2563EB;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">Full Auto Mode</div>
+        <div style="font-size:.82rem;color:#7DB2FF;margin-top:3px;">Pro — chain everything into one loop</div>
+      </a>
+      <a href="../../#guides" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">All Guides</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">Back to FAFE Home</div>
+      </a>
+    </div>
   </section>
+</div>
+
+<aside class="g-side" aria-label="On this page and help">
+<div class="card"><h4>On this page</h4><nav class="toc"><a href="#s1">How the FAFE farming workflow works</a><a href="#s2">Initial setup</a><a href="#s3">Forza Horizon 6 skill point farm with AFK Races</a><a href="#s4">Buy cars in batches</a><a href="#s5">Prepare mastery-tree Wheelspin unlocks</a><a href="#s6">Turn Wheelspins into credits and rewards</a><a href="#s7">Delete processed cars safely</a><a href="#s8">Settings that improve reliability</a><a href="#s9">Troubleshooting and bug reports</a><a href="#s10">Frequently asked questions</a></nav></div>
+<div class="card"><h4>Need a hand?</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">Ask in Discord →</a><a class="lnk" href="../reporting-bugs/">Report a bug →</a><a class="lnk" href="../troubleshooting/">Troubleshooting →</a></div>
+</aside>
+
 </main>
-<footer><div class="footer-inner"><a href="../../">FAFE Home</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
+
+</div>
 </body>
 </html>

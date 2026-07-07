@@ -1,65 +1,210 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>從熟練度樹自動解鎖幸運轉盤 | FAFE 指南</title>
-<meta name="description" content="使用 FAFE 自動解鎖車輛熟練度樹中的幸運轉盤節點，不僅適用於 22B-STI，也適用於任何相容車輛。">
+<title>熟練度解鎖教學 - FAFE</title>
+<meta name="description" content="此功能不限於 22B-STI。設定目標車輛的熟練度樹路徑，再選擇連續的車庫範圍，FAFE 就能自動處理這些車輛。">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/auto-unlock-spin-wheel-mastery-tree/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-unlock-spin-wheel-mastery-tree/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/auto-unlock-spin-wheel-mastery-tree/">
 <link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/auto-unlock-spin-wheel-mastery-tree/">
 <link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
-<link rel="stylesheet" href="../../../assets/site/guide.css">
-<script src="../../../assets/site/guide.js" defer></script>
-<meta property="og:title" content="從熟練度樹自動解鎖幸運轉盤 | FAFE 指南">
-<meta property="og:description" content="設定熟練度樹路徑，自動為任何相容車輛解鎖幸運轉盤節點。">
-<meta property="og:type" content="article">
-<meta property="article:modified_time" content="2026-06-21">
-<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/auto-unlock-spin-wheel-mastery-tree/">
-<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview-zh-tw-v2.png">
-<meta property="og:locale" content="zh_TW">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"從熟練度樹自動解鎖幸運轉盤","description":"使用 FAFE 自動解鎖車輛熟練度樹中的幸運轉盤節點，不僅適用於 22B-STI，也適用於任何相容車輛。","inLanguage":"zh-Hant","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/auto-unlock-spin-wheel-mastery-tree/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
-<a class="language-link" href="../../../en/guides/auto-unlock-spin-wheel-mastery-tree/" hreflang="en">English</a>
-</div></header>
-<main>
-<div class="breadcrumbs"><a href="../../">FAFE 首頁</a> / 第三部分 — 從熟練度樹自動解鎖幸運轉盤</div>
-<div class="eyebrow">第三部分 — 熟練度樹自動化</div>
-<h1>從熟練度樹自動解鎖幸運轉盤</h1>
-<p class="guide-meta">適用 FAFE v1.8.0 · 最後更新：2026 年 6 月 21 日</p>
-<p class="lede">此功能不限於 22B-STI。只要為目標車輛設定熟練度樹路徑，再選擇連續的車庫範圍，FAFE 就能自動處理這些車輛。</p>
-<div class="notice"><strong>適用於任何相容車輛：</strong>選定車輛應使用你所設定的熟練度樹路徑。請勿在同一次執行中混合熟練度樹配置或解鎖路徑不同的車輛。</div>
-<section class="tutorial-content"><div class="steps active">
-<div class="step"><div class="step-num">1</div><div class="step-content"><h3>準備車輛</h3><p>將要處理的車輛排列成一個連續車庫範圍。FAFE 會由上而下、逐欄移動，因此範圍內不要夾雜無關車輛；車庫其他位置的車輛不必刪除。</p></div></div>
-<div class="step"><div class="step-num">2</div><div class="step-content"><h3>依「最近新增」排序</h3><p>在車庫畫面按 <strong>X</strong> 開啟排序選單，選擇<strong>最近新增</strong>。FAFE 每完成一輛車後會自動重新排序。</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/mastery-sort-recent-zh-tw.webp" width="1367" height="941" loading="lazy" decoding="async" alt="Forza Horizon 6 車庫排序選單，最近新增已選取">
-  <div class="caption">在車庫的「排序」視窗中選擇「最近新增」。</div>
+<div style="background:#0B0F17;">
+
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;"><a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">關於</a><a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">全自動模式</a><a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">功能與教學</a><a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">開始使用</a><a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">設定</a></nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="語言" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/auto-unlock-spin-wheel-mastery-tree/">EN</option>
+        <option value="../../../zh-tw/guides/auto-unlock-spin-wheel-mastery-tree/" selected>繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">下載</a>
+    </div>
+  </div>
+</header>
+
+<main class="g-main">
+
+<aside class="g-rail" aria-label="所有教學"><div class="g-rail-title">教學</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">總覽</div>
+<a href="../forza-horizon-6-farming-guide/">完整掛機刷取指南</a>
 </div>
-<div class="step"><div class="step-num">3</div><div class="step-content"><h3>停在「我的住所」車庫</h3><p>讓遊戲停在<strong>我的住所裡的車庫</strong>畫面，而不是嘉年華大世界選單。第一輛車可以位於起始欄的<strong>上、中、下任一列</strong>；只要 FAFE 的<strong>第一輛車</strong>選擇器勾選相同列即可。</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/garage-ready.webp" width="1600" height="863" loading="lazy" decoding="async" alt="準備進行熟練度自動化的我的住所車庫">
-  <div class="caption">畫面中的左上角只是其中一種起始位置；第一輛車也可以位於同一欄的中列或下列，只要選擇器設定一致。</div>
+<div class="grp"><div class="cat" style="color:#A99BF2;">組態</div>
+<a href="../first-time-setup/">首次設定</a>
+<a href="../settings/">設定</a>
 </div>
-<div class="step"><div class="step-num">4</div><div class="step-content"><h3>依序設定熟練度樹路徑</h3><p>從左下角的 <strong>S 起點</strong>開始，按照 FAFE 實際應走的順序逐一點選相鄰節點，直到幸運轉盤目標節點。每個藍色節點中的數字就是解鎖順序：<strong>1 → 2 → 3 → 4…</strong>。路徑上的中間節點也必須全部點選，不能只點最後的獎勵節點。</p><p>FAFE 會依這個編號順序使用 <strong>WASD＋Enter</strong> 導航。若點錯，請再次點選<strong>最後一個已選節點</strong>來取消；若要全部重設，點選<strong>清除</strong>。</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/mastery-unlock-path-zh-tw.webp" width="1208" height="702" loading="lazy" decoding="async" alt="FAFE 熟練度樹解鎖路徑格狀圖，節點依序標示一到六">
-  <div class="caption">範例路徑：從左下角起點依序點選 1、2、3、4、5、6；藍色數字代表 FAFE 的導航順序。</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">自動化</div>
+<a href="../full-auto/">全自動模式</a>
+<a href="../race-auto-grind/">掛機刷點</a>
+<a href="../auto-buy-cars-in-batch/">自動購車</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/" aria-current="page">熟練度解鎖</a>
+<a href="../auto-wheelspin/">自動轉盤</a>
+<a href="../delete-used-cars/">刪除車輛</a>
 </div>
-<div class="step"><div class="step-num">5</div><div class="step-content"><h3>選擇車庫範圍</h3><p>用<strong>第一輛車</strong>選擇起始列（上、中、下皆可）、用<strong>最後一輛車</strong>選擇結束列，再以<strong>中間整欄數</strong>設定兩者之間的完整欄數。藍色圓點代表已選位置，底部會顯示 FAFE 將處理的車輛總數。</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/garage-block-selector-zh-tw.png" width="502" height="455" loading="lazy" decoding="async" alt="FAFE 繁體中文車庫範圍選擇器，顯示第一輛車、最後一輛車、中間整欄數與總車數">
-  <div class="caption">此範例選擇第一輛車的第一列、最後一輛車的第三列，中間完整欄數為 0，因此總共處理 6 輛車。</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">工具</div>
+<a href="../game-overlay/">遊戲浮層</a>
 </div>
-<div class="step"><div class="step-num">6</div><div class="step-content"><h3>開始自動化</h3><p>開啟側邊欄的 <strong>⭐ 解鎖轉輪</strong>，點選 ▶ 開始或按 <strong>F9</strong>。倒數時間為<strong>3 秒</strong>；啟用背景模式時，不需要切換回 Forza。</p></div></div>
-<div class="step"><div class="step-num">7</div><div class="step-content"><h3>讓 FAFE 處理整個範圍</h3><p>FAFE 會逐車進入、開啟車輛熟練度、解鎖設定節點、返回車庫並移至下一輛，直到完成選定範圍。</p></div></div>
-</div></section>
-<section><h2>所有指南</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>掛機刷錢與技能點指南</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE 首頁</strong><span>所有指南</span></a></div></section>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">原理</div>
+<a href="../mechanics/">運作原理</a>
+<a href="../recovery/">自救系統</a>
+</div>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">支援</div>
+<a href="../troubleshooting/">疑難排解</a>
+<a href="../reporting-bugs/">回報問題</a>
+</div>
+</aside>
+
+<div class="g-content">
+
+<nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;white-space:nowrap;"><a href="../../" style="color:#5f7488;text-decoration:none;">首頁</a><span>/</span><a href="../../#guides" style="color:#5f7488;text-decoration:none;">教學</a><span>/</span><span style="color:#82A0B2;">熟練度解鎖</span></nav>
+<div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6FD0C0;margin-bottom:10px;">自動化 · 第三部分</div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">從熟練度樹自動解鎖幸運轉盤</h1>
+  <p style="font-size:1.1rem;line-height:1.6;color:#82A0B2;margin:0;max-width:680px;">此功能不限於 22B-STI。設定目標車輛的熟練度樹路徑，再選擇連續的車庫範圍，FAFE 就能自動處理這些車輛。</p>
+
+  <div style="margin-top:26px;background:#0C1A2E;border:1px solid #2b4d7a;border-radius:10px;padding:14px 18px;font-size:.92rem;line-height:1.6;color:#cdd9e5;max-width:680px;">
+    <strong style="color:#F4F8FD;font-weight:600;">適用於任何相容車輛：</strong>選定車輛應使用你所設定的熟練度樹路徑。請勿在同一次執行中混合熟練度樹配置或解鎖路徑不同的車輛。
+  </div>
+
+  <div style="margin-top:36px;display:flex;flex-direction:column;gap:30px;">
+
+<div style="display:flex;gap:18px;align-items:flex-start;"><div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div><div style="flex:1;min-width:0;"><h3 id="s0" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">先回到你的家中</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">如果你正在開放世界中駕駛，請先回到你的家中。開啟車庫與解鎖熟練度只能從家中進行，在開放世界中無法運作。</p></div></div>
+
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
+      <div style="flex:1;min-width:0;"><h3 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">準備車輛</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">將要處理的車輛排列成一個連續車庫範圍。FAFE 會由上而下、逐欄移動，因此範圍內不要夾雜無關車輛；車庫其他位置的車輛不必刪除。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">依「最近新增」排序</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">在車庫畫面按 <strong style="color:#cdd9e5;font-weight:600;">X</strong> 開啟排序選單，選擇最近新增。FAFE 每完成一輛車後會自動重新排序。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:520px;">
+          <img src="../../../assets/site/mastery-sort-recent-zh-tw.webp" alt="Forza Horizon 6 車庫排序選單，最近新增已選取" width="1367" height="941" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">4</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">停在「我的住所」車庫</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">讓遊戲停在我的住所裡的車庫畫面，而不是嘉年華大世界選單。第一輛車可以位於起始欄的上、中、下任一列；只要 FAFE 的第一輛車選擇器勾選相同列即可。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+          <img src="../../../assets/site/garage-ready.webp" alt="準備進行熟練度自動化的我的住所車庫" width="1600" height="863" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">5</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">依序設定熟練度樹路徑</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">從左下角的 S 起點開始，按照 FAFE 實際應走的順序逐一點選相鄰節點，直到幸運轉盤目標節點。路徑上的中間節點也必須全部點選。FAFE 會依編號順序使用 WASD＋Enter 導航；若點錯，再次點選最後一個已選節點即可取消，或用「清除」全部重設。現在也支援<strong style="color:#cdd9e5;font-weight:600;">路徑預設</strong>：從下拉選單選擇車型（例如 Subaru 22B-STI），即可套用該車已設定好的解鎖路徑，不必每次手動點選。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:520px;">
+          <img src="../../../assets/site/mastery-unlock-path-v2-zh.png" alt="FAFE 熟練度樹解鎖路徑格狀圖，含路徑預設下拉選單" width="651" height="622" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+          <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">藍色數字代表 FAFE 的導航順序；「路徑預設」下拉選單可直接套用車型的既有路徑。</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">6</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">選擇車庫範圍</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">用「第一輛車」選擇起始列，用「最後一輛車」選擇結束列，再以「中間整欄數」設定兩者之間的完整欄數。藍色圓點代表已選位置，底部會顯示 FAFE 將處理的車輛總數。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:600px;">
+          <img src="../../../assets/site/delete-cars-block-selector-v2-zh.png" alt="FAFE 車庫區塊選擇器，顯示車輛圖示與首欄／中間／末欄統計" width="1071" height="563" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">7</div>
+      <div style="flex:1;min-width:0;"><h3 id="s6" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">開始自動化</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">開啟側邊欄的「解鎖轉輪」，點選 ▶ 開始或按 <strong style="color:#cdd9e5;font-weight:600;">F9</strong>。倒數時間為 3 秒；啟用背景模式時，不需要切換回 Forza。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">8</div>
+      <div style="flex:1;min-width:0;"><h3 id="s7" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">讓 FAFE 處理整個範圍</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">FAFE 會逐車進入、開啟車輛熟練度、解鎖設定節點、返回車庫並移至下一輛，直到完成選定範圍。</p></div>
+    </div>
+
+  </div>
+
+  <section style="margin-top:56px;padding-top:32px;border-top:1px solid #1a2433;">
+    <h2 style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5f7488;margin:0 0 16px;">更多教學</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <a href="../forza-horizon-6-farming-guide/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">完整掛機刷取指南</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">完整流程總覽</div>
+      </a>
+      <a href="../../#guides" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">所有教學</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">回到 FAFE 首頁</div>
+      </a>
+    </div>
+  </section>
+</div>
+
+<aside class="g-side" aria-label="本頁內容與協助">
+<div class="card"><h4>本頁內容</h4><nav class="toc"><a href="#s0">先回到你的家中</a><a href="#s1">準備車輛</a><a href="#s2">依「最近新增」排序</a><a href="#s3">停在「我的住所」車庫</a><a href="#s4">依序設定熟練度樹路徑</a><a href="#s5">選擇車庫範圍</a><a href="#s6">開始自動化</a><a href="#s7">讓 FAFE 處理整個範圍</a></nav></div>
+<div class="card"><h4>需要協助？</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">到 Discord 詢問 →</a><a class="lnk" href="../reporting-bugs/">回報問題 →</a><a class="lnk" href="../troubleshooting/">疑難排解 →</a></div>
+</aside>
+
 </main>
-<footer><div class="footer-inner"><a href="../../">FAFE 首頁</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
+
+</div>
 </body>
 </html>

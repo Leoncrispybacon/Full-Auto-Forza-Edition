@@ -3,63 +3,199 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>自動掛機刷技術點 | FAFE 指南</title>
-<meta name="description" content="準備全滿升級且使用原廠烤漆的 22B-STI，依 EventLab 地圖需求設定排檔、關閉 HUD 技術顯示，並以背景模式執行 FAFE 賽事掛機。">
+<title>掛機刷點教學 - FAFE</title>
+<meta name="description" content="重複指定的 EventLab 競速，FAFE 會處理開始、駕駛與重新開始。">
 <link rel="canonical" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/race-auto-grind/">
 <link rel="alternate" hreflang="en" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/race-auto-grind/">
 <link rel="alternate" hreflang="zh-Hant" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/race-auto-grind/">
 <link rel="alternate" hreflang="x-default" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/race-auto-grind/">
 <link rel="icon" type="image/png" href="../../../assets/site/fafe-icon.png">
-<link rel="stylesheet" href="../../../assets/site/guide.css">
-<script src="../../../assets/site/guide.js" defer></script>
-<meta property="og:title" content="自動掛機刷技術點 | FAFE 指南">
-<meta property="og:description" content="設定車輛、難度、HUD 與 EventLab 地圖，使用 FAFE 自動掛機競速。">
-<meta property="og:type" content="article">
-<meta property="article:modified_time" content="2026-06-21">
-<meta property="og:url" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/race-auto-grind/">
-<meta property="og:image" content="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/assets/site/social-preview-zh-tw-v2.png">
-<meta property="og:locale" content="zh_TW">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"自動掛機刷技術點","description":"準備全滿升級且使用原廠烤漆的 22B-STI，依 EventLab 地圖需求設定排檔、關閉 HUD 技術顯示，並以背景模式執行 FAFE 賽事掛機。","inLanguage":"zh-Hant","mainEntityOfPage":"https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/race-auto-grind/","author":{"@type":"Person","name":"Leoncrispybacon"},"about":{"@type":"SoftwareApplication","name":"Full Auto Forza Edition","alternateName":"FAFE","operatingSystem":"Windows"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Work+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-<a class="brand" href="../../"><img src="../../../assets/site/fafe-icon.png" width="512" height="512" alt="FAFE"><span>Full Auto Forza Edition</span></a>
-<a class="language-link" href="https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/race-auto-grind/" hreflang="en">English</a>
-</div></header>
-<main>
-<div class="breadcrumbs"><a href="../../">FAFE 首頁</a> / 第二部分 — 自動掛機刷技術點</div>
-<div class="eyebrow">第二部分 — 自動掛機刷技術點</div>
-<h1>自動掛機刷技術點</h1>
-<p class="guide-meta">適用 FAFE v1.8.0 · 最後更新：2026 年 6 月 21 日</p>
-<section class="tutorial-content"><div class="steps active"><div class="step"><div class="step-num">1</div><div class="step-content"><h3>切換到「賽事掛機」功能</h3><p>點選側邊欄的「🏁 賽事掛機」功能。樣本已內建，無需擷取。</p></div></div>
-<div class="screenshot" style="max-width:383px;margin:12px auto 4px;">
-  <img src="../../../assets/site/race-nav-zh-tw.png" width="383" height="90" loading="lazy" decoding="async" alt="FAFE 側邊欄中的賽事掛機功能">
-  <div class="caption">點選側邊欄的「賽事掛機」。</div>
+<div style="background:#0B0F17;">
+
+<header style="position:sticky;top:0;z-index:50;background:rgba(11,15,23,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #1a2433;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:28px;">
+    <a href="../../" style="display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0;">
+      <img src="../../../assets/site/fafe-icon.png" alt="FAFE" width="512" height="512" style="width:34px;height:34px;border-radius:9px;">
+      <span style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;color:#F4F8FD;">FAFE</span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:4px;margin-left:14px;"><a href="../../#about" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">關於</a><a href="../../#full-auto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:600;color:#7DB2FF;text-decoration:none;white-space:nowrap;">全自動模式</a><a href="../../#guides" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">功能與教學</a><a href="../../#howto" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">開始使用</a><a href="../../#settings" style="padding:8px 12px;border-radius:7px;font-size:.9rem;font-weight:500;color:#82A0B2;text-decoration:none;white-space:nowrap;">設定</a></nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <select aria-label="語言" onchange="localStorage.setItem('preferredLanguage', this.value.includes('/zh-tw/') ? 'zh-tw' : 'en'); window.location.href=this.value;" style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#82A0B2;background:#0B0F17;border:1px solid #243044;border-radius:7px;padding:6px 9px;cursor:pointer;">
+        <option value="../../../en/guides/race-auto-grind/">EN</option>
+        <option value="../../../zh-tw/guides/race-auto-grind/" selected>繁中</option>
+      </select>
+      <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest/download/FAFE_Setup.exe" style="display:inline-flex;align-items:center;gap:8px;background:#2563EB;color:#F4F8FD;text-decoration:none;font-weight:700;font-size:.9rem;padding:9px 18px;border-radius:9px;white-space:nowrap;">下載</a>
+    </div>
+  </div>
+</header>
+
+<main class="g-main">
+
+<aside class="g-rail" aria-label="所有教學"><div class="g-rail-title">教學</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">總覽</div>
+<a href="../forza-horizon-6-farming-guide/">完整掛機刷取指南</a>
 </div>
-<div class="step"><div class="step-num">2</div><div class="step-content"><h3>準備車輛、難度與 HUD 設定</h3><p>使用<strong>全滿升級且維持原廠烤漆</strong>的 Subaru Impreza 22B-STI。進入遊戲<strong>難度</strong>設定，將<strong>轉向</strong>設為<strong>自動轉向</strong>、<strong>循跡控制系統</strong>設為<strong>開啟</strong>、<strong>穩定控制系統</strong>設為<strong>開啟</strong>。<strong>排檔系統請依 EventLab 地圖要求選擇手排或自排</strong>，不是固定使用自排。</p><p>接著進入<strong>設定 → 抬頭顯示器與遊戲</strong>，將<strong>技術</strong>設為<strong>關閉</strong>。</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/race-difficulty-zh-tw.png" width="1988" height="525" loading="lazy" decoding="async" alt="Forza Horizon 6 難度設定：自動轉向、循跡與穩定控制開啟，排檔依地圖要求設定">
-  <div class="caption">難度設定範例；排檔系統必須配合所使用的 EventLab 地圖。</div>
+<div class="grp"><div class="cat" style="color:#A99BF2;">組態</div>
+<a href="../first-time-setup/">首次設定</a>
+<a href="../settings/">設定</a>
 </div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/hud-skill-off-zh-tw.png" width="2768" height="437" loading="lazy" decoding="async" alt="Forza Horizon 6 抬頭顯示器與遊戲設定，技術設為關閉">
-  <div class="caption">在「抬頭顯示器與遊戲」中將「技術」設為關閉。</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">自動化</div>
+<a href="../full-auto/">全自動模式</a>
+<a href="../race-auto-grind/" aria-current="page">掛機刷點</a>
+<a href="../auto-buy-cars-in-batch/">自動購車</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/">熟練度解鎖</a>
+<a href="../auto-wheelspin/">自動轉盤</a>
+<a href="../delete-used-cars/">刪除車輛</a>
 </div>
-<div class="step"><div class="step-num">3</div><div class="step-content"><h3>進入比賽起點（或停在主選單）</h3><p>你可以<strong>停在起跑畫面</strong>（看到「開始比賽」選單），或直接<strong>停在主選單</strong>——FAFE 會自動經由<strong>創意中心 → EventLab</strong> 前往你<strong>上次遊玩的賽事</strong>並進入起跑畫面。建議使用藍圖分享碼 <strong>362 177 064</strong>（或任何按住 W 就能跑完的圖）。FAFE 會偵測你目前在哪個畫面並接手，比賽未開始前停住即可。</p></div></div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/race-main-menu-zh-tw.webp" width="1600" height="730" loading="lazy" decoding="async" alt="Forza Horizon 6 主選單範例，顯示劇情分頁與世界地圖">
-  <div class="caption">主選單範例：停在這類暫停選單畫面，FAFE 會自動前往上次遊玩的 EventLab 賽事。</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">工具</div>
+<a href="../game-overlay/">遊戲浮層</a>
 </div>
-<div class="screenshot" style="margin:12px 0 4px;">
-  <img src="../../../assets/site/race-start-menu-zh-tw.webp" width="1600" height="675" loading="lazy" decoding="async" alt="Forza Horizon 6 EventLab 開始賽事選單範例">
-  <div class="caption">起跑畫面範例：讓「開始賽事」保持選取，尚未正式開始比賽。</div>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">原理</div>
+<a href="../mechanics/">運作原理</a>
+<a href="../recovery/">自救系統</a>
 </div>
-<div class="step"><div class="step-num">4</div><div class="step-content"><h3>按下開始</h3><p>在 FAFE 點選「▶ 開始」或按 <strong>F9</strong>，接著會<strong>倒數 3 秒</strong>。啟用背景模式時，FAFE 會直接控制遊戲視窗，<strong>不需要切換回 FH6</strong>。</p></div></div>
-<div class="step"><div class="step-num">5</div><div class="step-content"><h3>放著讓它跑</h3><p>工具自動偵測比賽開始，按住 W 全程，偵測終點後自動重新開始，無限循環。</p></div></div>
-<div class="step"><div class="step-num">6</div><div class="step-content"><h3>停止</h3><p>隨時按 <strong>F9</strong> 或點「■ 停止」即可立即中止——<strong>比賽進行中（按住 W 時）也能正常停止</strong>。</p></div></div>
-</div></section>
-<section><h2>所有指南</h2><div class="guide-grid"><a class="guide-card" href="../forza-horizon-6-farming-guide/"><strong>掛機刷錢與技能點指南</strong><span>FAFE</span></a><a class="guide-card" href="../../#guides"><strong>FAFE 首頁</strong><span>所有指南</span></a></div></section>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">支援</div>
+<a href="../troubleshooting/">疑難排解</a>
+<a href="../reporting-bugs/">回報問題</a>
+</div>
+</aside>
+
+<div class="g-content">
+
+<nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;white-space:nowrap;"><a href="../../" style="color:#5f7488;text-decoration:none;">首頁</a><span>/</span><a href="../../#guides" style="color:#5f7488;text-decoration:none;">教學</a><span>/</span><span style="color:#82A0B2;">掛機刷點</span></nav>
+<div style="font-family:'Work Sans',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6FD0C0;margin-bottom:10px;">自動化 · 第一部分</div>
+  <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.02em;color:#F4F8FD;margin:0 0 16px;">自動掛機刷技術點</h1>
+  <p style="font-size:1.1rem;line-height:1.6;color:#82A0B2;margin:0;max-width:680px;">重複指定的 EventLab 競速，FAFE 會處理開始、駕駛與重新開始。</p>
+
+  <div style="margin-top:40px;display:flex;flex-direction:column;gap:30px;">
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">切換到「掛機刷點」功能</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">點選側邊欄的「掛機刷點」功能。樣本已內建，無需擷取。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;max-width:280px;">
+          <img src="../../../assets/site/race-nav-v2-zh.png" alt="FAFE 側邊欄中的掛機刷點功能" width="160" height="46" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">準備車輛、難度與 HUD 設定</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">使用<strong style="color:#cdd9e5;font-weight:600;">全滿升級且維持原廠烤漆</strong>的 Subaru Impreza 22B-STI。進入遊戲難度設定，將轉向設為自動轉向、循跡控制設為開啟、穩定控制設為開啟。排檔系統請依 EventLab 地圖要求選擇手排或自排。接著進入設定 → 抬頭顯示器與遊戲，將技術設為關閉。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+          <img src="../../../assets/site/race-difficulty-zh-tw.png" alt="Forza Horizon 6 難度設定：自動轉向、循跡與穩定控制開啟" width="1988" height="525" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+          <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">難度設定範例；排檔系統必須配合所使用的 EventLab 地圖。</div>
+        </div>
+        <div style="margin-top:14px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+          <img src="../../../assets/site/hud-skill-off-zh-tw.png" alt="Forza Horizon 6 抬頭顯示器與遊戲設定，技術設為關閉" width="2768" height="437" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+          <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">在「抬頭顯示器與遊戲」中將「技術」設為關閉。</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
+      <div style="flex:1;min-width:0;">
+        <h3 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">進入比賽起點（或停在主選單）</h3>
+        <p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">你可以停在起跑畫面，或直接停在主選單 — FAFE 會自動經由創意中心 → EventLab 前往你上次遊玩的賽事並進入起跑畫面。建議使用藍圖分享碼 <strong style="color:#cdd9e5;font-weight:600;">362 177 064</strong>（或任何按住 W 就能跑完的圖）。</p>
+        <div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+          <img src="../../../assets/site/race-main-menu-zh-tw.webp" alt="Forza Horizon 6 主選單範例，顯示劇情分頁與世界地圖" width="1600" height="730" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+          <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">主選單範例：停在此畫面，FAFE 會自動前往上次遊玩的 EventLab 賽事。</div>
+        </div>
+        <div style="margin-top:14px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;">
+          <img src="../../../assets/site/race-start-menu-zh-tw.webp" alt="Forza Horizon 6 EventLab 開始賽事選單範例" width="1600" height="675" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;">
+          <div style="padding:9px 15px;font-family:'Geist Mono',monospace;font-size:.74rem;color:#5f7488;text-align:center;border-top:1px solid #1a2433;background:#0C1320;">起跑畫面範例：讓「開始賽事」保持選取，尚未正式開始比賽。</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">4</div>
+      <div style="flex:1;min-width:0;"><h3 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">按下開始</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">點選「▶ 開始」或按 <strong style="color:#cdd9e5;font-weight:600;">F9</strong>，接著會倒數 3 秒。啟用背景模式時，FAFE 會直接控制遊戲視窗，不需要切換回 FH6。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">5</div>
+      <div style="flex:1;min-width:0;"><h3 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">放著讓它跑</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">工具自動偵測比賽開始，按住 W 全程，偵測終點後自動重新開始，無限循環。</p></div>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">6</div>
+      <div style="flex:1;min-width:0;"><h3 id="s6" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">停止</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">隨時按 <strong style="color:#cdd9e5;font-weight:600;">F9</strong> 或點「■ 停止」即可立即中止 — 比賽進行中（按住 W 時）也能正常停止。</p></div>
+    </div>
+
+  </div>
+
+  <section style="margin-top:56px;padding-top:32px;border-top:1px solid #1a2433;">
+    <h2 style="font-family:'Geist Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5f7488;margin:0 0 16px;">更多教學</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <a href="../forza-horizon-6-farming-guide/" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">完整掛機刷取指南</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">完整流程總覽</div>
+      </a>
+      <a href="../../#guides" style="display:block;text-decoration:none;background:#121A28;border:1px solid #243044;border-radius:10px;padding:18px 20px;">
+        <div style="font-weight:600;font-size:.95rem;color:#F4F8FD;">所有教學</div>
+        <div style="font-size:.82rem;color:#5f7488;margin-top:3px;">回到 FAFE 首頁</div>
+      </a>
+    </div>
+  </section>
+</div>
+
+<aside class="g-side" aria-label="本頁內容與協助">
+<div class="card"><h4>本頁內容</h4><nav class="toc"><a href="#s1">切換到「掛機刷點」功能</a><a href="#s2">準備車輛、難度與 HUD 設定</a><a href="#s3">進入比賽起點（或停在主選單）</a><a href="#s4">按下開始</a><a href="#s5">放著讓它跑</a><a href="#s6">停止</a></nav></div>
+<div class="card"><h4>需要協助？</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">到 Discord 詢問 →</a><a class="lnk" href="../reporting-bugs/">回報問題 →</a><a class="lnk" href="../troubleshooting/">疑難排解 →</a></div>
+</aside>
+
 </main>
-<footer><div class="footer-inner"><a href="../../">FAFE 首頁</a> / <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition">GitHub</a> / <a href="https://discord.gg/yfn8Vw8Ypf">Discord</a></div></footer>
+
+<footer style="background:#0A0E14;border-top:1px solid #1a2433;padding:30px 40px;">
+  <div style="max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'Geist Mono',monospace;font-size:.8rem;color:#5f7488;line-height:1.6;">Full Auto Forza Edition · For Forza Horizon 6 · Unofficial · <a href="https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">GitHub</a> · <a href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener" style="color:#82A0B2;text-decoration:none;">Discord</a></span>
+    <a href="https://paypal.me/Leonbacon" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#0070ba;color:#fff;text-decoration:none;font-weight:600;font-size:.82rem;padding:8px 17px;border-radius:999px;">Support Me</a>
+  </div>
+</footer>
+
+</div>
 </body>
 </html>
