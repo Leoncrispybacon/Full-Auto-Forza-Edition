@@ -11,6 +11,18 @@ STRINGS = {
         "en":    "FAFE",
         "zh-tw": "FAFE",
     },
+    "buy_tpl_detail_22b": {
+        "en":    "22B-STI detail view identity check",
+        "zh-tw": "22B-STI 車輛詳情身分確認",
+    },
+    "fa_tpl_buy_detail_gts_acr": {
+        "en":    "Viper GTS ACR detail view identity check",
+        "zh-tw": "Viper GTS ACR 車輛詳情身分確認",
+    },
+    "fa_tpl_buy_detail_mad_mike": {
+        "en":    "#123 Mad Mike detail view identity check",
+        "zh-tw": "#123 Mad Mike 車輛詳情身分確認",
+    },
     "support_thanks": {
         "en":    "If FAFE saves you time, a small tip helps keep it maintained. Thank you!",
         "zh-tw": "如果 FAFE 為你節省了時間，小額贊助能幫助它持續維護。感謝你！",
@@ -674,6 +686,10 @@ STRINGS = {
         "en":    "  ✗ Couldn't read the tech-points number — aborting.",
         "zh-tw": "  ✗ 無法讀取技術點數 — 中止。",
     },
+    "log_fa_points_read_saw": {
+        "en":    "    (OCR saw: '{text}')",
+        "zh-tw": "    （OCR 讀到：「{text}」）",
+    },
     "log_fa_points_read": {
         "en":    "  ✓ Tech points: {p}",
         "zh-tw": "  ✓ 技術點數：{p}",
@@ -737,6 +753,14 @@ STRINGS = {
     "log_fa_aborted": {
         "en":    "Full Auto stopped — a step could not proceed (not advancing to the next cycle).",
         "zh-tw": "全自動已停止 — 某步驟無法繼續（不進入下一循環）。",
+    },
+    "log_fa_restart": {
+        "en":    "Auto-restart: relaunching the game after {n} cycle(s).",
+        "zh-tw": "自動重啟：已完成 {n} 個循環，正在重新啟動遊戲。",
+    },
+    "log_fa_restart_fail": {
+        "en":    "Auto-restart failed — could not relaunch the game. Stopping.",
+        "zh-tw": "自動重啟失敗 — 無法重新啟動遊戲，已停止。",
     },
     "label_activity": {
         "en":    "Activity",
@@ -979,6 +1003,36 @@ STRINGS = {
         "en":    "Auto Spin Wheel stopped.",
         "zh-tw": "自動轉輪已停止。",
     },
+    # ── Shared detection detail (logfmt.py) — plain-language "what it saw" ──
+    "det_where_roi": {
+        "en":    "search area",
+        "zh-tw": "搜尋範圍",
+    },
+    "det_where_full": {
+        "en":    "full screen",
+        "zh-tw": "全畫面",
+    },
+    "det_detail": {
+        "en":    "{pct} in {where}",
+        "zh-tw": "{pct} 於{where}",
+    },
+    "det_read": {
+        "en":    ", read '{text}'",
+        "zh-tw": "，讀到「{text}」",
+    },
+    "det_best": {
+        "en":    "best {detail}",
+        "zh-tw": "最佳 {detail}",
+    },
+    # Appended after a not-found line so a miss is diagnosable inline.
+    "log_det_best_seen": {
+        "en":    "    (best seen: {detail})",
+        "zh-tw": "    （最佳偵測：{detail}）",
+    },
+    "det_nothing": {
+        "en":    "nothing",
+        "zh-tw": "無內容",
+    },
     "mastery_count_label": {
         "en":    "Number of cars to process:",
         "zh-tw": "要處理的車輛數量：",
@@ -1065,9 +1119,17 @@ STRINGS = {
         "en":    "  ✗ couldn't confirm the main menu in {secs}s — stopping anyway.",
         "zh-tw": "  ✗ {secs} 秒內無法確認主選單 — 仍然停止。",
     },
+    "log_race_start_timeout": {
+        "en":    "  ! Start Race screen not detected in {secs}s — recovering.",
+        "zh-tw": "  ! {secs} 秒內未偵測到開始賽事畫面 — 正在復原。",
+    },
     "log_delete_stopped": {
         "en":    "Auto Delete stopped.",
         "zh-tw": "自動刪除已停止。",
+    },
+    "log_delete_confirm_fail": {
+        "en":    "  ✗ Delete-confirm dialog not detected — stopping (won't delete blind).",
+        "zh-tw": "  ✗ 未偵測到刪除確認對話框 — 停止（不會盲刪）。",
     },
     "delete_loop": {
         "en":    "Car",
@@ -1429,10 +1491,6 @@ STRINGS = {
     "setting_mastery_threshold": {
         "en":    "Minimum required similarity",
         "zh-tw": "最低所需相似度",
-    },
-    "setting_mastery_cutscene_wait": {
-        "en":    "Cutscene wait (s)",
-        "zh-tw": "過場動畫等待（秒）",
     },
     "setting_mastery_grid_unlock_wait": {
         "en":    "Node unlock delay (s)",
@@ -1870,6 +1928,10 @@ STRINGS = {
         "en":    "  ERROR: {label} was not detected; stopping gated Mastery to avoid wrong inputs.",
         "zh-tw": "  ERROR: {label} was not detected; stopping gated Mastery to avoid wrong inputs.",
     },
+    "log_mastery_recover_mycars": {
+        "en":    "  My Cars not found — backing out a menu level and retrying (dropped key?)...",
+        "zh-tw": "  找不到 My Cars — 退回上一層選單並重試（按鍵可能漏送）...",
+    },
     # Mastery grid picker widget
     "grid_title": {
         "en":    "Mastery tree — unlock path",
@@ -1977,10 +2039,6 @@ STRINGS = {
         "en":    "How closely the screen must match the template to count as detected.\nHigher = stricter. Lower = more lenient but may cause false detections.",
         "zh-tw": "畫面與樣本的相符程度，達到此值才視為偵測成功。\n數值越高越嚴格，越低則越寬鬆但可能誤判。",
     },
-    "tip_mastery_cutscene_wait": {
-        "en":    "How long to wait for the 'Ride This Car' cutscene before pressing ESC (in seconds).\nDefault 11. Increase if the cutscene runs longer on your machine. The slider min is 11, but if you use a mod that skips the cutscene you can set a lower value by editing mastery_cutscene_wait in config.json.",
-        "zh-tw": "按下 ESC 前等待「乘坐這輛車」過場動畫的時間（秒）。\n預設 11。若你的電腦過場動畫較長，請增加。滑桿最低為 11；若你使用了略過過場動畫的模組，可直接編輯 config.json 的 mastery_cutscene_wait 設為更低的值。",
-    },
     "tip_mastery_grid_unlock_wait": {
         "en":    "How long to wait after unlocking each mastery-tree node before moving to the next (in seconds).\nDefault 1.25. Increase on weaker hardware if nodes don't register before the cursor moves on.",
         "zh-tw": "解鎖每個熟練度樹節點後、移動到下一個之前的等待時間（秒）。\n預設 1.25。若硬體較弱、節點尚未生效游標就移動，請調高。",
@@ -2039,6 +2097,56 @@ STRINGS = {
     "log_mkeys_sort": {
         "en":    "Pressing X + Down ×6 + Enter — sort by Recently Added",
         "zh-tw": "按下 X + ↓ ×6 + Enter — 依最近新增排序",
+    },
+
+    # ── Cutscene skip mod ─────────────────────────────────────
+    "cutscene_skip_installed_ok": {
+        "en":    "New-car cutscene skip installed. Your game's Cinematics.zip was edited (a backup was saved first); use Uninstall to restore it.",
+        "zh-tw": "已安裝新車過場動畫略過。已編輯遊戲的 Cinematics.zip（並已先建立備份）；可用「解除安裝」還原。",
+    },
+    "cutscene_skip_uninstalled": {
+        "en":    "New-car cutscene skip removed — Cinematics.zip restored from the backup.",
+        "zh-tw": "已移除新車過場動畫略過，Cinematics.zip 已從備份還原。",
+    },
+    "cutscene_skip_no_game": {
+        "en":    "Couldn't find Forza Horizon 6. Start the game first, or browse to the game folder.",
+        "zh-tw": "找不到 Forza Horizon 6。請先啟動遊戲，或手動選擇遊戲資料夾。",
+    },
+    "cutscene_skip_failed": {
+        "en":    "Cutscene skip failed: {err}",
+        "zh-tw": "過場動畫略過失敗：{err}",
+    },
+    "cutscene_skip_close_game": {
+        "en":    "Close Forza Horizon 6 first — FAFE can't edit the game files while the game is running.",
+        "zh-tw": "請先關閉 Forza Horizon 6 — 遊戲執行期間 FAFE 無法編輯遊戲檔案。",
+    },
+    "update_not_packaged": {
+        "en": "Auto-update is only available in the installed build.",
+        "zh-tw": "自動更新僅在安裝版可用。",
+    },
+    "update_disabled": {
+        "en": "Automatic updates are turned off in Settings.",
+        "zh-tw": "自動更新已在設定中關閉。",
+    },
+    "update_fetch_fail": {
+        "en": "Couldn't reach the update server. Try again, or use the releases page.",
+        "zh-tw": "無法連線更新伺服器。請重試，或使用發佈頁面。",
+    },
+    "update_download_fail": {
+        "en": "Update download failed: {err}",
+        "zh-tw": "更新下載失敗：{err}",
+    },
+    "update_verify_fail": {
+        "en": "The downloaded installer failed verification and was discarded.",
+        "zh-tw": "下載的安裝檔驗證失敗，已捨棄。",
+    },
+    "update_launch_fail": {
+        "en": "Couldn't start the installer: {err}",
+        "zh-tw": "無法啟動安裝程式：{err}",
+    },
+    "update_launched": {
+        "en": "Installer started — FAFE will close and reopen updated.",
+        "zh-tw": "安裝程式已啟動 — FAFE 將關閉並以新版本重新開啟。",
     },
 }
 
