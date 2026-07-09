@@ -583,6 +583,8 @@ class Api:
                 "monitors": monitors, "machine_id": mid, "store_url": store,
                 "frozen": _is_frozen(),
                 "auto_update": bool(config.load().get("auto_update", True)),
+                "update_installable": bool(_is_frozen()
+                                           and updater.running_from_installed_copy()),
                 "first_run": self._first_run,
                 # Builds without the private Full Auto module are teaser builds.
                 # A private build leaves teaser mode only when full_auto is bundled.
@@ -1345,6 +1347,8 @@ class Api:
         lang = cfg.get("lang", "en")
         if not _is_frozen():
             return {"ok": False, "msg": _at("update_not_packaged", lang)}
+        if not updater.running_from_installed_copy():
+            return {"ok": False, "msg": _at("update_not_installed", lang)}
         if not cfg.get("auto_update", True):
             return {"ok": False, "msg": _at("update_disabled", lang)}
         if self._running():

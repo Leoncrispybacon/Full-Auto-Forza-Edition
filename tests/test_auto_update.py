@@ -60,7 +60,8 @@ class AppWebWiringTests(unittest.TestCase):
     def test_install_update_gates_on_frozen_and_flag(self):
         s = self._src()
         i = s.index("def install_update(self")
-        body = s[i:i + 1500]
+        j = s.index("\n    def ", i + 1)   # end of this method (next method def)
+        body = s[i:j]
         self.assertIn("_is_frozen()", body)
         self.assertIn('"auto_update"', body)
         self.assertIn("/VERYSILENT", body)
@@ -73,7 +74,28 @@ class AppWebWiringTests(unittest.TestCase):
 
 
 class InstallerConfigTests(unittest.TestCase):
-    def test_iss_closes_and_restarts_apps(self):
+    def test_iss_closes_and_relaunches_on_silent_update(self):
         iss = open("build_installer.iss", encoding="utf-8").read()
-        self.assertIn("CloseApplications=yes", iss)
-        self.assertIn("RestartApplications=yes", iss)
+        self.assertIn("CloseApplications=yes", iss)          # RM closes the locked FAFE
+        self.assertIn("Check: WizardSilent", iss)            # explicit relaunch when silent
+        # RM restart is disabled (unreliable in /VERYSILENT); relaunch is the [Run] entry.
+        self.assertNotIn("RestartApplications=yes", iss)
+
+
+class InstalledDetectionTests(unittest.TestCase):
+    def test_dir_matches_case_and_slash_insensitive(self):
+        import updater
+        self.assertTrue(updater._dir_matches(
+            r"C:\Users\X\AppData\Local\Programs\FAFE",
+            "c:/users/x/appdata/local/programs/fafe/"))
+
+    def test_dir_matches_rejects_different(self):
+        import updater
+        self.assertFalse(updater._dir_matches(
+            r"C:\Downloads\New APP\FAFE_dist",
+            r"C:\Users\X\AppData\Local\Programs\FAFE"))
+
+    def test_dir_matches_empty(self):
+        import updater
+        self.assertFalse(updater._dir_matches("", r"C:\x"))
+        self.assertFalse(updater._dir_matches(r"C:\x", ""))

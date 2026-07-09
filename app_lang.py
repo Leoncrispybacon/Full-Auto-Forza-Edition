@@ -2124,6 +2124,10 @@ STRINGS = {
         "en": "Auto-update is only available in the installed build.",
         "zh-tw": "自動更新僅在安裝版可用。",
     },
+    "update_not_installed": {
+        "en": "Auto-update needs the installed copy. Run the installer once, then launch FAFE from its shortcut. (A portable/unzipped copy can't self-update.)",
+        "zh-tw": "自動更新需要安裝版。請先執行一次安裝程式，再從捷徑啟動 FAFE。（免安裝／解壓縮的版本無法自我更新。）",
+    },
     "update_disabled": {
         "en": "Automatic updates are turned off in Settings.",
         "zh-tw": "自動更新已在設定中關閉。",

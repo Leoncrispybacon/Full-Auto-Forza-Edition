@@ -22,6 +22,7 @@ off.
 
 import os
 import ssl
+import sys
 import threading
 import urllib.request
 import json
@@ -186,3 +187,61 @@ def download_installer(url: str, dest: str, on_progress=None) -> str:
                         pass
     os.replace(part, dest)
     return dest
+
+
+# ── Installed-copy detection ─────────────────────────────────
+# Auto-update runs the installer, which updates FAFE at its REGISTERED install
+# location (Inno reuses the prior-install dir — default OR a custom one the user
+# picked). A PORTABLE copy (ran the zip, never installed) has no registry record,
+# so the installer would drop a separate copy elsewhere and never touch/relaunch
+# the running one. So auto-update is offered ONLY when the running exe lives at
+# the registered install dir. AppId is unset in the .iss, so Inno's uninstall key
+# is derived from AppName ("Full Auto Forza Edition") — do NOT switch to an
+# explicit AppId GUID: it would orphan already-installed users.
+_UNINSTALL_KEY = (r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
+                  r"\Full Auto Forza Edition_is1")
+
+
+def _dir_matches(exe_dir: str, install_loc: str) -> bool:
+    """True if exe_dir is the same folder as install_loc (case/slash-insensitive).
+    Pure helper (no registry) so it's unit-testable."""
+    if not exe_dir or not install_loc:
+        return False
+    def _norm(p):
+        return os.path.normcase(os.path.normpath(p.strip().rstrip(r"\/")))
+    return _norm(exe_dir) == _norm(install_loc)
+
+
+def installed_install_dir():
+    """The registered Inno install directory (per-user then machine), or None if
+    FAFE isn't recorded as installed (portable/dev)."""
+    try:
+        import winreg
+    except ImportError:
+        return None
+    for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        try:
+            with winreg.OpenKey(root, _UNINSTALL_KEY) as k:
+                for value in ("InstallLocation", "Inno Setup: App Path"):
+                    try:
+                        loc, _ = winreg.QueryValueEx(k, value)
+                        if loc:
+                            return loc
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return None
+
+
+def running_from_installed_copy() -> bool:
+    """True if the running exe is the registered installed copy (so the installer
+    can update it in place + relaunch it). False for portable/dev runs."""
+    loc = installed_install_dir()
+    if not loc:
+        return False
+    try:
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+    except Exception:
+        return False
+    return _dir_matches(exe_dir, loc)

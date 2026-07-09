@@ -35,10 +35,13 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ; Install per-user so no admin/UAC prompt is needed (avoids AV friction too).
 PrivilegesRequired=lowest
-; Silent auto-update: close the running FAFE via Restart Manager, replace files,
-; and relaunch it — so `FAFE_Setup.exe /VERYSILENT` updates with no wizard.
+; Silent auto-update: close the running FAFE via Restart Manager so the locked
+; files can be replaced (`FAFE_Setup.exe /VERYSILENT`, no wizard). Restart is
+; done explicitly by the [Run] "Check: WizardSilent" entry below, NOT by the
+; Restart Manager — RestartApplications is unreliable in /VERYSILENT (it often
+; doesn't relaunch), and leaving it on would risk a double launch.
 CloseApplications=yes
-RestartApplications=yes
+RestartApplications=no
 DisableProgramGroupPage=yes
 WizardStyle=modern
 SetupIconFile=FAFE_icon.ico
@@ -88,5 +91,8 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; Tasks: desktopicon
 
 [Run]
-; Offer to launch after install. WebView2 runtime check happens inside FAFE.exe.
+; Interactive install: offer to launch after install (the "Launch FAFE" checkbox).
 Filename: "{app}\{#MyAppExe}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+; Silent auto-update: relaunch FAFE explicitly (the checkbox above is skipped when
+; silent). Gated to silent installs so an interactive install doesn't double-launch.
+Filename: "{app}\{#MyAppExe}"; Flags: nowait; Check: WizardSilent

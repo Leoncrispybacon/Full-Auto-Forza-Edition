@@ -216,7 +216,7 @@ function showUpdate(tag, url) {
   if (body) body.textContent = t('update_prompt');
   modal.classList.add('open');
   const nowBtn = document.getElementById('updateNowBtn');
-  if (nowBtn) nowBtn.style.display = (state.frozen && state.auto_update) ? '' : 'none';
+  if (nowBtn) nowBtn.style.display = (state.update_installable && state.auto_update) ? '' : 'none';
 }
 function closeUpdate() { document.getElementById('updateModal').classList.remove('open'); }
 // Cutscene skip (opt-in game-file mod) — status/messages come straight from the
@@ -279,12 +279,18 @@ async function runUpdateNow() {
   const btn = document.getElementById('updateNowBtn');
   if (btn) { btn.disabled = true; btn.textContent = t('update_downloading'); }
   const r = (await API('install_update')) || {};
+  const el = document.getElementById('updateProgressText');
   if (!r.ok) {
     if (btn) { btn.disabled = false; btn.textContent = t('update_now'); }
-    const el = document.getElementById('updateProgressText');
     if (el) { el.style.display = ''; el.style.color = 'var(--danger)'; el.textContent = r.msg || ''; }
+    return;
   }
-  // on success the installer closes this app; nothing more to do here.
+  // Success = installer launched. It SHOULD close & relaunch FAFE — but if it
+  // can't (e.g. running from a non-installed/portable copy, or the installer
+  // predates the silent-relaunch support), this app stays open. Show the
+  // launched message + a fallback so it never looks frozen.
+  if (el) { el.style.display = ''; el.style.color = 'var(--text2)'; el.textContent = r.msg || ''; }
+  if (btn) { btn.disabled = false; btn.textContent = t('update_now'); }
 }
 // Reflect overlay on/off across both topbar buttons + the Settings switch.
 // Global so Python (F10 hotkey) can push the state back here to stay in sync.
@@ -1282,6 +1288,7 @@ function finishInit() {
   state.licensed = !!data.licensed;
   state.frozen = !!data.frozen;
   state.auto_update = data.auto_update !== false;
+  state.update_installable = !!data.update_installable;
   state.machineId = data.machine_id || '';
   state.grind  = state.cfg.full_auto_grind_type || 'wheelspin';
   state.branch = state.cfg.full_auto_branch_mode || 'racing';
