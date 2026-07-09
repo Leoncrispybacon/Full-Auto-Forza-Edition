@@ -70,3 +70,10 @@ class AppWebWiringTests(unittest.TestCase):
 
     def test_init_payload_exposes_auto_update(self):
         self.assertIn('"auto_update"', self._src())
+
+
+class InstallerConfigTests(unittest.TestCase):
+    def test_iss_closes_and_restarts_apps(self):
+        iss = open("build_installer.iss", encoding="utf-8").read()
+        self.assertIn("CloseApplications=yes", iss)
+        self.assertIn("RestartApplications=yes", iss)
