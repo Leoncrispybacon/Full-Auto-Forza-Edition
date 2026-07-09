@@ -48,3 +48,25 @@ class UpdaterHelperTests(unittest.TestCase):
             data = b"MZ" + b"\0" * 2_000_000
             open(p, "wb").write(data)
             self.assertTrue(updater.verify_installer(p, expected_size=len(data)))
+
+
+class AppWebWiringTests(unittest.TestCase):
+    def _src(self):
+        return open("app_web.py", encoding="utf-8-sig").read()
+
+    def test_install_update_method_present(self):
+        self.assertIn("def install_update(self", self._src())
+
+    def test_install_update_gates_on_frozen_and_flag(self):
+        s = self._src()
+        i = s.index("def install_update(self")
+        body = s[i:i + 1500]
+        self.assertIn("_is_frozen()", body)
+        self.assertIn('"auto_update"', body)
+        self.assertIn("/VERYSILENT", body)
+
+    def test_startup_purges_update_dir(self):
+        self.assertIn("_purge_update_dir", self._src())
+
+    def test_init_payload_exposes_auto_update(self):
+        self.assertIn('"auto_update"', self._src())
