@@ -1544,7 +1544,7 @@ class Api:
         back, syncing the overlay header)."""
         self._js(f"showView({json.dumps(key)})")
 
-    _GUIDE_BASE = "https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/"
+    _GUIDE_BASE = "https://fafe.leonbacon.com/"
     _GUIDE_SLUGS = {"full_auto": "full-auto",
                     "race": "race-auto-grind", "buy": "auto-buy-cars-in-batch",
                     "wheelspin": "auto-wheelspin",

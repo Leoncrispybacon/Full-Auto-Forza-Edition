@@ -4,7 +4,7 @@ FAFE is a Windows automation tool for Forza Horizon 6. It is built for the parts
 
 The app does not modify game files, inject code, or talk to the game process directly. It watches the screen, matches known UI elements, and sends normal keyboard or mouse input.
 
-[Website and guides](https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/) / [Latest release](https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest) / [Discord](https://discord.gg/yfn8Vw8Ypf)
+[Website and guides](https://fafe.leonbacon.com/) / [Latest release](https://github.com/Leoncrispybacon/Full-Auto-Forza-Edition/releases/latest) / [Discord](https://discord.gg/yfn8Vw8Ypf)
 
 ![FAFE social preview](assets/site/social-preview.png)
 
@@ -66,8 +66,8 @@ If the game is elevated and FAFE is not, Windows can silently block the injected
 
 Start with the website guides if you are new:
 
-- [English guides](https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/en/guides/)
-- [Traditional Chinese guides](https://leoncrispybacon.github.io/Full-Auto-Forza-Edition/zh-tw/guides/)
+- [English guides](https://fafe.leonbacon.com/en/guides/)
+- [Traditional Chinese guides](https://fafe.leonbacon.com/zh-tw/guides/)
 
 In most cases, the built-in templates are enough. If detection misses a button or reads the wrong screen, open the function's Setup & Templates panel and recapture the specific template from your own game.
 
