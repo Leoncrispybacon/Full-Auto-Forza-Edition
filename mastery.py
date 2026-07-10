@@ -11,6 +11,7 @@ from ctypes import wintypes
 
 from app_lang import t as _at
 import config
+import logfmt
 import recovery
 from config import get_mastery_grid_file, get_mastery_templates
 from capture import load_grid, load_template, force_english_ime
@@ -140,24 +141,20 @@ def _moves_between(prev, cur) -> list:
 
 
 
-# ── Mastery automation (keyboard-driven) ─────────────────────
-# Blind timed key presses — NO screen detection. The menu layout is fixed, so
-# each step is a known key sequence + wait; no templates are loaded and the red
-# "not detected" warning can't occur. Only the 6 mastery-node positions remain
-# coordinate-driven (mouse clicks). This is the ONLY mastery mode (the old
-# detection flow was removed).
+# ── Mastery automation (template-gated keyboard flow) ────────
+# The ONLY mastery path: walk the menus by keyboard, each step gated on detecting
+# the expected screen (GATED_TEMPLATE_KEYS) so a mis-timed step is caught instead
+# of barrelled through. The 6 mastery-tree node unlocks walk the grid with
+# WASD+Enter. The legacy blind timed flow (and its config toggle) was removed.
 #
-# Step waits are FIXED constants (no UI option, baked from tuning) EXCEPT the
-# cutscene wait, which is user-raisable via the mastery_cutscene_wait Setting:
+# Step waits are FIXED constants (no UI option, baked from tuning). The ride
+# cutscene is NOT timed — it's gated on detecting the post-cutscene screen
+# (ride_cutscene_end); see _press_cutscene_escape.
 #   _POST_KEY_WAIT          menu-step transitions (action-menu Enter, ESC×2, X/Enter)
-#   _POST_CUTSCENE_ESC_WAIT step 4: gap after the post-cutscene ESC before Down
-#   _KEYS_CUTSCENE_WAIT     step 4: default cutscene wait (overridable in Settings)
-#   _KEYS_SCREEN_WAIT       step 7: wait for the Car Mastery screen before clicking
+#   _POST_CUTSCENE_ESC_WAIT gap after the post-cutscene ESC before the next tap
 #   _TAP_WAIT               gap between repeated Down/Up cursor taps within a menu
 _POST_KEY_WAIT          = 1.25
 _POST_CUTSCENE_ESC_WAIT = 1.75
-_KEYS_CUTSCENE_WAIT     = 11.0
-_KEYS_SCREEN_WAIT       = 1.5
 _TAP_WAIT               = 0.25   # matches grid move rate; 0.1 dropped taps on slow PCs
 
 GATED_TEMPLATE_KEYS = (
@@ -170,13 +167,26 @@ GATED_TEMPLATE_KEYS = (
     "recently_added",
 )
 _GATED_DETECT_WINDOW = 10.0
+# Post-cutscene screen (shipped built-in): the ride-cutscene Esc is gated on it —
+# wait for the cutscene to actually END before pressing Esc, rather than on a timer.
+# DO NOT add this to GATED_TEMPLATE_KEYS: that would make it a RECOVERY ANCHOR
+# (via _recover_standalone_gated_to_grid), and this is a ONE-WAY screen — once you
+# leave it you cannot Esc back to it, so it must never be used to re-anchor. It
+# stays a standalone optional key used only to gate the cutscene Esc, nothing else.
+_CUTSCENE_END_KEY = "ride_cutscene_end"
 _RECOVERY_SETTLE = 1.25
+# Gated flow no longer blind-waits the cutscene — it detects the post-cutscene
+# screen (ride_cutscene_end, a built-in) instead. The window must span the whole
+# cutscene (~11-13s) since there's no pre-wait; after it's detected, settle 1s so
+# the menu is ready before Esc.
+_CUTSCENE_DETECT_WINDOW = 25.0
+_CUTSCENE_SETTLE        = 1.0
 
 
 def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
                      end_at_mycars, lang, log_cb, status_cb, section,
-                     progress_cb, stop, wait, taps, announce, cut_wait, post_kw,
-                     grid_unlock_wait, initial_completed=0):
+                     progress_cb, stop, wait, taps, announce, post_kw,
+                     grid_unlock_wait, initial_completed=0, paused=lambda: False):
     """Template-gated Mastery path: old keyboard route, checked by templates."""
     detector = ScreenDetector(_fresh, on_auto_ocr=log_cb)
     tpl_lang = config.resolve_template_lang(_fresh)
@@ -187,35 +197,48 @@ def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
     def _thr(key):
         return float(_fresh.get("thresh_" + key, 0.70))
 
+    def _load_gated(key):
+        img, scale, meta = load_template(
+            folder, key, io.width, io.height, grayscale=True,
+            ref_folder=ref_folder, prefer_ref=prefer_ref)
+        box = meta.get("box")
+        if box:
+            detector.set_template_geometry(
+                key, box, meta.get("screen_width", io.width),
+                meta.get("screen_height", io.height))
+        if meta.get("roi"):
+            detector.set_template_roi(key, meta["roi"], *(meta.get("roi_dims") or (meta.get("screen_width", 0), meta.get("screen_height", 0))))
+        log_cb(_at("log_template_loaded", lang, key=key, scale=f"{scale:.2f}"))
+        return img
+
     templates = {}
     for key in GATED_TEMPLATE_KEYS:
         try:
-            img, scale, meta = load_template(
-                folder, key, io.width, io.height, grayscale=True,
-                ref_folder=ref_folder, prefer_ref=prefer_ref)
-            templates[key] = img
-            box = meta.get("box")
-            if box:
-                detector.set_template_geometry(
-                    key, box, meta.get("screen_width", io.width),
-                    meta.get("screen_height", io.height))
-            if meta.get("roi"):
-                detector.set_template_roi(key, meta["roi"],
-                                          meta.get("screen_width", 0),
-                                          meta.get("screen_height", 0))
-            log_cb(_at("log_template_loaded", lang, key=key,
-                       scale=f"{scale:.2f}"))
+            templates[key] = _load_gated(key)
         except FileNotFoundError:
             log_cb(_at("log_template_missing", lang, key=key))
             status_cb(_at("status_setup_incomplete", lang))
             io.cleanup()
             return False
+    # Post-cutscene screen (shipped built-in). The ride-cutscene Esc is gated on
+    # it — wait for the cutscene to actually END before pressing Esc, no timer.
+    # Only if the built-in is deleted does the blind Esc pair fall through.
+    try:
+        templates[_CUTSCENE_END_KEY] = _load_gated(_CUTSCENE_END_KEY)
+    except FileNotFoundError:
+        pass
 
     def _detect(key, window_s=_GATED_DETECT_WINDOW):
         end = time.time() + window_s
         while time.time() < end:
             if stop():
                 return None
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                end += time.time() - paused_at
+                continue
             try:
                 r = detector.detect(io.grab(), key, templates[key],
                                     _thr(key), stable=False)
@@ -234,13 +257,69 @@ def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
                 log_cb(_at("log_mastery_gated_fail", lang, label=key))
             return False
         log_cb(_at("log_detected", lang, label=key,
-                   conf=f"{r.score:.0%}, {r.source}"))
+                   conf=logfmt.detail(r, lang)))
         return True
 
     def _press_for_template(key, target, post_wait=None):
         log_cb(_at("log_pressing", lang, key=key.upper(), label=target))
+        while paused() and not stop():
+            time.sleep(0.1)
         io.press(key, post_wait=post_kw if post_wait is None else post_wait)
         return _wait_for_template(target)
+
+    def _press_cutscene_escape():
+        # No blind cutscene timer: wait until the ride cutscene has ACTUALLY ended
+        # (detect the post-cutscene screen, ride_cutscene_end — a built-in), then
+        # let the menu settle 1s before Esc. If the screen never appears, hand off
+        # to recovery instead of pressing Esc mid-cutscene. Only if the template is
+        # missing (user deleted the built-in) do we fall back to the blind Esc pair.
+        if _CUTSCENE_END_KEY in templates:
+            r = _detect(_CUTSCENE_END_KEY, _CUTSCENE_DETECT_WINDOW)
+            if r is None:
+                return False           # cutscene-end not seen → let recovery re-anchor
+            log_cb(_at("log_detected", lang, label=_CUTSCENE_END_KEY,
+                       conf=logfmt.detail(r, lang)))
+            wait(_CUTSCENE_SETTLE)     # settle so the menu is ready before Esc
+            if stop():
+                return False
+        log_cb(_at("log_pressing", lang, key="ESC", label="upgrade_tuning"))
+        io.press('esc', post_wait=_POST_CUTSCENE_ESC_WAIT)
+        r = _detect("upgrade_tuning", 5.0)
+        if r is not None:
+            log_cb(_at("log_detected", lang, label="upgrade_tuning",
+                       conf=logfmt.detail(r, lang)))
+            return True
+        if stop():
+            return False
+        log_cb(_at("log_pressing", lang, key="ESC", label="upgrade_tuning"))
+        io.press('esc', post_wait=_POST_CUTSCENE_ESC_WAIT)
+        return _wait_for_template("upgrade_tuning")
+
+    def _recover_current_car_step():
+        for _ in range(3):
+            for key in ("mastery_tree", "car_mastery", "upgrade_tuning"):
+                if _detect(key, 0.8) is not None:
+                    return key
+            if stop():
+                return None
+            io.press('esc', post_wait=_RECOVERY_SETTLE)
+        return None
+
+    def _recover_to_mycars():
+        # A dropped ESC after unlocking the tree can leave us one menu level too
+        # deep (e.g. still on the Upgrades screen), so my_cars isn't found. Back
+        # out a level at a time and re-check. Only ESCs while my_cars is NOT
+        # visible, so it can never back out of the cars grid itself. Returns the
+        # my_cars MatchResult once found, else None (→ hand off to route recovery).
+        for _ in range(3):
+            if stop():
+                return None
+            r = _detect("my_cars", 1.0)
+            if r is not None:
+                return r
+            announce(_at("log_mastery_recover_mycars", lang))
+            io.press('esc', post_wait=_RECOVERY_SETTLE)
+        return _detect("my_cars", 1.0)
 
     def _unlock_grid():
         announce(_at("log_grid_unlock", lang, n=len(grid_order)))
@@ -304,31 +383,53 @@ def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
         io.press('enter', post_wait=0.0)
 
         announce(_at("log_mkeys_cutscene", lang))
-        wait(cut_wait)
         if stop():
             break
-        if not _press_for_template("esc", "upgrade_tuning",
-                                   post_wait=_POST_CUTSCENE_ESC_WAIT):
-            break
-        announce(_at("log_mkeys_upgrade", lang))
-        taps('down', 1)
-        if stop():
-            break
-        io.press('enter', post_wait=post_kw)
-        if not _wait_for_template("car_mastery"):
-            break
-        announce(_at("log_mkeys_mastery", lang))
-        taps('down', 7)
-        if stop():
-            break
-        io.press('enter', post_wait=0.0)
+        resume_step = "upgrade_tuning"
+        if not _press_cutscene_escape():
+            resume_step = _recover_current_car_step()
+            if resume_step is None:
+                break
+        if resume_step == "upgrade_tuning":
+            announce(_at("log_mkeys_upgrade", lang))
+            taps('down', 1)
+            if stop():
+                break
+            io.press('enter', post_wait=post_kw)
+            if not _wait_for_template("car_mastery"):
+                resume_step = _recover_current_car_step()
+                if resume_step is None:
+                    break
+            else:
+                resume_step = "car_mastery"
+        if resume_step == "car_mastery":
+            announce(_at("log_mkeys_mastery", lang))
+            taps('down', 7)
+            if stop():
+                break
+            io.press('enter', post_wait=0.0)
 
         announce(_at("log_mkeys_wait_mastery", lang))
         if _detect("mastery_tree", _GATED_DETECT_WINDOW) is None:
-            if not stop():
-                log_cb(_at("log_mastery_gated_fail", lang,
-                           label="mastery_tree"))
-            break
+            resume_step = _recover_current_car_step()
+            if resume_step == "mastery_tree":
+                pass
+            elif resume_step == "car_mastery":
+                announce(_at("log_mkeys_mastery", lang))
+                taps('down', 7)
+                if stop():
+                    break
+                io.press('enter', post_wait=0.0)
+                if _detect("mastery_tree", _GATED_DETECT_WINDOW) is None:
+                    if not stop():
+                        log_cb(_at("log_mastery_gated_fail", lang,
+                                   label="mastery_tree"))
+                    break
+            else:
+                if not stop():
+                    log_cb(_at("log_mastery_gated_fail", lang,
+                               label="mastery_tree"))
+                break
         if not _unlock_grid():
             break
         completed = car_num
@@ -340,8 +441,16 @@ def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
         io.press('esc', post_wait=post_kw)
         if stop():
             break
-        if not _wait_for_template("my_cars"):
+        announce(_at("log_mastery_gated_wait", lang, label="my_cars"))
+        r = _detect("my_cars")
+        if r is None:
+            r = _recover_to_mycars()   # self-heal a dropped ESC before failing out
+        if r is None:
+            if not stop():
+                log_cb(_at("log_mastery_gated_fail", lang, label="my_cars"))
             break
+        log_cb(_at("log_detected", lang, label="my_cars",
+                   conf=logfmt.detail(r, lang)))
         announce(_at("log_mkeys_mycars", lang))
         taps('up', 1)
         if stop():
@@ -409,9 +518,7 @@ def _recover_standalone_gated_to_grid(cfg, stop_event, log_cb, status_cb) -> boo
                 key, box, meta.get("screen_width", io.width),
                 meta.get("screen_height", io.height))
         if meta.get("roi"):
-            detector.set_template_roi(key, meta["roi"],
-                                      meta.get("screen_width", 0),
-                                      meta.get("screen_height", 0))
+            detector.set_template_roi(key, meta["roi"], *(meta.get("roi_dims") or (meta.get("screen_width", 0), meta.get("screen_height", 0))))
         return img
 
     tpls = {}
@@ -489,7 +596,7 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_cars: int = 0, warn_cb=None, section_cb=None,
         grid_file: str = None, end_at_mycars: bool = False,
         start_loop: int = None, grid_order: list = None, progress_cb=None,
-        initial_completed: int = 0):
+        initial_completed: int = 0, pause_event: threading.Event | None = None):
     # warn_cb is accepted for call-site compatibility but unused — this flow
     # never detects, so there's no "not detected" warning to raise.
     # grid_file: which mastery-tree path spec to use. None → the Mastery tab's
@@ -514,13 +621,6 @@ def run(cfg: dict, stop_event: threading.Event,
     if start_loop is None:
         start_loop = _fresh.get("mastery_block_first_row", 1)
     start_loop = max(1, min(3, int(start_loop)))
-    # Step waits — fixed constants (see top of section), except the cutscene
-    # wait (default 11). No code FLOOR (the "skip cutscene" mod can hand-edit it
-    # below 11), but a HARD CEILING of 13s: anything higher overruns the next
-    # step and breaks the loop, so clamp it regardless of config.
-    cut_wait    = min(13.0, max(0.0,
-                      float(_fresh.get("mastery_cutscene_wait", _KEYS_CUTSCENE_WAIT))))
-    screen_wait = _KEYS_SCREEN_WAIT
     # Menu cursor tap delay (Up/Down) — Settings-tunable (default 0.25, slider
     # 0.1–0.5s), shared with Delete Cars. Higher helps weak hardware register taps.
     tap_wait    = max(0.1, min(0.5, float(_fresh.get("menu_tap_wait", _TAP_WAIT))))
@@ -549,12 +649,17 @@ def run(cfg: dict, stop_event: threading.Event,
     def stop():
         return stop_event.is_set()
 
+    def paused():
+        return bool(pause_event and pause_event.is_set())
+
     def wait(seconds):
         """Stop-aware sleep so F9/Stop isn't blocked by the long fixed waits."""
         end = time.time() + seconds
         while time.time() < end:
             if stop():
                 return
+            while paused() and not stop():
+                time.sleep(0.1)
             time.sleep(0.1)
 
     def taps(key, n):
@@ -562,6 +667,8 @@ def run(cfg: dict, stop_event: threading.Event,
         for _ in range(n):
             if stop():
                 return
+            while paused() and not stop():
+                time.sleep(0.1)
             io.press(key, post_wait=tap_wait)
 
     def announce(msg):
@@ -585,171 +692,32 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb(_at("log_mastery_started_count", lang, n=max_cars))
     else:
         log_cb(_at("log_mastery_started", lang))
-    if _fresh.get("mastery_gated_menus", True):
-        def _run_gated_once(resume_from, cb):
-            return _run_gated_menus(
-                _fresh, _open_io(), grid_order, start_loop, max_cars,
-                end_at_mycars, lang, log_cb, status_cb, section, cb, stop,
-                wait, taps, announce, cut_wait, post_kw, grid_unlock_wait,
-                initial_completed=resume_from)
+    def _run_gated_once(resume_from, cb):
+        return _run_gated_menus(
+            _fresh, _open_io(), grid_order, start_loop, max_cars,
+            end_at_mycars, lang, log_cb, status_cb, section, cb, stop,
+            wait, taps, announce, post_kw, grid_unlock_wait,
+            initial_completed=resume_from, paused=paused)
 
-        standalone = grid_file is None and not end_at_mycars
-        if not standalone:
-            return _run_gated_once(initial_completed, progress_cb)
+    standalone = grid_file is None and not end_at_mycars
+    if not standalone:
+        return _run_gated_once(initial_completed, progress_cb)
 
-        completed = max(0, int(initial_completed or 0))
+    completed = max(0, int(initial_completed or 0))
 
-        def _progress(done, total):
-            nonlocal completed
-            try:
-                completed = max(completed, int(done or 0))
-            except (TypeError, ValueError):
-                pass
-            if progress_cb:
-                progress_cb(done, total)
+    def _progress(done, total):
+        nonlocal completed
+        try:
+            completed = max(completed, int(done or 0))
+        except (TypeError, ValueError):
+            pass
+        if progress_cb:
+            progress_cb(done, total)
 
-        return recovery.run_stage_route(
-            "Mastery per-car",
-            lambda: _run_gated_once(completed, _progress),
-            stop, log_cb, recovery.route_retries(_fresh),
-            recover_fn=lambda: _recover_standalone_gated_to_grid(
-                _fresh, stop_event, log_cb, status_cb))
+    return recovery.run_stage_route(
+        "Mastery per-car",
+        lambda: _run_gated_once(completed, _progress),
+        stop, log_cb, recovery.route_retries(_fresh),
+        recover_fn=lambda: _recover_standalone_gated_to_grid(
+            _fresh, stop_event, log_cb, status_cb))
 
-    completed  = max(0, int(initial_completed or 0))
-    success    = False
-    io = _open_io()
-
-    while not stop():
-        if max_cars > 0 and completed >= max_cars:
-            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
-            success = True
-            break
-        car_num    = completed + 1
-        first_attempt = car_num == initial_completed + 1
-        if progress_cb:                       # cars completed so far → UI bar fill
-            progress_cb(completed, max_cars)
-
-        # ── 1. Navigate to next car (top→bottom column-major) ──
-        # The first car needs no nav (we start positioned on it). Otherwise emit
-        # the moves from the previous car's grid cell to this one. start_loop is
-        # the first car's row; Full Auto forces 1 (newest car, top-left).
-        idx = car_num - 1
-        nav_keys = (
-            _moves_between(_cell_at(start_loop, 0), _cell_at(start_loop, idx))
-            if first_attempt and idx > 0
-            else ([] if idx == 0
-                  else _moves_between(_cell_at(start_loop, idx - 1),
-                                      _cell_at(start_loop, idx))))
-        section(_at("log_car", lang, n=car_num) +
-                (f" / {max_cars}" if max_cars > 0 else ""))
-
-        if nav_keys:
-            announce(_at("log_navigating", lang,
-                         keys=' '.join(k.upper() for k in nav_keys)))
-            for key in nav_keys:
-                io.press(key, scancode=True)
-                time.sleep(0.4)
-            time.sleep(0.3)
-        else:
-            announce(_at("log_loop1_start", lang, row=start_loop))
-
-        # ── 2. Enter → open action menu ───────────────────────
-        announce(_at("log_open_action_menu", lang))
-        io.press('enter', post_wait=post_kw)
-        if stop(): break
-
-        # ── 3. Enter → Ride This Car ──────────────────────────
-        announce(_at("log_mkeys_ride", lang))
-        io.press('enter', post_wait=0.0)
-
-        # ── 4. Timed cutscene skip → ESC ──────────────────────
-        announce(_at("log_mkeys_cutscene", lang))
-        wait(cut_wait)
-        if stop(): break
-        io.press('esc', post_wait=_POST_CUTSCENE_ESC_WAIT)
-
-        # ── 5. Down ×1 + Enter → Upgrade & Tuning ─────────────
-        announce(_at("log_mkeys_upgrade", lang))
-        taps('down', 1)
-        if stop(): break
-        io.press('enter', post_wait=post_kw)
-
-        # ── 6. Down ×7 + Enter → Car Mastery ──────────────────
-        announce(_at("log_mkeys_mastery", lang))
-        taps('down', 7)
-        if stop(): break
-        io.press('enter', post_wait=0.0)
-
-        # ── 7. Wait for the Mastery screen to load ────────────
-        announce(_at("log_mkeys_wait_mastery", lang))
-        wait(screen_wait)
-        if stop(): break
-
-        # ── 8. Unlock nodes via keyboard (WASD from bottom-left + Enter) ──
-        # The cursor starts bottom-left; for each cell in the saved path we press
-        # the single W/A/S/D move to reach it (consecutive cells are adjacent),
-        # then Enter to unlock. Scancode path — same as the snake nav, and
-        # background-safe (no mouse). Pacing: _GRID_MOVE_WAIT after each move
-        # (incl. move→Enter), grid_unlock_wait after Enter before the next node.
-        announce(_at("log_grid_unlock", lang, n=len(grid_order)))
-        cur = _GRID_START
-        for i, (gr, gc) in enumerate(grid_order, start=1):
-            if stop(): break
-            keys = []
-            dr, dc = gr - cur[0], gc - cur[1]
-            keys += ['w'] * (-dr) if dr < 0 else ['s'] * dr
-            keys += ['a'] * (-dc) if dc < 0 else ['d'] * dc
-            log_cb(_at("log_grid_step", lang, i=i, n=len(grid_order),
-                       keys=' '.join(k.upper() for k in keys + ['enter'])))
-            for k in keys:
-                if stop(): break
-                io.press(k, scancode=True, post_wait=_GRID_MOVE_WAIT)
-            if stop(): break
-            io.press('enter', post_wait=grid_unlock_wait)   # unlock this node
-            cur = (gr, gc)
-        if stop(): break
-
-        # ── 9. ESC ×2 to exit ─────────────────────────────────
-        announce(_at("log_esc_back", lang))
-        io.press('esc', post_wait=post_kw)
-        io.press('esc', post_wait=post_kw)
-        if stop(): break
-
-        # ── 10. Up ×1 + Enter → My Cars ───────────────────────
-        announce(_at("log_mkeys_mycars", lang))
-        taps('up', 1)
-        if stop(): break
-        io.press('enter', post_wait=post_kw)
-
-        is_last = max_cars > 0 and car_num >= max_cars
-        # Chained-into-sell: the final car stops here in My Cars (unsorted). The
-        # sell step rides the non-target car first, then re-sorts itself, so we
-        # skip step 11 (it would only reposition the cursor) and break.
-        if is_last and end_at_mycars:
-            completed = car_num
-            if progress_cb:
-                progress_cb(completed, max_cars)
-            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
-            success = True
-            break
-
-        # ── 11. X + Down ×6 + Enter → sort by Recently Added ──
-        announce(_at("log_mkeys_sort", lang))
-        io.press('x', post_wait=post_kw)
-        taps('down', 6)
-        if stop(): break
-        io.press('enter', post_wait=post_kw)
-
-        if is_last:
-            completed = car_num
-            if progress_cb:
-                progress_cb(completed, max_cars)
-            log_cb(_at("log_mastery_limit_reached", lang, n=max_cars))
-            success = True
-            break
-        completed = car_num
-
-    io.cleanup()
-    log_cb(_at("log_mastery_stopped", lang))
-    status_cb(_at("status_stopped", lang))
-    return stop() or success

@@ -9,8 +9,11 @@ import threading
 import ctypes
 from ctypes import wintypes
 
+import config
+import logfmt
 from app_lang import t as _at
-from capture import force_english_ime
+from capture import force_english_ime, load_template
+from detector import ScreenDetector
 from gameio import GameIO
 
 
@@ -82,7 +85,8 @@ _DOWN_TAP_WAIT = 0.25
 
 
 def run(cfg: dict, stop_event: threading.Event,
-        log_cb, status_cb, max_cars: int = 0):
+        log_cb, status_cb, max_cars: int = 0,
+        pause_event: threading.Event | None = None):
 
     lang    = cfg.get('lang', 'en')
     post_kw = cfg.get('delete_post_key_wait', 0.5)
@@ -94,8 +98,75 @@ def run(cfg: dict, stop_event: threading.Event,
     def stop():
         return stop_event.is_set()
 
+    def paused():
+        return bool(pause_event and pause_event.is_set())
+
+    # ── Optional safety gate for the IRREVERSIBLE confirm keypress ──────────
+    # Delete is a blind timed macro. When the (optional) delete_confirm template
+    # is captured, gate the final confirm on it: only press Down→Enter once the
+    # "remove this car?" dialog is actually on screen; otherwise bail instead of
+    # deleting into an unknown screen. Not captured → unchanged blind behavior,
+    # zero detection overhead (prewarm off; the pixel-only key never runs OCR).
+    _CONFIRM_WINDOW = 6.0
+    detector = ScreenDetector({**cfg, "detector_ocr_prewarm": False})
+    _confirm_tpl = None
+    try:
+        _tpl_lang = config.resolve_template_lang(cfg)
+        _del_folder = config.get_delete_templates(config.REFERENCE_RES, _tpl_lang)
+        img, _scale, meta = load_template(
+            _del_folder, "delete_confirm", io.width, io.height, grayscale=True,
+            ref_folder=_del_folder,
+            prefer_ref=cfg.get("template_prefer_reference", True))
+        _confirm_tpl = img
+        box = meta.get("box")
+        if box:
+            detector.set_template_geometry(
+                "delete_confirm", box, meta.get("screen_width", io.width),
+                meta.get("screen_height", io.height))
+        if meta.get("roi"):
+            detector.set_template_roi("delete_confirm", meta["roi"],
+                                      meta.get("screen_width", 0),
+                                      meta.get("screen_height", 0))
+        log_cb(_at("log_template_loaded", lang, key="delete_confirm",
+                   scale=f"{_scale:.2f}"))
+    except FileNotFoundError:
+        pass   # optional — no template captured → blind macro, as before
+
+    def _confirm_present():
+        """True when it's safe to press the final delete keys: either the
+        delete_confirm dialog is detected, or no template is captured (blind
+        pass-through). False ONLY when the template IS captured but the dialog
+        never appears within _CONFIRM_WINDOW → caller bails instead of deleting
+        blind."""
+        if _confirm_tpl is None:
+            return True
+        thr = float(cfg.get("thresh_delete_confirm", 0.70))
+        end = time.time() + _CONFIRM_WINDOW
+        while time.time() < end:
+            if stop():
+                return False
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                end += time.time() - paused_at
+                continue
+            try:
+                r = detector.detect(io.grab(), "delete_confirm", _confirm_tpl,
+                                    thr, stable=False)
+                if r.matched:
+                    log_cb(_at("log_detected", lang, label="delete_confirm",
+                               conf=logfmt.detail(r, lang)))
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.15)
+        return False
+
     def press(key, label='', wait=None):
         w = wait if wait is not None else post_kw
+        while paused() and not stop():
+            time.sleep(0.1)
         log_cb(f'  [{key.upper()}] {label}')
         io.press(key, post_wait=w)
 
@@ -132,6 +203,13 @@ def run(cfg: dict, stop_event: threading.Event,
         # ── Confirm selection ─────────────────────────────────
         press('enter', 'Select option', wait=1.0)
         if stop(): break
+
+        # ── Gate the IRREVERSIBLE confirm on the delete dialog ──
+        # (no-op unless a delete_confirm template is captured — see above)
+        if not _confirm_present():
+            if not stop():
+                log_cb(_at('log_delete_confirm_fail', lang))
+            break
 
         # ── Confirm dialog: Down × 1 → Enter ─────────────────
         press('down', 'Confirm: move to Yes', wait=down_tap)

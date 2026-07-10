@@ -62,11 +62,13 @@ class _DragApi:
 
 
 class WebOverlay:
-    def __init__(self, html_path, on_move=None, on_func=None, log=None):
+    def __init__(self, html_path, on_move=None, on_func=None, log=None,
+                 monitor_index=1):
         self._html = html_path
         self._on_move = on_move
         self._on_func = on_func
         self._log = log or (lambda *_: None)
+        self._monitor_index = int(monitor_index or 1)
         self._win = None
         self._loaded = False
         self._visible = False
@@ -74,51 +76,62 @@ class WebOverlay:
         self._pos = (60, 60)
         self._dragging = False
         self._drag_off = (0, 0)
+        self._keep_top = False
 
     def is_visible(self):
         return self._visible
 
     # ── create (once, before webview.start) ──────────────────
+    def _monitor_rect(self):
+        try:
+            w, h, left, top = capture.get_monitor_dims(self._monitor_index)
+            return int(left), int(top), int(w), int(h)
+        except Exception:
+            return 0, 0, 1920, 1080
+
     def _screen_size(self):
         """A small overlay sized to the PHYSICAL screen — ~17% wide, ~26% tall,
         clamped — so it's a corner card on a 4K monitor AND on a small handheld,
         instead of a fixed pixel size that's tiny on one and huge on another."""
-        sw, sh = 1920, 1080
-        try:
-            u = ctypes.windll.user32
-            sw, sh = int(u.GetSystemMetrics(0)), int(u.GetSystemMetrics(1))
-        except Exception:
-            pass
+        _, _, sw, sh = self._monitor_rect()
         w = max(_MIN_WIDTH, min(_MAX_WIDTH, round(sw * 0.17)))
         h = max(_MIN_HEIGHT, min(_MAX_HEIGHT, round(sh * 0.26)))
         return (int(w), int(h))
 
     def _clamp_pos(self, x, y, w, h):
-        try:
-            u = ctypes.windll.user32
-            sw, sh = int(u.GetSystemMetrics(0)), int(u.GetSystemMetrics(1))
-        except Exception:
-            sw, sh = 1920, 1080
+        left, top, sw, sh = self._monitor_rect()
         pad = 8
-        max_x = max(pad, sw - int(w) - pad)
-        max_y = max(pad, sh - int(h) - pad)
-        return (max(pad, min(int(x), max_x)),
-                max(pad, min(int(y), max_y)))
+        min_x = left + pad
+        min_y = top + pad
+        max_x = max(min_x, left + sw - int(w) - pad)
+        max_y = max(min_y, top + sh - int(h) - pad)
+        return (max(min_x, min(int(x), max_x)),
+                max(min_y, min(int(y), max_y)))
 
     def _screen_bounds(self):
-        try:
-            u = ctypes.windll.user32
-            return int(u.GetSystemMetrics(0)), int(u.GetSystemMetrics(1))
-        except Exception:
-            return 1920, 1080
+        _, _, w, h = self._monitor_rect()
+        return w, h
 
-    def create(self, x=60, y=60, visible=False):
+    def _default_pos(self, w, h):
+        left, top, sw, _ = self._monitor_rect()
+        return self._clamp_pos(left + sw - int(w) - 24, top + 24, w, h)
+
+    def _pos_on_monitor(self, x, y):
+        left, top, sw, sh = self._monitor_rect()
+        return left <= int(x) < left + sw and top <= int(y) < top + sh
+
+    def set_monitor_index(self, monitor_index):
+        self._monitor_index = int(monitor_index or 1)
+
+    def create(self, x=None, y=None, visible=False):
         if self._win is not None:
             return
-        self._pos = (int(x), int(y))
         self._visible = bool(visible)
         self._size = self._screen_size()
         w, h = self._size
+        if x is None or y is None or not self._pos_on_monitor(x, y):
+            x, y = self._default_pos(w, h)
+        self._pos = (int(x), int(y))
         self._win = webview.create_window(
             _TITLE, self._html, js_api=_DragApi(self),
             frameless=True, easy_drag=False, on_top=True,
@@ -136,23 +149,30 @@ class WebOverlay:
             pass
 
     # ── toggle ───────────────────────────────────────────────
-    def show(self, x=None, y=None):
+    def show(self, x=None, y=None, monitor_index=None):
         if self._win is None:
             return
-        if x is not None and y is not None:
+        if monitor_index is not None:
+            self.set_monitor_index(monitor_index)
+        if x is not None and y is not None and self._pos_on_monitor(x, y):
             self._pos = (int(x), int(y))
+        else:
+            w, h = getattr(self, "_size", self._screen_size())
+            self._pos = self._default_pos(w, h)
         try:
             self._win.show()
         except Exception:
             pass
         self._visible = True
         self._force_onscreen()      # pywebview show()/move() is unreliable here
+        self._start_keep_top()      # re-assert topmost so alt-tab can't bury it
         if self._loaded:
             self._paint(self._last)
             self._mask_soon()
 
     def hide(self):
         self._visible = False
+        self._keep_top = False
         capture.clear_overlay_mask()
         if self._win is not None:
             try:
@@ -166,6 +186,7 @@ class WebOverlay:
         leaves this one (and its WebView2 process) alive."""
         self._visible = False
         self._dragging = False
+        self._keep_top = False
         capture.clear_overlay_mask()
         if self._win is not None:
             try:
@@ -218,6 +239,44 @@ class WebOverlay:
             u.SetWindowPos(hwnd, HWND_TOPMOST, int(x), int(y), int(w), int(h),
                            SWP_SHOWWINDOW)   # no NOACTIVATE → wakes WebView2 input
             u.SetForegroundWindow(ctypes.c_void_p(hwnd))
+        except Exception:
+            pass
+
+    def _start_keep_top(self):
+        """Spawn the keep-on-top loop (idempotent-ish). A topmost window still
+        gets buried when another window is activated by alt-tab — especially a
+        borderless-fullscreen game, which is ITSELF topmost and jumps to the top
+        of the topmost band on focus. update() only fires on state changes, so
+        during a steady run nothing pulls the overlay back up. This loop
+        re-asserts HWND_TOPMOST while visible, without stealing focus."""
+        if self._keep_top:
+            return
+        self._keep_top = True
+        threading.Thread(target=self._keep_top_loop, daemon=True).start()
+
+    def _keep_top_loop(self):
+        # ponytail: a fresh show() right after hide() can briefly overlap two
+        # loops until the old one's sleep elapses; harmless (the re-assert is
+        # idempotent), so we don't bother with generation tokens.
+        while self._keep_top and self._visible:
+            if not self._dragging:
+                self._reassert_topmost()
+            time.sleep(0.7)
+
+    def _reassert_topmost(self):
+        """Bring the overlay back to the top of the topmost band without moving,
+        resizing, or activating it (SWP_NOACTIVATE → never steals game focus)."""
+        hwnd = self._hwnd()
+        if not hwnd:
+            return
+        try:
+            u = ctypes.windll.user32
+            u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int,
+                                       ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+            HWND_TOPMOST = ctypes.c_void_p(-1)
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE = 0x0002, 0x0001, 0x0010
+            u.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                           SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
         except Exception:
             pass
 
@@ -320,6 +379,7 @@ class WebOverlay:
         self._paint(self._last)
         if self._visible:
             self._force_onscreen()
+            self._start_keep_top()
             self._mask_soon()
 
     def _on_resized(self, *args):

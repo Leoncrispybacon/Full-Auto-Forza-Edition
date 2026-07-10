@@ -28,6 +28,7 @@ import time
 import threading
 
 import config
+import logfmt
 import navutil
 import recovery
 from config import get_buy_templates
@@ -50,7 +51,12 @@ BUY_MACRO = ['space', 'down', 'enter', 'enter', 'enter']
 # (a dropped key — most often Space) Esc reliably backs out of any buy sub-menu
 # to the car detail view, so the retry always restarts from a known screen.
 BUY_INIT          = ['space', 'down', 'enter', 'enter']
-GATE_KEYS         = ["buy_confirm", "buy_detail"]
+# buy_detail_22b (the target car's identity template) doubles as the detail-view
+# anchor: it gates the confirmed/retry loop AND is the safe-to-retry re-anchor
+# after an Esc. Per-route by design — each buy target (22b / gts_acr / mad_mike)
+# uses its OWN identity template, so there's no generic buy_detail anymore.
+GATE_KEYS         = ["buy_confirm", "buy_detail_22b"]
+TARGET_DETAIL_KEYS = ("buy_detail_22b",)
 _CONFIRM_WINDOW   = 4.0   # wait for the "Buy Car" popup after BUY_INIT
 _RECOVER_WINDOW   = 3.0   # wait for the detail-view anchor after an Esc
 _MAX_BUY_ATTEMPTS = 3     # consecutive misses on one car before aborting
@@ -67,6 +73,7 @@ _LABELS = {
     "car_collection": "buy_tpl_car_collection",
     "subaru":         "buy_tpl_subaru",
     "buy_target_car": "buy_tpl_target_car",
+    "buy_detail_22b": "buy_tpl_detail_22b",
 }
 
 _NAV_STEP_WINDOW     = 12.0   # per-step detection window before aborting
@@ -93,7 +100,7 @@ def _recover_to_main_menu_from_safety_anchor(anchor, press_escape, wait,
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
         warn_cb=None, section_cb=None, require_nav: bool = False,
-        target_nav=None, progress_cb=None):
+        target_nav=None, progress_cb=None, pause_event: threading.Event | None = None):
     """
     Auto Buy loop.
     cfg: config dict
@@ -146,9 +153,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 key, box, meta.get("screen_width", current_w),
                 meta.get("screen_height", current_h))
         if meta.get("roi"):                           # user-drawn ROI overrides
-            detector.set_template_roi(key, meta["roi"],
-                                      meta.get("screen_width", 0),
-                                      meta.get("screen_height", 0))
+            detector.set_template_roi(key, meta["roi"], *(meta.get("roi_dims") or (meta.get("screen_width", 0), meta.get("screen_height", 0))))
         log_cb(_at("log_template_loaded", lang, key=key, scale=f"{scale:.2f}"))
         return img
 
@@ -171,10 +176,20 @@ def run(cfg: dict, stop_event: threading.Event,
             nav_tpls[key] = _load(key)
         except FileNotFoundError:
             pass
+    for key in TARGET_DETAIL_KEYS:
+        if key in nav_tpls:
+            continue
+        try:
+            nav_tpls[key] = _load(key)
+        except FileNotFoundError:
+            pass
     gating = all(k in nav_tpls for k in GATE_KEYS)
 
     def stop():
         return stop_event.is_set()
+
+    def paused():
+        return bool(pause_event and pause_event.is_set())
 
     def wait(seconds):
         """Stop-aware sleep so F9/Stop isn't blocked by fixed waits."""
@@ -182,6 +197,8 @@ def run(cfg: dict, stop_event: threading.Event,
         while time.time() < end:
             if stop():
                 return
+            while paused() and not stop():
+                time.sleep(0.1)
             time.sleep(0.1)
 
     def announce(msg):
@@ -189,6 +206,8 @@ def run(cfg: dict, stop_event: threading.Event,
         status_cb(msg)
 
     def press(key, post_wait=None):
+        while paused() and not stop():
+            time.sleep(0.1)
         io.press(key, post_wait=post_kw if post_wait is None else post_wait)
 
     def _detect(key, window_s):
@@ -198,6 +217,12 @@ def run(cfg: dict, stop_event: threading.Event,
         while time.time() < end:
             if stop():
                 return None
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                end += time.time() - paused_at
+                continue
             try:
                 r = detector.detect(io.grab(), key,
                                     nav_tpls[key], _thr(key), stable=False)
@@ -207,6 +232,30 @@ def run(cfg: dict, stop_event: threading.Event,
                 pass
             time.sleep(0.15)
         return None
+
+    def _confirm_target_detail(key):
+        try:
+            nav_tpls[key] = _load(key)
+        except FileNotFoundError:
+            log_cb(_at("log_template_missing", lang, key=key))
+            return False
+        r = _detect(key, _NAV_STEP_WINDOW)
+        if r is None:
+            log_cb(_at("log_buy_nav_fail", lang,
+                       label=_at(_LABELS.get(key, "buy_tpl_detail"), lang),
+                       secs=f"{_NAV_STEP_WINDOW:.0f}"))
+            _back_out_wrong_detail()
+            return False
+        log_cb(_at("log_buy_nav_detected", lang,
+                   label=_at(_LABELS.get(key, "buy_tpl_detail"), lang),
+                   conf=logfmt.detail(r, lang), secs="-"))
+        return True
+
+    def _back_out_wrong_detail():
+        for _ in range(2):
+            if stop():
+                return
+            press('escape', post_wait=0.5)
 
     def _nav_click(key, pre_click_wait=0.0):
         """Detect a clickable nav element (time-boxed) and click its centre.
@@ -222,7 +271,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 log_cb(_at("log_buy_nav_fail", lang, label=lbl, secs=secs))
             return False
         log_cb(_at("log_buy_nav_detected", lang, label=lbl,
-                   conf=f"{r.score:.0%}, {r.source}", secs=secs))
+                   conf=logfmt.detail(r, lang), secs=secs))
         if pre_click_wait:
             wait(pre_click_wait)
             if stop():
@@ -248,11 +297,12 @@ def run(cfg: dict, stop_event: threading.Event,
                 (prev_key, nav_tpls[prev_key], _thr(prev_key)),
                 (next_key, nav_tpls[next_key], _thr(next_key)),
                 stop,
+                pause_cb=paused,
                 log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
                                                label=_at(_LABELS[prev_key], lang), n=n)))
 
         # 1. Collection Log → Discover Japan card
-        if start_step == "buy_detail":
+        if start_step in TARGET_DETAIL_KEYS:
             log_cb(_at("log_buy_macro_start", lang))
             return True
 
@@ -292,6 +342,8 @@ def run(cfg: dict, stop_event: threading.Event,
                 return False
             press('enter')
             if stop():
+                return False
+            if not _confirm_target_detail("buy_detail_22b"):
                 return False
             log_cb(_at("log_buy_macro_start", lang))
             return True
@@ -351,6 +403,8 @@ def run(cfg: dict, stop_event: threading.Event,
         press('enter')
         if stop():
             return False
+        if not _confirm_target_detail("buy_detail_22b"):
+            return False
         log_cb(_at("log_buy_macro_start", lang))
         return True
 
@@ -392,8 +446,8 @@ def run(cfg: dict, stop_event: threading.Event,
         keys = list(keys) if keys is not None else list(NAV_KEYS)
         if target_nav is not None and "subaru" in keys:
             keys.remove("subaru")
-        if include_detail and "buy_detail" in nav_tpls:
-            keys.append("buy_detail")
+        if include_detail:
+            keys.extend(k for k in TARGET_DETAIL_KEYS if k in nav_tpls)
         end = time.time() + window_s
         while time.time() < end:
             if stop():
@@ -436,7 +490,7 @@ def run(cfg: dict, stop_event: threading.Event,
             recovered_anchor = None
         else:
             which, start_hit = _detect_buy_anchor(_START_STATE_WINDOW)
-        if which in NAV_KEYS or which == "buy_detail":
+        if which in NAV_KEYS or which in TARGET_DETAIL_KEYS:
             if not _navigate_to_target(start_hit, start_step=which):
                 return False
             did_nav = True
@@ -454,7 +508,7 @@ def run(cfg: dict, stop_event: threading.Event,
         log_cb(_at("log_recovery_search", lang, label=rec_label))
         for attempt in range(7):
             anchor_keys = recovery.backtrack_anchor_keys(
-                (*NAV_KEYS, "buy_detail"))
+                (*NAV_KEYS, *TARGET_DETAIL_KEYS))
             which, _hit = _detect_buy_anchor(1.2, keys=anchor_keys)
             if which is not None:
                 recovered_anchor = which
@@ -492,7 +546,8 @@ def run(cfg: dict, stop_event: threading.Event,
         # run the macro — no exit nav in that case (unknown menu depth).
         if not recovery.run_stage_route("Buy entry", _buy_entry_route, stop,
                                         log_cb, route_retries,
-                                        recover_fn=_recover_buy_entry_route):
+                                        recover_fn=_recover_buy_entry_route,
+                                        on_recover=detector.reset_ocr_cache):
             io.cleanup()
             log_cb(_at("log_buy_stopped", lang))
             status_cb(_at("status_stopped", lang))
@@ -523,7 +578,7 @@ def run(cfg: dict, stop_event: threading.Event,
             # view; confirm we're there before re-pressing (never guess).
             log_cb(_at("log_buy_retry", lang, a=attempt, m=_MAX_BUY_ATTEMPTS))
             press('escape')
-            if _detect("buy_detail", _RECOVER_WINDOW) is None:
+            if _detect("buy_detail_22b", _RECOVER_WINDOW) is None:
                 if not stop():
                     log_cb(_at("log_buy_recover_fail", lang))
                 return None

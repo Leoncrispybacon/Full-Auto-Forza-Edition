@@ -24,6 +24,7 @@ import time
 import threading
 
 import config
+import logfmt
 import navutil
 import recovery
 from config import get_wheelspin_templates
@@ -54,6 +55,12 @@ SKIP_WATCH_S     = 5.0
 # each duplicate handled REFRESHES the window, and the window expiring with no
 # (further) duplicate means none are left. Bounded so the dup phase can't hang.
 DUP_WINDOW_S     = 5.0
+# Arm the NEXT reveal's Skip on a fixed timer after collect, instead of waiting to
+# see the prompt area go CLEAR. The just-collected spin's Skip/collect prompt
+# lingers <~1s, so any Skip within this delay is that STALE prompt (ignored); a
+# Skip after it is the next reveal. Time-based so a slow device (Ally X) that
+# never catches a "clear" frame at the poll rate still arms.
+SKIP_ARM_DELAY   = 1.0
 # If collect/final never appears, scan every wheelspin-state template before
 # giving up to manual Stop. This avoids getting stuck between reward states.
 COLLECT_RECOVERY_S = 20.0
@@ -92,13 +99,18 @@ def _recover_to_main_menu_from_safety_anchor(anchor, press_escape, wait,
 
 def run(cfg: dict, stop_event: threading.Event,
         log_cb, status_cb, max_loops: int = 0,
-        warn_cb=None, section_cb=None, progress_cb=None):
+        warn_cb=None, section_cb=None, progress_cb=None,
+        pause_event: threading.Event | None = None,
+        force_type: str | None = None):
     """
     Auto Spin Wheel loop.
     cfg: config dict
     stop_event: set to stop
     log_cb(msg) / status_cb(msg): log line / status bar
     max_loops: stop after this many spins (0 = unlimited)
+    force_type: override the wheelspin_type setting ("super"/"normal"); used by
+                Full Auto to lock the chain to Super Wheelspins regardless of the
+                standalone tab's choice. None = use the config setting.
     section_cb(msg): start a bounded log section; falls back to log_cb
     warn_cb: accepted for call-site parity; UNUSED — the duplicate check is
              time-boxed and a non-detection is its NORMAL outcome. The skip /
@@ -113,7 +125,7 @@ def run(cfg: dict, stop_event: threading.Event,
     _fresh   = _cfg_mod.load()
     post_kw  = _fresh.get("wheelspin_post_key_wait", 0.5)
     # Duplicates are SOLD by default. Two independent keep-exceptions:
-    #   keep_fe     — keep Forza Edition cars (name ends in "FE")
+    #   keep_fe     — keep Forza Edition cars (name contains UPPERCASE "FE")
     #   keep_price  — keep when the read sell price >= this many credits (0 = off)
     # Either needs an OCR read of the modal; with both off we sell unconditionally.
     keep_fe  = _fresh.get("wheelspin_keep_fe", True)
@@ -122,7 +134,8 @@ def run(cfg: dict, stop_event: threading.Event,
     except (TypeError, ValueError):
         keep_price = 0
     need_ocr = keep_fe or keep_price > 0
-    wtype    = _fresh.get("wheelspin_type", "super")   # "super" | "normal"
+    wtype    = (force_type if force_type in ("super", "normal")
+                else _fresh.get("wheelspin_type", "super"))   # "super" | "normal"
     # Which tile starts the run: Super Wheelspin (3 prizes) or normal Wheelspin
     # (1 prize). Only this start tile differs — collect/duplicate flow is the same.
     TILE_KEY = NORMAL_KEY if wtype == "normal" else SUPER_KEY
@@ -151,9 +164,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 key, box, meta.get("screen_width", current_w),
                 meta.get("screen_height", current_h))
         if meta.get("roi"):                           # user-drawn ROI overrides
-            detector.set_template_roi(key, meta["roi"],
-                                      meta.get("screen_width", 0),
-                                      meta.get("screen_height", 0))
+            detector.set_template_roi(key, meta["roi"], *(meta.get("roi_dims") or (meta.get("screen_width", 0), meta.get("screen_height", 0))))
         log_cb(_at("log_template_loaded", lang, key=key, scale=f"{scale:.2f}"))
         return img
 
@@ -190,11 +201,40 @@ def run(cfg: dict, stop_event: threading.Event,
     except FileNotFoundError:
         mh_tab_tpl = None
         log_cb(_at("log_spin_mh_tab_off", lang))
+    # The duplicate modal's OCR bands (FE-name / price) are read via ROI only —
+    # no template image is matched — so register any user-captured/adjusted ROI
+    # or geometry box from the sidecar (if present) so duplicate_info reads the
+    # tuned region instead of the built-in DEFAULT_ROIS fallback.
+    def _load_ocr_roi(key):
+        import os, json
+        meta_path = os.path.join(folder, key + ".json")
+        if not os.path.exists(meta_path):
+            return
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+        except Exception:
+            return
+        if meta.get("box"):
+            detector.set_template_geometry(
+                key, meta["box"], meta.get("screen_width", current_w),
+                meta.get("screen_height", current_h))
+        if meta.get("roi"):
+            detector.set_template_roi(
+                key, meta["roi"],
+                *(meta.get("roi_dims") or (meta.get("screen_width", 0),
+                                           meta.get("screen_height", 0))))
+    for _dk in ("wheelspin_dup_name", "wheelspin_dup_price"):
+        _load_ocr_roi(_dk)
+
     safety_tpls = _load_recovery_safety_templates(
         detector, _fresh, tpl_lang, current_w, current_h)
 
     def stop():
         return stop_event.is_set()
+
+    def paused():
+        return bool(pause_event and pause_event.is_set())
 
     def wait(seconds):
         """Stop-aware sleep so F9/Stop isn't blocked by the fixed waits."""
@@ -202,6 +242,8 @@ def run(cfg: dict, stop_event: threading.Event,
         while time.time() < end:
             if stop():
                 return
+            while paused() and not stop():
+                time.sleep(0.1)
             time.sleep(0.1)
 
     def announce(msg):
@@ -209,6 +251,8 @@ def run(cfg: dict, stop_event: threading.Event,
         status_cb(msg)
 
     def press(key, post_wait=None):
+        while paused() and not stop():
+            time.sleep(0.1)
         io.press(key, post_wait=post_kw if post_wait is None else post_wait)
 
     def _detect(key, tpl, window_s):
@@ -217,17 +261,28 @@ def run(cfg: dict, stop_event: threading.Event,
         (which is indefinite) — used where a None is a NORMAL outcome (no
         duplicate, or the Super Wheelspin tile not visible), never an error."""
         end = time.time() + window_s
+        best = None
         while time.time() < end:
             if stop():
-                return None
+                break
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                end += time.time() - paused_at
+                continue
             try:
                 frame = io.grab()
                 r = detector.detect(frame, key, tpl, _thr(key), stable=False)
+                if best is None or r.score > best.score:
+                    best = r
                 if r.matched:
+                    _detect.best = r
                     return r
             except Exception:
                 pass
             time.sleep(_DETECT_IV)
+        _detect.best = best     # remember best miss so not-found lines can show it
         return None
 
     def _detect_tile_or_tab(window_s, keys=None):
@@ -241,6 +296,12 @@ def run(cfg: dict, stop_event: threading.Event,
         while time.time() < end:
             if stop():
                 return (None, None)
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                end += time.time() - paused_at
+                continue
             try:
                 frame = io.grab()
                 for key in scan_keys:
@@ -264,6 +325,12 @@ def run(cfg: dict, stop_event: threading.Event,
         while time.time() < end:
             if stop():
                 return None
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                end += time.time() - paused_at
+                continue
             try:
                 frame = io.grab()
                 for key in _RECOVERY_SAFETY_ANCHOR_KEYS:
@@ -297,8 +364,26 @@ def run(cfg: dict, stop_event: threading.Event,
         started = time.time()
         recovery_reported = False
         while not stop():
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                delta = time.time() - paused_at
+                started += delta
+                skip_deadline += delta
+                continue
             try:
                 frame = io.grab()
+                # A leftover duplicate modal from the PREVIOUS spin whose dup
+                # phase missed it (slow device): it blocks and persists on screen
+                # until dismissed, so the "next spin" never actually starts.
+                # Catch it here (OCR-confirmed, same as the dup phase) and hand
+                # it to the dup phase; the caller rolls the spin count back for
+                # this case so it isn't miscounted as a new spin.
+                dr = detector.detect(frame, TEMPLATE_KEY, dup_tpl,
+                                     _thr(TEMPLATE_KEY), stable=False)
+                if dr.matched:
+                    return ('duplicate', dr)
                 if skip_tpl is not None and time.time() < skip_deadline:
                     r = detector.detect(frame, SKIP_KEY, skip_tpl,
                                         _thr(SKIP_KEY), stable=False)
@@ -377,7 +462,7 @@ def run(cfg: dict, stop_event: threading.Event,
         if which_first == 'tab':
             log_cb(_at("log_spin_detected", lang,
                        label=_at("spin_tpl_my_horizon", lang),
-                       conf=f"{r_first.score:.0%}, {r_first.source}",
+                       conf=logfmt.detail(r_first, lang),
                        secs=f"{time.time() - _t_mh:.1f}"))
             # → My Horizon menu (failsafe: re-click the tab if the wheel tile
             #   doesn't show, i.e. the click was dropped). If it never advances,
@@ -388,6 +473,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 (MH_TAB_KEY, mh_tab_tpl, _thr(MH_TAB_KEY)),
                 (TILE_KEY, tile_tpl, _thr(TILE_KEY)),
                 stop,
+                pause_cb=paused,
                 log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
                        label=_at("spin_tpl_my_horizon", lang), n=n)))
         elif which_first == 'tile':
@@ -407,7 +493,7 @@ def run(cfg: dict, stop_event: threading.Event,
         if which_first == 'tab':
             log_cb(_at("log_spin_detected", lang,
                        label=_at("spin_tpl_my_horizon", lang),
-                       conf=f"{r_first.score:.0%}, {r_first.source}",
+                       conf=logfmt.detail(r_first, lang),
                        secs=f"{time.time() - _t_super:.1f}"))
             navutil.click_until_advanced(
                 io.grab, detector,
@@ -415,6 +501,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 (MH_TAB_KEY, mh_tab_tpl, _thr(MH_TAB_KEY)),
                 (TILE_KEY, tile_tpl, _thr(TILE_KEY)),
                 stop,
+                pause_cb=paused,
                 log_retry=lambda n: log_cb(_at("log_nav_reclick", lang,
                        label=_at("spin_tpl_my_horizon", lang), n=n)))
             res_super = _detect(TILE_KEY, tile_tpl, SUPER_FIND_WINDOW)
@@ -426,9 +513,13 @@ def run(cfg: dict, stop_event: threading.Event,
         if res_super is None:
             if not stop():
                 log_cb(_at("log_spin_tile_not_found", lang, label=tile_label))
+                best = getattr(_detect, "best", None)
+                if best is not None:
+                    log_cb(_at("log_det_best_seen", lang,
+                               detail=logfmt.detail(best, lang)))
             return False
         log_cb(_at("log_spin_detected", lang, label=tile_label,
-                   conf=f"{res_super.score:.0%}, {res_super.source}",
+                   conf=logfmt.detail(res_super, lang),
                    secs=f"{time.time() - _t_super:.1f}"))
         # This click starts spin #1. After this point recovery must not repeat
         # the entry route, because a spin has already been spent/started.
@@ -463,13 +554,15 @@ def run(cfg: dict, stop_event: threading.Event,
 
     if not recovery.run_stage_route("Wheelspin entry", _wheelspin_entry_route,
                                     stop, log_cb, route_retries,
-                                    recover_fn=_recover_wheelspin_entry_route):
+                                    recover_fn=_recover_wheelspin_entry_route,
+                                    on_recover=detector.reset_ocr_cache):
         io.cleanup()
         log_cb(_at("log_spin_stopped", lang))
         status_cb(_at("status_stopped", lang))
         return
 
     loop_count = 0
+    leftover_streak = 0   # consecutive iterations that only cleared a stale dup
     while not stop():
         loop_count += 1
         if progress_cb:                       # spins done so far → UI bar fill
@@ -505,6 +598,7 @@ def run(cfg: dict, stop_event: threading.Event,
         announce(_at("log_spin_wait_collect", lang))
         skip_deadline = (_t0 + SKIP_WATCH_S) if skip_tpl is not None else 0.0
         collected = False
+        leftover_dup = False   # phase 1 saw a stale dup, not this spin's collect
         while not stop():
             which, r = _wait_collect(skip_deadline, is_last)
             if which is None:
@@ -514,15 +608,16 @@ def run(cfg: dict, stop_event: threading.Event,
                 skip_deadline = 0.0                    # don't fast-forward again this spin
                 log_cb(_at("log_spin_detected", lang,
                            label=_at("spin_tpl_skip", lang),
-                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                           conf=logfmt.detail(r, lang), secs=_el))
                 announce(_at("log_spin_skip", lang))
                 press('enter', post_wait=0.0)          # fast-forward reveal
                 continue
             if which == 'duplicate':
                 log_cb(_at("log_spin_detected", lang,
                            label=_at("spin_tpl_duplicate", lang),
-                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                           conf=logfmt.detail(r, lang), secs=_el))
                 collected = True                       # already past collect; handle dup below
+                leftover_dup = True                    # stale dup, not a new spin (rolled back below)
                 break
             if which == 'final':
                 # Account out of spins. ran_out only when EARLIER than the target
@@ -530,19 +625,19 @@ def run(cfg: dict, stop_event: threading.Event,
                 ran_out = not is_last
                 log_cb(_at("log_spin_detected", lang,
                            label=_at("spin_tpl_collect_final", lang),
-                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                           conf=logfmt.detail(r, lang), secs=_el))
                 announce(_at("log_spin_end_enter", lang))
                 press('enter', post_wait=0.0)          # collect + leave (no restart)
             elif is_last:                              # normal prompt on counted-last
                 log_cb(_at("log_spin_detected", lang,
                            label=_at("spin_tpl_collect", lang),
-                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                           conf=logfmt.detail(r, lang), secs=_el))
                 announce(_at("log_spin_end_esc", lang))
                 press('escape', post_wait=0.0)         # collect all 3 + exit to menu
             else:                                      # normal prompt, more to go
                 log_cb(_at("log_spin_detected", lang,
                            label=_at("spin_tpl_collect", lang),
-                           conf=f"{r.score:.0%}, {r.source}", secs=_el))
+                           conf=logfmt.detail(r, lang), secs=_el))
                 announce(_at("log_spin_collect", lang))
                 press('enter', post_wait=0.0)
             collected = True
@@ -569,18 +664,25 @@ def run(cfg: dict, stop_event: threading.Event,
         #
         # We ALSO catch the NEXT spin's reveal Skip prompt here, so Skip works on
         # every spin (its reveal starts during this wait, not just spin #1's).
-        # FRESHNESS GATE (skip_armed): the Skip/collect prompt from THIS spin
-        # lingers right after we collect, so we only accept a Skip once the prompt
-        # area has been seen CLEAR at least once — i.e. a Skip that REAPPEARED is
-        # the next reveal, not the stale one. Without this gate the lingering
-        # prompt fires an instant false break and the loop races (one real spin
-        # logged as ten).
+        # ARM TIMER (SKIP_ARM_DELAY): the Skip/collect prompt from THIS spin
+        # lingers right after we collect, so any Skip within the delay is that
+        # stale prompt (ignored); a Skip after it is the next reveal. Fixed-timer
+        # (not "seen the area clear") so a slow device that never catches a clear
+        # frame at the poll rate still arms. Without the delay the lingering
+        # prompt fires an instant false break and the loop races.
         announce(_at("log_spin_wait_dup", lang))
         chain = 0
-        _t_dup = time.time()
+        _t_dup = time.time()   # ~= when collect was pressed → the arm-timer anchor
         dup_deadline = _t_dup + DUP_WINDOW_S
-        skip_armed = False
         while not stop() and chain < MAX_DUP_CHAIN:
+            if paused():
+                paused_at = time.time()
+                while paused() and not stop():
+                    time.sleep(0.1)
+                delta = time.time() - paused_at
+                dup_deadline += delta
+                _t_dup += delta
+                continue
             if time.time() >= dup_deadline:           # window elapsed → none left
                 log_cb(_at("log_spin_no_dup", lang,
                            secs=f"{time.time() - _t_dup:.1f}"))
@@ -593,19 +695,19 @@ def run(cfg: dict, stop_event: threading.Event,
             except Exception:
                 dr = None
             if dr is None or not dr.matched:
-                # No dup this frame — arm/fire the next-reveal Skip (freshness-gated).
-                if skip_tpl is not None and frame is not None:
+                # No dup this frame — once past the arm delay (the stale prompt
+                # has cleared), a Skip is the NEXT reveal → fast-forward it.
+                if (skip_tpl is not None and frame is not None
+                        and time.time() - _t_dup >= SKIP_ARM_DELAY):
                     try:
                         sr = detector.detect(frame, SKIP_KEY, skip_tpl,
                                              _thr(SKIP_KEY), stable=False)
                     except Exception:
                         sr = None
-                    if sr is None or not sr.matched:
-                        skip_armed = True             # prompt area clear → now armed
-                    elif skip_armed:                  # Skip REAPPEARED → next reveal
+                    if sr is not None and sr.matched:  # next reveal's Skip
                         log_cb(_at("log_spin_detected", lang,
                                    label=_at("spin_tpl_skip", lang),
-                                   conf=f"{sr.score:.0%}, {sr.source}",
+                                   conf=logfmt.detail(sr, lang),
                                    secs=f"{time.time() - _t_dup:.1f}"))
                         announce(_at("log_spin_skip", lang))
                         press('enter', post_wait=0.0)  # fast-forward next reveal
@@ -614,7 +716,7 @@ def run(cfg: dict, stop_event: threading.Event,
                 continue
             log_cb(_at("log_spin_detected", lang,
                        label=_at("spin_tpl_duplicate", lang),
-                       conf=f"{dr.score:.0%}, {dr.source}",
+                       conf=logfmt.detail(dr, lang),
                        secs=f"{time.time() - _t_dup:.1f}"))
             chain += 1
             # Decide keep vs sell. Default = sell; keep only if FE (when keep_fe)
@@ -652,6 +754,18 @@ def run(cfg: dict, stop_event: threading.Event,
                 press('enter')
             dup_deadline = time.time() + DUP_WINDOW_S  # refresh window after handling
         if stop(): break
+
+        # This iteration only cleared a stale duplicate left by the PREVIOUS
+        # spin (a slow device missed it in that spin's dup window) — collect was
+        # never seen, so it's NOT a new spin. Roll the count back and redo this
+        # number; the real next spin auto-starts once the dup(s) are gone. Guard
+        # against a genuinely stuck modal looping forever: after MAX_DUP_CHAIN
+        # consecutive rollbacks, stop rolling back and let it advance / recover.
+        if leftover_dup and leftover_streak < MAX_DUP_CHAIN:
+            leftover_streak += 1
+            loop_count -= 1
+            continue
+        leftover_streak = 0
 
         # ── 3. End / next spin ────────────────────────────────
         # ran_out / is_last collected + left above; otherwise the next spin auto-

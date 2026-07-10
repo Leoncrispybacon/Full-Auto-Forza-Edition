@@ -7,12 +7,19 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class TeaserReleaseConfigTests(unittest.TestCase):
-    def test_development_version_is_205(self):
-        version = (ROOT / "version.py").read_text(encoding="utf-8")
+    def test_version_matches_installer(self):
+        # version.py and the installer's MyAppVersion must agree and be a
+        # well-formed X.Y.Z — asserted by equality, not a pinned literal, so a
+        # version bump doesn't need this test edited (just keep the two in sync).
+        version_src = (ROOT / "version.py").read_text(encoding="utf-8")
         installer = (ROOT / "build_installer.iss").read_text(encoding="utf-8")
 
-        self.assertIn('VERSION = "2.0.5"', version)
-        self.assertIn('#define MyAppVersion "2.0.5"', installer)
+        vm = re.search(r'VERSION\s*=\s*"(\d+\.\d+\.\d+)"', version_src)
+        im = re.search(r'#define\s+MyAppVersion\s+"(\d+\.\d+\.\d+)"', installer)
+        self.assertIsNotNone(vm, "version.py has no well-formed VERSION")
+        self.assertIsNotNone(im, "build_installer.iss has no well-formed MyAppVersion")
+        self.assertEqual(vm.group(1), im.group(1),
+                         "version.py and installer MyAppVersion disagree")
 
     def test_backend_keeps_missing_full_auto_builds_in_teaser_mode(self):
         source = (ROOT / "app_web.py").read_text(encoding="utf-8")

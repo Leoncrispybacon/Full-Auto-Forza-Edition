@@ -24,9 +24,33 @@ _MUTED_PROCESS_VOLUMES = {}
 _LANG_ENGLISH = 0x09   # primary language id for English
 
 
+# One-shot IME management for a chain (Full Auto). When armed via
+# set_ime_managed(True), the FIRST force_english_ime() call still runs (so the
+# switch happens when the game is actually foreground — e.g. the first stage), and
+# every call after that no-ops. This gives "switch to English once for the whole
+# run" without re-issuing the layout-change message at every stage (which can
+# hiccup a stage's first keystrokes). ponytail: two global latches, one automation
+# runs at a time; always reset via set_ime_managed(False) in the chain's finally.
+_ime_managed = False
+_ime_switched = False
+
+
+def set_ime_managed(on: bool) -> None:
+    """Arm/disarm one-shot IME management for a chain. Arming resets the one-shot
+    so the next force_english_ime() performs the single switch; disarm (False) at
+    the end of the chain so standalone runs behave normally."""
+    global _ime_managed, _ime_switched
+    _ime_managed = bool(on)
+    _ime_switched = False
+
+
 def force_english_ime() -> bool:
     """If a non-English input language is active on the foreground (game)
     window, switch it to English (US); otherwise leave it completely alone.
+
+    Under a chain's one-shot management (set_ime_managed(True)), only the first
+    call actually switches; later calls no-op — so Full Auto switches once for the
+    whole run instead of at every stage.
 
     A CJK IME in native mode can consume keystrokes before the game reads them.
     But forcing a switch *unconditionally* is harmful: users who already set
@@ -37,6 +61,9 @@ def force_english_ime() -> bool:
     when already English, so a user who manages their IME manually is never
     disturbed. Best-effort and non-fatal.
     """
+    global _ime_switched
+    if _ime_managed and _ime_switched:
+        return True   # chain already did its one switch — skip per-stage re-switches
     try:
         u32 = ctypes.windll.user32
         u32.GetForegroundWindow.restype = ctypes.c_void_p
@@ -52,6 +79,8 @@ def force_english_ime() -> bool:
         cur = u32.GetKeyboardLayout(tid) or 0
         # Low word of the HKL is the LANGID; primary language is its low 10 bits.
         if (cur & 0x3FF) == _LANG_ENGLISH:
+            if _ime_managed:
+                _ime_switched = True   # already English → chain's one-shot is satisfied
             return True   # already English — do NOT touch the user's setup
 
         # Non-English active → switch the game window to English (US).
@@ -66,6 +95,8 @@ def force_english_ime() -> bool:
         if not hkl:
             return False
         u32.PostMessageW(hwnd, WM_INPUTLANGCHANGEREQUEST, 0, hkl)
+        if _ime_managed:
+            _ime_switched = True   # switched once for the chain
         return True
     except Exception:
         return False
@@ -215,16 +246,77 @@ _MK_LBUTTON     = 0x0001
 _CLICK_MOVE_DWELL = 0.15
 
 
+# Processes that can share the game's EXACT window title but are NOT the game —
+# chiefly File Explorer showing a folder named "Forza Horizon 6". (Matching is
+# now EXACT-title, so browser tabs like "…Forza Horizon 6… - Chrome" no longer
+# match at all; this list is the backstop for anything that IS an exact match.)
+_NON_GAME_PROCS = frozenset({
+    "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe",
+    "opera_gx.exe", "vivaldi.exe", "iexplore.exe", "arc.exe", "librewolf.exe",
+    "waterfox.exe", "chromium.exe", "explorer.exe", "code.exe", "notepad.exe",
+    "notepad++.exe", "discord.exe", "steam.exe", "obs64.exe", "obs32.exe",
+})
+
+
+def _window_proc_name(hwnd) -> str:
+    """Lowercased exe basename owning `hwnd` ('' if it can't be read)."""
+    try:
+        u32 = ctypes.windll.user32
+        k32 = ctypes.windll.kernel32
+        pid = ctypes.c_ulong()
+        u32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        h = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid.value)
+        if not h:
+            return ""
+        try:
+            buf = ctypes.create_unicode_buffer(32768)
+            size = ctypes.c_ulong(len(buf))
+            if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+                return os.path.basename(buf.value).lower()
+            return ""
+        finally:
+            k32.CloseHandle(h)
+    except Exception:
+        return ""
+
+
+def _pick_game_hwnd(candidates, target_lower: str):
+    """From title-matched windows [(hwnd, title, proc_name)], pick the real game
+    window: drop known non-game processes (browsers, Explorer, …), then prefer a
+    window whose title EXACTLY equals the target (the game titles its window just
+    'Forza Horizon 6'; a browser is always '…Forza Horizon 6… - <browser>'). None
+    if every match is a non-game process (better than capturing a browser)."""
+    pool = [c for c in candidates
+            if (c[2] or "").strip().lower() not in _NON_GAME_PROCS]
+    if not pool:
+        return None
+    for hwnd, title, _proc in pool:
+        if (title or "").strip().lower() == target_lower:
+            return hwnd
+    return pool[0][0]
+
+
+def _title_is_game(title: str, target_lower: str) -> bool:
+    """EXACT (case-insensitive, trimmed) title match — NOT substring — so a browser
+    tab or wiki page that merely mentions the game name is never treated as the
+    game window."""
+    return (title or "").strip().lower() == (target_lower or "")
+
+
 def find_game_window(title_substr: str = "Forza Horizon 6"):
-    """First visible top-level window whose title contains `title_substr`
-    (case-insensitive), or None. Used for experimental background input."""
+    """Visible top-level GAME window whose title EXACTLY matches `title_substr`
+    (case-insensitive, trimmed), or None. Exact match keeps a browser tab / wiki
+    page that merely mentions the game out; the process filter then drops the
+    remaining non-game exact matches (e.g. an Explorer folder of the same name),
+    so FAFE never captures (and OCRs) something other than the game."""
     try:
         u32 = ctypes.windll.user32
         u32.IsWindowVisible.argtypes = [ctypes.c_void_p]
         u32.GetWindowTextLengthW.argtypes = [ctypes.c_void_p]
         u32.GetWindowTextW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int]
-        target = (title_substr or "").lower()
-        found = []
+        target = (title_substr or "").strip().lower()
+        matches = []   # (hwnd, title)
         WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
 
         def _cb(hwnd, _lparam):
@@ -236,15 +328,17 @@ def find_game_window(title_substr: str = "Forza Horizon 6"):
                     return True
                 buf = ctypes.create_unicode_buffer(n + 1)
                 u32.GetWindowTextW(hwnd, buf, n + 1)
-                if target and target in buf.value.lower():
-                    found.append(hwnd)
-                    return False   # stop enumeration on first match
+                if target and _title_is_game(buf.value, target):
+                    matches.append((hwnd, buf.value))   # collect ALL, don't stop
             except Exception:
                 pass
             return True
 
         u32.EnumWindows(WNDENUMPROC(_cb), 0)
-        return found[0] if found else None
+        if not matches:
+            return None
+        candidates = [(h, t, _window_proc_name(h)) for (h, t) in matches]
+        return _pick_game_hwnd(candidates, target)
     except Exception:
         return None
 
@@ -905,7 +999,13 @@ def save_roi(folder: str, key: str, box, screen_w: int, screen_h: int):
     detect time — see ScreenDetector.set_template_roi). Stored as fractions
     [x, y, w, h] of the capture frame, MERGED into the template's JSON sidecar so
     the template image and geometry box are preserved. box = (x,y,w,h) in
-    capture-frame px."""
+    capture-frame px.
+
+    Records the ROI's OWN capture dims in "roi_dims" — the box's screen_width/
+    height belong to the TEMPLATE IMAGE (often authored at a different res, e.g.
+    5120x2160), so the ROI fractions must not be interpreted against them. With
+    roi_dims, recapturing on the machine you run on = same aspect = no remap =
+    the exact box you drew (see ScreenDetector._custom_roi_for_frame)."""
     os.makedirs(folder, exist_ok=True)
     meta_path = os.path.join(folder, f"{key}.json")
     meta = {}
@@ -921,6 +1021,7 @@ def save_roi(folder: str, key: str, box, screen_w: int, screen_h: int):
     sw, sh = max(1, int(screen_w)), max(1, int(screen_h))
     meta["roi"] = [round(x / sw, 5), round(y / sh, 5),
                    round(w / sw, 5), round(h / sh, 5)]
+    meta["roi_dims"] = [sw, sh]   # the ROI's own reference (NOT the box's)
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f)
 
@@ -950,8 +1051,19 @@ def load_template(folder: str, key: str,
         return d and os.path.exists(os.path.join(d, f"{key}.png")) and \
             os.path.exists(os.path.join(d, f"{key}.json"))
 
+    # A user recapture is saved to a sibling "custom" folder (not "built-in"), so
+    # an installer upgrade — which refreshes built-in — can't wipe it. It's the
+    # highest-priority source: a local pixel-perfect capture beats the shipped
+    # set. (Detection-area/ROI edits stay in built-in — dev-only — so custom
+    # always carries BOTH png+json from a full recapture, satisfying _has.)
+    custom = None
+    if folder and os.path.basename(os.path.normpath(folder)) == "built-in":
+        custom = os.path.join(os.path.dirname(os.path.normpath(folder)), "custom")
+
     src = None
-    if prefer_ref and _has(ref_folder):
+    if _has(custom):
+        src = custom
+    elif prefer_ref and _has(ref_folder):
         src = ref_folder
     elif _has(folder):
         src = folder

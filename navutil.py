@@ -19,7 +19,8 @@ import time
 
 def click_until_advanced(grab, detector, click, prev, nxt, stop,
                          log_retry=None, grace=2.0,
-                         ceiling=12.0, interval=0.15, retries=0):
+                         ceiling=12.0, interval=0.15, retries=0,
+                         pause_cb=None):
     """Click `prev`, then ensure the menu advanced to `nxt`.
 
       grab()        -> frame
@@ -27,6 +28,7 @@ def click_until_advanced(grab, detector, click, prev, nxt, stop,
       click((x, y)) -> perform a click at a frame-local location (posted, fast)
       prev / nxt    -> (key, template, threshold) tuples
       stop()        -> True to abort (F9)
+      pause_cb()    -> optional True while automation is paused
       log_retry(n)  -> optional; called just before re-click attempt n (1-based)
 
     Every click — first attempt AND retries — is the posted click; a dropped
@@ -58,8 +60,17 @@ def click_until_advanced(grab, detector, click, prev, nxt, stop,
         except Exception:
             return None
 
+    def _pause():
+        if not pause_cb or not pause_cb():
+            return 0.0
+        t = time.time()
+        while pause_cb() and not stop():
+            time.sleep(max(interval, 0.05))
+        return time.time() - t
+
     clicks = 0
     while clicks <= retries and not stop():
+        _pause()
         if clicks > 0 and log_retry:
             log_retry(clicks)                   # re-click attempt #clicks
         pr = _find(pkey, ptpl, pthr)
@@ -73,6 +84,7 @@ def click_until_advanced(grab, detector, click, prev, nxt, stop,
         t0 = time.time()
         stuck = 0
         while not stop():
+            t0 += _pause()
             nr = _find(nkey, ntpl, nthr)
             if nr is not None:
                 return nr                       # advanced ✓
@@ -104,7 +116,7 @@ if __name__ == "__main__":
         def detect(self, frame, key, tpl, thr, stable=True):
             return _M(key in self.visible)
 
-    def _run(click_effect, retries=2):
+    def _run(click_effect, retries=0):
         d = _Det(); grab = lambda: None
         calls = {"clicks": 0, "retries": []}
         def click(loc):

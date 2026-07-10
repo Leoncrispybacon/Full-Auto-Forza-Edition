@@ -17,6 +17,34 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: #0B0F17; color: #cdd9e5; font-family: 'Work Sans', system-ui, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.7; }
   ::selection { background: rgba(37,99,235,.4); }
+  a:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; border-radius: 4px; }
+  .g-main { max-width: 880px; margin: 0 auto; padding: 40px 40px 80px; }
+  .g-content { min-width: 0; }
+  .g-rail { display: none; }
+  .g-side { display: none; }
+  .g-rail-title { font-family: 'Geist Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #5f7488; margin: 0 0 16px; }
+  .g-rail .grp { margin-bottom: 20px; }
+  .g-rail .cat { font-family: 'Geist Mono', monospace; font-size: .66rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 7px; padding-left: 11px; }
+  .g-rail a { display: block; text-decoration: none; color: #82A0B2; font-size: .9rem; line-height: 1.45; padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; margin-bottom: 1px; }
+  .g-rail a:hover { color: #cdd9e5; background: #121A28; }
+  .g-rail a[aria-current="page"] { color: #F4F8FD; font-weight: 600; border-left-color: #2563EB; background: #121A28; }
+  .g-side .card { background: #121A28; border: 1px solid #243044; border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 16px; }
+  .g-side .card h4 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1rem; color: #F4F8FD; margin: 0 0 4px; }
+  .g-side .lnk { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #7DB2FF; font-size: .88rem; padding: 6px 0; }
+  .g-side .lnk:hover { color: #F4F8FD; }
+  .g-side .toc { display: flex; flex-direction: column; }
+  .g-side .toc a { color: #82A0B2; text-decoration: none; font-size: .85rem; line-height: 1.4; padding: 5px 0 5px 12px; border-left: 2px solid #243044; }
+  .g-side .toc a:hover { color: #F4F8FD; border-left-color: #2563EB; }
+  @media (min-width: 1000px) {
+    .g-main { max-width: 1640px; display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 52px; align-items: start; padding: 48px 48px 96px; }
+    .g-rail { display: block; position: sticky; top: 84px; max-height: calc(100vh - 108px); overflow-y: auto; padding-right: 6px; }
+    .g-content { max-width: none; }
+  }
+  @media (min-width: 1280px) {
+    .g-main { grid-template-columns: 244px minmax(0, 1fr) 268px; }
+    .g-side { display: block; position: sticky; top: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
@@ -47,7 +75,38 @@
 </header>
 
 <!-- ════════ GUIDE BODY ════════ -->
-<main style="max-width:880px;margin:0 auto;padding:40px 40px 80px;">
+<main class="g-main">
+
+<aside class="g-rail" aria-label="All guides"><div class="g-rail-title">Guides</div>
+<div class="grp"><div class="cat" style="color:#7DB2FF;">Overview</div>
+<a href="../forza-horizon-6-farming-guide/">Complete Farming Guide</a>
+</div>
+<div class="grp"><div class="cat" style="color:#A99BF2;">Configuration</div>
+<a href="../first-time-setup/">First-time Setup</a>
+<a href="../settings/">Settings</a>
+</div>
+<div class="grp"><div class="cat" style="color:#6FD0C0;">Automation</div>
+<a href="../full-auto/" aria-current="page">Full Auto Mode</a>
+<a href="../race-auto-grind/">AFK Races</a>
+<a href="../auto-buy-cars-in-batch/">Auto Buy Cars</a>
+<a href="../auto-unlock-spin-wheel-mastery-tree/">Mastery Unlock</a>
+<a href="../auto-wheelspin/">Auto Wheelspins</a>
+<a href="../delete-used-cars/">Delete Cars</a>
+</div>
+<div class="grp"><div class="cat" style="color:#E0B27E;">Utility</div>
+<a href="../game-overlay/">Game Overlay</a>
+</div>
+<div class="grp"><div class="cat" style="color:#9FB4CC;">Knowledge</div>
+<a href="../mechanics/">How It Works</a>
+<a href="../recovery/">Recovery System</a>
+</div>
+<div class="grp"><div class="cat" style="color:#EB9DB6;">Support</div>
+<a href="../troubleshooting/">Troubleshooting</a>
+<a href="../reporting-bugs/">Reporting Bugs</a>
+</div>
+</aside>
+
+<div class="g-content">
 
   <!-- breadcrumbs -->
   <nav style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:#5f7488;margin-bottom:28px;">
@@ -71,7 +130,7 @@
     <div style="font-family:'Geist Mono',monospace;font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#7DB2FF;margin-bottom:12px;">On this page</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 28px;">
       <a href="#what" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">1 · What Full Auto does</a>
-      <a href="#modes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">2 · Two modes</a>
+      <a href="#modes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">2 · Three modes</a>
       <a href="#before" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">3 · Before you start</a>
       <a href="#run" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">4 · Set it up and run</a>
       <a href="#notes" style="color:#cdd9e5;text-decoration:none;font-size:.95rem;">5 · Good to know</a>
@@ -80,7 +139,7 @@
 
   <!-- WHAT -->
   <section id="what" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">What Full Auto does</h2>
+    <h2 id="s1" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 14px;letter-spacing:-.01em;">What Full Auto does</h2>
     <p style="color:#cdd9e5;font-size:1.04rem;line-height:1.75;margin:0 0 22px;">Each FAFE tool already automates one task. Full Auto runs them back-to-back as a single farm: it banks mastery points by racing, buys the right number of cars, unlocks their mastery trees, deletes them, then loops — optionally branching into Auto Wheelspin first. Every hand-off between stages is detection-gated, so a stage only fires once its target screen is confirmed on-screen.</p>
     <div style="background:#0A0E14;border:1px solid #243044;border-radius:12px;padding:26px;overflow-x:auto;">
       <div style="font-family:'Geist Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#5f7488;margin-bottom:20px;">The Full Auto loop</div>
@@ -126,9 +185,9 @@
 
   <!-- MODES -->
   <section id="modes" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 6px;letter-spacing:-.01em;">Two modes</h2>
-    <p style="color:#82A0B2;font-size:1.02rem;line-height:1.7;margin:0 0 24px;">Pick what each cycle should farm. Both share the same detection, car-count calculation, and chained workflow.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <h2 id="s2" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 6px;letter-spacing:-.01em;">Three modes</h2>
+    <p style="color:#82A0B2;font-size:1.02rem;line-height:1.7;margin:0 0 24px;">Pick what each cycle should farm. All three share the same detection, car-count calculation, and chained workflow.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;">
       <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
         <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.18rem;color:#F4F8FD;margin:0 0 6px;">Wheelspin Mode</h3>
         <p style="color:#82A0B2;font-size:.92rem;line-height:1.55;margin:0 0 16px;">Turns mastery points into Super Wheelspins, then optionally connects Auto Wheelspin after deleting.</p>
@@ -145,12 +204,20 @@
           <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Deletes each car, then returns straight to the race loop</span></li>
         </ul>
       </div>
+      <div style="background:#121A28;border:1px solid #243044;border-radius:12px;padding:26px;">
+        <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.18rem;color:#F4F8FD;margin:0 0 6px;">Mixed Mode</h3>
+        <p style="color:#82A0B2;font-size:.92rem;line-height:1.55;margin:0 0 16px;">Alternates Money and Wheelspin cycles, so the credits earned in the Money loop bankroll the Wheelspin loop — the grind funds itself and stays self-sustaining.</p>
+        <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;">
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Alternates each cycle, starting with a <strong style="color:#F4F8FD;font-weight:600;">Money</strong> loop</span></li>
+          <li style="display:flex;gap:11px;align-items:flex-start;font-size:.93rem;line-height:1.45;color:#cdd9e5;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;">✓</span><span>Best when you're low on credits — turn off <strong style="color:#F4F8FD;font-weight:600;">Own Car Pass DLC</strong> in Settings</span></li>
+        </ul>
+      </div>
     </div>
   </section>
 
   <!-- BEFORE -->
   <section id="before" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Before you start</h2>
+    <h2 id="s3" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Before you start</h2>
     <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
       <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">Full Auto unlocked.</strong> <span style="color:#82A0B2;">The Full Auto tab stays locked until your one-time unlock is activated.</span></div></li>
       <li style="display:flex;gap:12px;align-items:flex-start;background:#121A28;border:1px solid #243044;border-radius:10px;padding:16px 20px;"><span style="color:#22C55E;flex-shrink:0;font-weight:700;font-size:1.05rem;">✓</span><div><strong style="color:#F4F8FD;font-weight:600;">Game on the selected monitor.</strong> <span style="color:#82A0B2;">Pick the screen Forza Horizon 6 is on from the Game Monitor picker.</span></div></li>
@@ -160,7 +227,7 @@
 
   <!-- RUN -->
   <section id="run" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 26px;letter-spacing:-.01em;">Set it up and run</h2>
+    <h2 id="s4" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 26px;letter-spacing:-.01em;">Set it up and run</h2>
     <div style="display:flex;flex-direction:column;gap:22px;">
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">1</div>
@@ -168,7 +235,7 @@
       </div>
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">2</div>
-        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Choose your mode</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Pick <strong style="color:#cdd9e5;font-weight:600;">Wheelspin</strong> or <strong style="color:#cdd9e5;font-weight:600;">Money</strong>. For Wheelspin, set whether Auto Wheelspin connects after deleting.</p><div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;"><img src="../../../assets/site/fa-modes-en.png" alt="What to farm and After selling toggles" width="1092" height="152" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;"></div></div>
+        <div><h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.08rem;color:#F4F8FD;margin:4px 0 5px;">Choose your mode</h3><p style="font-size:.95rem;color:#82A0B2;margin:0;line-height:1.6;">Pick <strong style="color:#cdd9e5;font-weight:600;">Wheelspin</strong>, <strong style="color:#cdd9e5;font-weight:600;">Money</strong>, or <strong style="color:#cdd9e5;font-weight:600;">Mixed</strong> — Wheelspin farms Super Wheelspins, Money farms credits, and Mixed alternates the two each cycle so the grind funds itself. For Wheelspin, set whether Auto Wheelspin connects after deleting.</p><div style="margin-top:16px;border:1px solid #243044;border-radius:10px;overflow:hidden;background:#0A0E14;"><img src="../../../assets/site/fa-modes-en.png" alt="What to farm and After selling toggles" width="1092" height="152" loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:contain;display:block;"></div></div>
       </div>
       <div style="display:flex;gap:18px;align-items:flex-start;">
         <div style="width:36px;height:36px;border-radius:999px;background:#1E3A5F;color:#60A5FA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;font-family:'Geist Mono',monospace;">3</div>
@@ -210,7 +277,7 @@
 
   <!-- NOTES -->
   <section id="notes" style="margin-top:52px;">
-    <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Good to know</h2>
+    <h2 id="s5" style="scroll-margin-top:84px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.55rem;line-height:1.2;color:#F4F8FD;margin:0 0 16px;letter-spacing:-.01em;">Good to know</h2>
     <div style="display:flex;flex-direction:column;gap:26px;">
 
       <div style="display:flex;gap:18px;align-items:flex-start;">
@@ -295,6 +362,14 @@
       <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1.02rem;color:#F4F8FD;">Settings</div>
     </a>
   </div>
+
+
+</div><!-- /.g-content -->
+
+<aside class="g-side" aria-label="On this page and help">
+<div class="card"><h4>On this page</h4><nav class="toc"><a href="#s1">What Full Auto does</a><a href="#s2">Three modes</a><a href="#s3">Before you start</a><a href="#s4">Set it up and run</a><a href="#s5">Good to know</a></nav></div>
+<div class="card"><h4>Need a hand?</h4><a class="lnk" href="https://discord.gg/yfn8Vw8Ypf" target="_blank" rel="noopener">Ask in Discord →</a><a class="lnk" href="../reporting-bugs/">Report a bug →</a><a class="lnk" href="../troubleshooting/">Troubleshooting →</a></div>
+</aside>
 
 </main>
 
