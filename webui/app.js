@@ -39,6 +39,8 @@ function API(name, ...args) {
   return Promise.resolve(null);
 }
 let isRunning = false;
+let isPaused = false;
+const idleStartDisabled = new WeakMap();
 window.appendLog = (line) =>
   document.querySelectorAll('.log-body').forEach(l => {
     const row = document.createElement('div');
@@ -48,13 +50,36 @@ window.appendLog = (line) =>
     l.appendChild(row);
     l.scrollTop = l.scrollHeight;
   });
+function syncRunButtons() {
+  document.querySelectorAll('.start').forEach(b => {
+    b.classList.toggle('running', isRunning);
+    b.textContent = t(isRunning ? 'stop' : 'start');
+    if (isRunning) {
+      if (!idleStartDisabled.has(b)) idleStartDisabled.set(b, !!b.disabled);
+      b.disabled = false;
+      b.style.opacity = '';
+      b.style.cursor = 'pointer';
+    } else if (idleStartDisabled.has(b)) {
+      b.disabled = idleStartDisabled.get(b);
+      b.style.opacity = b.disabled ? '.45' : '';
+      b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
+      idleStartDisabled.delete(b);
+    }
+  });
+  document.querySelectorAll('.pause').forEach(b => {
+    b.classList.toggle('paused', isPaused);
+    b.disabled = !isRunning;
+    b.textContent = t(isPaused ? 'resume' : 'pause');
+    b.style.opacity = isRunning ? '' : '.45';
+    b.style.cursor = isRunning ? 'pointer' : 'not-allowed';
+  });
+}
 function updateStatusUi(text, running) {
   document.querySelectorAll('.status').forEach(s => {
     s.classList.toggle('run', !!running);
     const t = s.querySelector('.statusText'); if (t) t.textContent = text;
   });
-  // Grey the Start button(s) while a run is active (stop via F9).
-  document.querySelectorAll('.start').forEach(b => b.classList.toggle('running', !!running));
+  syncRunButtons();
   if (!running && typeof setStage === 'function') setStage(-1);   // clear the loop bar
 }
 window.setStatus = (text, running) => {
@@ -65,10 +90,16 @@ window.setStatus = (text, running) => {
   const deniaFx = wasRunning !== nextRunning && (state.cfg && state.cfg.theme_preset) === 'denia';
   const apply = () => {
     root.dataset.running = nextRunning ? '1' : '0';   // Denia theme: light idle / dark running
+    if (!nextRunning) isPaused = false;
     updateStatusUi(text, nextRunning);
   };
   if (deniaFx) transitionDenia(nextRunning, apply);
   else apply();
+};
+window.setPaused = (paused) => {
+  isPaused = !!paused;
+  document.documentElement.dataset.paused = isPaused ? '1' : '0';
+  syncRunButtons();
 };
 // Themes: a theme = a document-level data-theme; components read var(--token) only.
 // Denia is reactive — light while idle, dark while running (data-running, set above).
@@ -128,6 +159,8 @@ window.onHotkey = (name) => {
       const btn = document.querySelector('.view:not([hidden]) .start');
       if (btn && !btn.disabled) btn.click();   // start the active view
     }
+  } else if (name === 'f8') {
+    if (isRunning) API('toggle_pause');
   } else if (name === 'f12') {
     const log = document.querySelector('.view:not([hidden]) .log-body');
     API('report', log ? log.innerText : '');
@@ -140,7 +173,7 @@ function clearLog() { document.querySelectorAll('.log-body').forEach(l => l.inne
 // activation of these buttons; F9 start/stop is routed via onHotkey, not here.
 document.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ' || e.code === 'Space') &&
-      e.target instanceof HTMLElement && e.target.matches('.start, .stop')) {
+      e.target instanceof HTMLElement && e.target.matches('.start, .stop, .pause')) {
     e.preventDefault();
   }
 }, true);
@@ -168,6 +201,11 @@ function reportBug() {
 function closeReport() { document.getElementById('reportModal').classList.remove('open'); }
 function openSupport() { document.getElementById('supportModal').classList.add('open'); }
 function closeSupport() { document.getElementById('supportModal').classList.remove('open'); }
+function buyNow() {
+  if (state.cfg && state.cfg.lang === 'zh-tw') document.getElementById('twBuyModal').classList.add('open');
+  else API('buy');
+}
+function closeTwBuy() { document.getElementById('twBuyModal').classList.remove('open'); }
 function showUpdate(tag, url) {
   const modal = document.getElementById('updateModal');
   if (!modal) return;
@@ -177,12 +215,82 @@ function showUpdate(tag, url) {
   if (title) title.textContent = t('update_available', { tag });
   if (body) body.textContent = t('update_prompt');
   modal.classList.add('open');
+  const nowBtn = document.getElementById('updateNowBtn');
+  if (nowBtn) nowBtn.style.display = (state.update_installable && state.auto_update) ? '' : 'none';
 }
 function closeUpdate() { document.getElementById('updateModal').classList.remove('open'); }
+// Cutscene skip (opt-in game-file mod) — status/messages come straight from the
+// Python bridge (cutscene_mod_*). Install is gated behind cutsceneWarnModal;
+// uninstall is immediate. refreshCutsceneSkip() is (re)run from renderSettings()
+// each time the Settings view is shown.
+function showCutsceneMsg(r) {
+  const stateEl = document.getElementById('cutsceneSkipState'); if (!stateEl) return;
+  stateEl.style.color = (r && r.ok) ? 'var(--ok-text)' : 'var(--danger)';
+  stateEl.textContent = (r && r.msg) || '';
+}
+async function refreshCutsceneSkip() {
+  const btn = document.getElementById('cutsceneSkipBtn'); if (!btn) return;
+  const s = (await API('cutscene_mod_status')) || {};
+  const on = !!(s.installed || s.files_present);
+  btn.textContent = t(on ? 'cutscene_skip_uninstall' : 'cutscene_skip_install');
+  btn.dataset.installed = on ? '1' : '0';
+  btn.disabled = !!s.running;   // can't edit game files while the game is open
+  const stateEl = document.getElementById('cutsceneSkipState');
+  if (stateEl) {
+    stateEl.style.color = 'var(--text2)';
+    stateEl.textContent = s.running ? t('cutscene_skip_close_game')
+                        : (s.game_dir ? '' : t('cutscene_skip_no_game'));
+  }
+}
+async function cutsceneSkipClick() {
+  const btn = document.getElementById('cutsceneSkipBtn'); if (!btn) return;
+  if (btn.dataset.installed === '1') {
+    const r = await API('cutscene_mod_uninstall');
+    showCutsceneMsg(r); refreshCutsceneSkip();
+  } else {
+    document.getElementById('cutsceneWarnModal').classList.add('open');
+  }
+}
+function closeCutsceneWarn() { document.getElementById('cutsceneWarnModal').classList.remove('open'); }
+async function confirmCutsceneInstall() {
+  closeCutsceneWarn();
+  const s = (await API('cutscene_mod_status')) || {};
+  if (!s.game_dir) {
+    const picked = await API('cutscene_mod_browse_game_dir');
+    if (!picked) { showCutsceneMsg({ ok: false, msg: t('cutscene_skip_no_game') }); return; }
+  }
+  const r = await API('cutscene_mod_install');
+  showCutsceneMsg(r); refreshCutsceneSkip();
+}
 function openUpdatePage() {
   const modal = document.getElementById('updateModal');
   API('open_update_page', modal ? modal.dataset.url : '');
   closeUpdate();
+}
+window.updateProgress = (done, total) => {
+  const el = document.getElementById('updateProgressText');
+  if (!el) return;
+  el.style.display = '';
+  const pct = total ? Math.floor((done / total) * 100) : 0;
+  el.textContent = t('update_downloading') + (total ? ` ${pct}%` : '');
+};
+async function runUpdateNow() {
+  if (isRunning && !confirm(t('update_confirm_stop'))) return;
+  const btn = document.getElementById('updateNowBtn');
+  if (btn) { btn.disabled = true; btn.textContent = t('update_downloading'); }
+  const r = (await API('install_update')) || {};
+  const el = document.getElementById('updateProgressText');
+  if (!r.ok) {
+    if (btn) { btn.disabled = false; btn.textContent = t('update_now'); }
+    if (el) { el.style.display = ''; el.style.color = 'var(--danger)'; el.textContent = r.msg || ''; }
+    return;
+  }
+  // Success = installer launched. It SHOULD close & relaunch FAFE — but if it
+  // can't (e.g. running from a non-installed/portable copy, or the installer
+  // predates the silent-relaunch support), this app stays open. Show the
+  // launched message + a fallback so it never looks frozen.
+  if (el) { el.style.display = ''; el.style.color = 'var(--text2)'; el.textContent = r.msg || ''; }
+  if (btn) { btn.disabled = false; btn.textContent = t('update_now'); }
 }
 // Reflect overlay on/off across both topbar buttons + the Settings switch.
 // Global so Python (F10 hotkey) can push the state back here to stay in sync.
@@ -340,12 +448,16 @@ function persistFA(key) {
   if (key === 'branch') API('set_cfg', 'full_auto_branch_mode', state.branch);
 }
 async function startFA() {
-  if (isRunning) return;
+  if (isRunning) { API('stop'); return; }
   const inp = document.getElementById('faRaces');
   const v = Math.max(1, parseInt(inp.value, 10) || 1);
   inp.value = v; state.cfg.full_auto_races = v; API('set_cfg', 'full_auto_races', v);
   clearLog();
   API('start_full_auto', v);
+}
+
+function togglePause() {
+  if (isRunning) API('toggle_pause');
 }
 
 // ── garage-block selector (Unlock / Delete) ──────────────────
@@ -406,10 +518,24 @@ function blockSelector(tab, startBtn) {
     return t;
   }
   const tagF = tag('var(--ok)', t('block_firstcol')), tagM = tag('var(--accent)', t('block_middle')), tagL = tag('var(--accent-light)', t('block_lastcol'));
-  const total = el('div'); total.className = 'block-total'; total.innerHTML = `<span class="t">${t('block_total')}</span><span class="v"></span>`;
+  const total = el('div'); total.className = 'block-total';
+  total.innerHTML = `<span class="t">${t('block_total')}</span>`;
+  const totalNum = document.createElement('input'); totalNum.type = 'number'; totalNum.min = 1; totalNum.className = 'block-totalnum';
+  totalNum.addEventListener('change', () => setTotalCount(parseInt(totalNum.value) || 1));
+  totalNum.addEventListener('blur', () => render());
+  total.appendChild(totalNum);
   legend.append(tagF, tagM, tagL, total); wrap.appendChild(legend);
 
   function gate() { /* delete's gate lives in deleteConfirm(); count is always ≥1 */ }
+  function currentTotal() { return (4 - first) + mid * 3 + last; }
+  function setTotalCount(n) {
+    n = Math.max(1, n | 0);
+    if (n <= (4 - first)) first = 4 - n;
+    const rest = Math.max(1, n - (4 - first));
+    mid = Math.floor((rest - 1) / 3);
+    last = ((rest - 1) % 3) + 1;
+    commit();
+  }
   function commit() {
     state.cfg[`${pfx}_block_first_row`] = first;  API('set_cfg', `${pfx}_block_first_row`, first);
     state.cfg[`${pfx}_block_middle_cols`] = mid;  API('set_cfg', `${pfx}_block_middle_cols`, mid);
@@ -429,7 +555,7 @@ function blockSelector(tab, startBtn) {
     const fC = 4 - first, mC = mid * 3, lC = last;
     segF.style.flex = `${fC} 1 0`; segM.style.flex = `${mC} 1 0`; segL.style.flex = `${lC} 1 0`;
     tagF.querySelector('.tv').textContent = fC; tagM.querySelector('.tv').textContent = mC; tagL.querySelector('.tv').textContent = lC;
-    total.querySelector('.v').textContent = fC + mC + lC;
+    totalNum.value = currentTotal();
   }
   render(); gate();
   return wrap;
@@ -631,7 +757,8 @@ function renderMode(tab) {
     startBtn.disabled = true; startBtn.style.opacity = '.45'; startBtn.style.cursor = 'not-allowed';
   }
   startBtn.onclick = async () => {
-    if (startBtn.disabled || isRunning) return;
+    if (isRunning) { API('stop'); return; }
+    if (startBtn.disabled) return;
     clearLog();
     if (m.control === 'count' || m.control === 'wheel') {
       const cnt = body.querySelector('.mode-count');
@@ -683,10 +810,26 @@ async function renderTemplates(bodyId, tab) {
     slider.oninput = () => { val.textContent = Number(slider.value).toFixed(2); };
     slider.onchange = () => API('set_cfg', 'thresh_' + tpl.name, Number(slider.value));
     chip.append(dot, name, thr, slider, val);
-    if (state.dev) {   // recapture is a developer-only action (Settings → Developer)
-      const cap = el('button', null, t('tpl_recapture')); cap.className = 'tpl-cap';
-      cap.onclick = () => { chip.classList.add('capturing'); cap.textContent = t('tpl_capturing'); API('capture_template', tab, tpl.name); };
-      chip.append(cap);
+    // Recapture + Test are available to everyone (recapture saves to the
+    // upgrade-safe custom\ folder). The detection-area (ROI) tuner writes to
+    // built-in, so it stays developer-only (Settings → Developer).
+    const cap = el('button', null, t('tpl_recapture')); cap.className = 'tpl-cap';
+    cap.onclick = () => { chip.classList.add('capturing'); cap.textContent = t('tpl_capturing'); API('capture_template', tab, tpl.name); };
+    const test = el('button', null, t('tpl_test')); test.className = 'tpl-cap';
+    test.onclick = async () => {
+      test.disabled = true;
+      const old = test.textContent;
+      test.textContent = t('tpl_testing');
+      const armed = await API('test_template', tab, tpl.name);
+      test.textContent = armed ? t('tpl_waiting') : old;
+      test.disabled = false;
+      if (armed) setTimeout(() => { test.textContent = old; }, 2500);
+    };
+    chip.append(cap, test);
+    if (state.dev) {   // detection-area (ROI) tuner is developer-only
+      const roi = el('button', null, t('tpl_roi')); roi.className = 'tpl-cap';
+      roi.onclick = () => { chip.classList.add('capturing'); roi.textContent = t('tpl_capturing'); API('capture_roi', tab, tpl.name); };
+      chip.append(roi);
     }
     list.appendChild(chip);
   });
@@ -738,6 +881,7 @@ function makeSwitch(on, onToggle) {
 }
 const SYSTEM_TOGGLES = [
   ['update_check',         'Check for updates',       'Checks GitHub releases at startup. Opens the releases page; never downloads.'],
+  ['auto_update',          'Automatic updates',       'One-click download & install (installed build only).'],
   ['game_relaunch_enabled','Launch game when needed', 'Starts the game for Race/Full Auto if no game window is detected.'],
   ['car_pass_dlc_owned',   'Own Car Pass DLC',        'Uses the #123 Mad Mike wheelspin route in Full Auto.'],
   ['mute_game',           'Mute game while running', 'Silences the game audio during automation.'],
@@ -753,7 +897,6 @@ const LAUNCH_PLATFORMS = [
 // race_check_interval is intentionally absent: fixed at 0.5s default, config-only.
 const TIMING = [
   ['race_post_key_wait',       'AFK Races — key interval',           'Pause after each keypress in race nav.',                            0.75, 3.0, 0.05],
-  ['mastery_cutscene_wait',    'Driving new car cutscene duration',  'How long the "ride this car" cutscene runs before unlocking.',       0.0, 13.0, 0.5],
   ['mastery_grid_unlock_wait', 'Unlock — per-node interval',         'Pause after each mastery-tree node unlock.',                        1.0, 2.0, 0.25],
   ['menu_tap_wait',            'Menu cursor tap interval',           'Interval after each Up/Down menu tap. Higher helps weak hardware.', 0.1, 0.5, 0.05],
   ['buy_post_key_wait',        'Buy — key interval',                 'Pause between Buy macro keys.',                                     0.4, 3.0, 0.1],
@@ -781,6 +924,7 @@ function syncLicensedChrome() {
 // [which, configKey, labelKey] — which maps to a backend shortcut on set_shortcut
 const SHORTCUTS = [
   ['toggle',  'toggle_key',  'sc_toggle'],
+  ['pause',   'pause_key',   'sc_pause'],
   ['capture', 'capture_key', 'sc_capture'],
   ['report',  'report_key',  'sc_report'],
   ['overlay', 'overlay_key', 'sc_overlay'],
@@ -798,7 +942,8 @@ function renderShortcuts() {
   const host = document.getElementById('shortcutGroup'); if (!host) return;
   host.innerHTML = '';
   SHORTCUTS.forEach(([which, cfgKey, lblKey]) => {
-    if (which === 'capture' && !state.dev) return;   // capture only used during dev recapture
+    // capture (CAPS LOCK) arms the recapture region selector — now available to
+    // everyone (recapture is no longer dev-only), so the binding is always shown.
     const row = el('div'); row.className = 'set-row';
     row.appendChild(el('span', 'font-size:15px;color:var(--text)', t(lblKey)));
     const btn = el('button'); btn.className = 'key-btn';
@@ -911,6 +1056,12 @@ function renderSettings() {
     ocr.onclick = () => { const now = !ocr.classList.contains('on'); ocr.classList.toggle('on', now);
       state.cfg.detector_enable_ocr = now; API('set_cfg', 'detector_enable_ocr', now); };
   }
+  const ocrPreset = document.getElementById('setOcrPreset');
+  if (ocrPreset) {
+    ocrPreset.value = state.cfg.ocr_cpu_profile || 'auto';
+    ocrPreset.onchange = () => { state.cfg.ocr_cpu_profile = ocrPreset.value;
+      API('set_cfg', 'ocr_cpu_profile', ocrPreset.value); };
+  }
   syncDevExtras();
 
   const sys = document.getElementById('systemToggles'); sys.innerHTML = '';
@@ -948,12 +1099,7 @@ function renderSettings() {
     valWrap.append(valInp, el('span', null, 's'));
     head.appendChild(valWrap); row.appendChild(head);
     row.appendChild(el('span', null, t('tm_' + key + '_h'))).className = 'shint';
-    // cutscene: below 11s needs the skip-cutscene mod — warn in red when lowered.
-    let warn = null;
-    if (key === 'mastery_cutscene_wait') {
-      warn = el('div', 'font-size:12px;color:#F87171;font-weight:500;line-height:1.45;margin-top:4px', t('cutscene_warn'));
-      row.appendChild(warn);
-    }
+    let warn = null;   // reserved for per-slider warnings (none currently)
     const sl = document.createElement('input');
     sl.type = 'range'; sl.className = 'slider'; sl.min = lo; sl.max = hi; sl.step = step; sl.value = cur;
     const syncWarn = () => { if (warn) warn.style.display = Number(sl.value) < 11 ? 'block' : 'none'; };
@@ -979,6 +1125,32 @@ function renderSettings() {
     refreshLicense();
   };
   refreshLicense();
+  refreshCutsceneSkip();
+  initSettingsCollapse();
+}
+
+// ── collapsible Settings sections (state persisted in localStorage) ──
+// Sections default to COLLAPSED; only sections the user has opened are stored
+// as open. Keyed by data-sect so it survives adding/reordering sections.
+function settingsOpenMap() {
+  try { return JSON.parse(localStorage.getItem('fafe_settings_open') || '{}') || {}; }
+  catch (_e) { return {}; }
+}
+function initSettingsCollapse() {
+  const open = settingsOpenMap();
+  document.querySelectorAll('#view-settings .set-block[data-sect]').forEach(block => {
+    const id = block.dataset.sect;
+    block.classList.toggle('collapsed', !open[id]);          // default: collapsed
+    const head = block.querySelector('.set-section');
+    if (!head) return;
+    const toggle = () => {
+      const nowOpen = block.classList.toggle('collapsed') === false;
+      const m = settingsOpenMap(); m[id] = nowOpen;
+      localStorage.setItem('fafe_settings_open', JSON.stringify(m));
+    };
+    head.onclick = toggle;
+    head.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+  });
 }
 
 // ── coming-soon gate (1.9.x teaser — off in 2.0; backend sets coming_soon) ──
@@ -1114,6 +1286,9 @@ function finishInit() {
   COMING_SOON = state.comingSoon;
   state.fullAutoBundled = data.full_auto_bundled !== false;
   state.licensed = !!data.licensed;
+  state.frozen = !!data.frozen;
+  state.auto_update = data.auto_update !== false;
+  state.update_installable = !!data.update_installable;
   state.machineId = data.machine_id || '';
   state.grind  = state.cfg.full_auto_grind_type || 'wheelspin';
   state.branch = state.cfg.full_auto_branch_mode || 'racing';
@@ -1131,6 +1306,15 @@ function finishInit() {
   };
   faR.oninput = commitFARaces;
   faR.onchange = commitFARaces;
+  const faRe = document.getElementById('faRestart');
+  faRe.value = state.cfg.full_auto_restart_cycles || 0;
+  const commitFARestart = () => {
+    const v = Math.max(0, parseInt(faRe.value, 10) || 0);
+    faRe.value = v; state.cfg.full_auto_restart_cycles = v;
+    API('set_cfg', 'full_auto_restart_cycles', v);
+  };
+  faRe.oninput = commitFARestart;
+  faRe.onchange = commitFARestart;
   document.getElementById('nav').addEventListener('click', (e) => {
     const a = e.target.closest('a[data-view]'); if (a) showView(a.dataset.view);
   });

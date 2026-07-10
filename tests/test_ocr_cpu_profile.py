@@ -58,7 +58,7 @@ class OcrCpuProfileTests(unittest.TestCase):
         cfg = {
             "detector_enable_ocr": True,
             "detector_ocr_cooldown": 9.0,
-            "detector_force_ocr_keys": ["wheelspin_collect_final"],
+            "detector_min_threshold": 0.66,   # not a profile key → must pass through
         }
         effective = ocr_profile.apply_ocr_profile_defaults(
             cfg,
@@ -66,10 +66,7 @@ class OcrCpuProfileTests(unittest.TestCase):
         )
         self.assertEqual(effective["ocr_cpu_profile"], ocr_profile.PROFILE_LOW_IMPACT)
         self.assertEqual(effective["detector_ocr_cooldown"], 9.0)
-        self.assertEqual(
-            effective["detector_force_ocr_keys"],
-            ["wheelspin_collect_final"],
-        )
+        self.assertEqual(effective["detector_min_threshold"], 0.66)
         self.assertEqual(effective["detector_ocr_target_h"], 480)
         self.assertIs(effective["detector_ocr_prewarm"], False)
 
@@ -84,10 +81,17 @@ class OcrCpuProfileTests(unittest.TestCase):
         self.assertEqual(effective["detector_ocr_target_h"], 640)
         self.assertIs(effective["detector_ocr_prewarm"], True)
 
-    def test_webui_does_not_add_a_separate_ocr_preset_control(self):
+    def test_webui_ocr_preset_control_is_developer_only(self):
+        # The OCR preset override lives under Settings -> Developer (devExtras),
+        # alongside the dev OCR toggle — not in the always-visible System list.
         app_js = Path("webui/app.js").read_text(encoding="utf-8")
-        self.assertNotIn("ocr_preset", app_js)
-        self.assertNotIn("ocr_cpu_profile", app_js)
+        index = Path("webui/index.html").read_text(encoding="utf-8")
+        self.assertIn("ocr_cpu_profile", app_js)
+        self.assertIn('id="setOcrPreset"', index)
+        # It sits after the developer-only devExtras marker (which wraps the dev
+        # OCR toggle + debug rows), so it's hidden until Developer mode is on.
+        self.assertGreater(
+            index.index('id="setOcrPreset"'), index.index('id="devExtras"'))
 
     def test_webui_ocr_toggle_is_developer_only(self):
         app_js = Path("webui/app.js").read_text(encoding="utf-8")

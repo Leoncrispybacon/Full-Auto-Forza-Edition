@@ -23,14 +23,6 @@ _PROFILE_DEFAULTS = {
         "detector_ocr_target_h": 640,
         "detector_ocr_max_scale": 3.0,
         "detector_ocr_prewarm": True,
-        "detector_force_ocr_max_height": 1080,
-        "detector_force_ocr_keys": [
-            "subaru",
-            "wheelspin_skip",
-            "wheelspin_collect",
-            "wheelspin_collect_final",
-            "buy_confirm",
-        ],
     },
     PROFILE_LOW_IMPACT: {
         "detector_ocr_cooldown": 3.0,
@@ -38,11 +30,6 @@ _PROFILE_DEFAULTS = {
         "detector_ocr_target_h": 480,
         "detector_ocr_max_scale": 2.0,
         "detector_ocr_prewarm": False,
-        "detector_force_ocr_max_height": 720,
-        "detector_force_ocr_keys": [
-            "wheelspin_collect",
-            "wheelspin_collect_final",
-        ],
     },
 }
 

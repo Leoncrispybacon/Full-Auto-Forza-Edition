@@ -31,17 +31,25 @@ class AutoOcrBorderlineTests(unittest.TestCase):
     def test_ocr_default_lower_gate_is_not_garbage_low(self):
         import detector
 
-        d = detector.ScreenDetector({"detector_enable_ocr": True})
+        # prewarm OFF: otherwise a real-OCR loader daemon lingers and, when its
+        # import finalizes, overwrites sys.modules['rapidocr_onnxruntime'] —
+        # clobbering the fake injected by test_detector_rois' OCR-race test.
+        d = detector.ScreenDetector({"detector_enable_ocr": True,
+                                     "detector_ocr_prewarm": False})
 
         self.assertEqual(d._ocr_skip_below, 0.30)
 
-    def test_wheelspin_collect_uses_full_roi_ocr(self):
+    def test_ocr_always_reads_full_roi_no_matched_crop(self):
+        # The best-match sub-crop OCR path was removed entirely: OCR always reads
+        # the whole ROI (ROIs are drawn tight around their scan item). Guard that
+        # the machinery is gone so it isn't reintroduced.
         import detector
 
-        d = detector.ScreenDetector({"detector_enable_ocr": True})
-
-        self.assertIn("wheelspin_collect", d._full_roi_ocr_keys)
-        self.assertIn("wheelspin_collect_final", d._full_roi_ocr_keys)
+        d = detector.ScreenDetector({"detector_enable_ocr": True,
+                                     "detector_ocr_prewarm": False})
+        self.assertFalse(hasattr(d, "_full_roi_ocr_keys"))
+        self.assertFalse(hasattr(d, "_ocr_full_roi_all"))
+        self.assertFalse(hasattr(detector.ScreenDetector, "_matched_ocr_area"))
 
     def test_automations_forward_auto_ocr_note_to_logs(self):
         for path in ("race.py", "buy.py", "wheelspin.py", "mastery.py", "full_auto.py"):

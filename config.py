@@ -105,6 +105,15 @@ def get_buy_templates(res: str = REFERENCE_RES,
     return path
 
 
+def get_delete_templates(res: str = REFERENCE_RES,
+                         lang: str = DEFAULT_TEMPLATE_LANG) -> str:
+    # Delete is keyboard-driven; the only (optional) template is delete_confirm,
+    # used to gate the final irreversible "confirm delete" keypress.
+    path = os.path.join(_lang_dir(lang), "delete", res)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
 def get_full_auto_templates(res: str = REFERENCE_RES,
                             lang: str = DEFAULT_TEMPLATE_LANG) -> str:
     """Templates used ONLY by the Full Auto chained orchestrator's transition
@@ -122,6 +131,17 @@ def get_relaunch_templates(res: str = REFERENCE_RES,
     to the main menu. Surfaced under Race setup because the relaunch watchdog is
     triggered by race entry navigation."""
     path = os.path.join(_lang_dir(lang), "relaunch", res)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def custom_dir(built_in_folder: str) -> str:
+    """Sibling 'custom' folder for a 'built-in' template folder. User recaptures
+    are written here (not into built-in) so an installer upgrade — which wipes &
+    refreshes built-in — can't destroy them. capture.load_template prefers custom
+    over built-in, so a local recapture overrides the shipped template."""
+    parent = os.path.dirname(os.path.normpath(built_in_folder))
+    path = os.path.join(parent, "custom")
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -225,6 +245,7 @@ DEFAULTS = {
     "lang_chosen":       True,
     "theme":             "system",
     "toggle_key":        "f9",
+    "pause_key":         "f8",
     "capture_key":       "caps lock",
     "report_key":        "f12",
     "overlay_key":       "f10",
@@ -243,6 +264,10 @@ DEFAULTS = {
     # displays/setups need OCR to confirm text templates reliably. The Settings
     # UI stays a simple ON/OFF switch.
     "detector_enable_ocr": True,
+    # OCR runtime preset. "auto" = pick from the CPU (Balanced, or Low Impact on
+    # stutter-prone hybrid Intel CPUs); "balanced"/"low_impact" force one. Exposed
+    # under Settings -> Developer so a slow non-Intel PC can opt into Low Impact.
+    "ocr_cpu_profile": "auto",
     # Recovery stays route-local: when a major detection-gated stage route fails
     # before its purpose is complete, retry that same route this many times.
     "recovery_route_retries": 1,
@@ -290,14 +315,10 @@ DEFAULTS = {
     "thresh_next_activity":        0.70,
     "race_check_interval":    0.5,
     "race_post_key_wait":     0.75,
-    # Mastery settings. Blind keyboard mode remains the default; gated menu mode
-    # is experimental v2 work enabled only by editing config.json.
-    "mastery_gated_menus":   True,
+    # Mastery is template-gated (the only path). The ride cutscene is handled by
+    # detecting the post-cutscene screen (ride_cutscene_end), so there's no
+    # cutscene timer any more; the other step waits stay FIXED in mastery.py.
     "mastery_start_loop":     1,
-    # Cutscene ("Ride This Car") wait before ESC — default 11, user-raisable
-    # via a Settings slider (min 11). The other mastery step waits
-    # (screen/tap + menu-transition delays) stay FIXED constants in mastery.py.
-    "mastery_cutscene_wait":  11.0,
     # Grid node-unlock settle (after Enter, before the next node's move) for the
     # keyboard mastery-tree nav. Higher helps weaker hardware register the
     # unlock; default 1.25, Settings slider 1–2s.
@@ -337,6 +358,10 @@ DEFAULTS = {
     # points already banked). Both flow through buy, where the per-cycle count is
     # read from tech points. Cycle 2 onward always runs the full loop from racing.
     "full_auto_start_from":   "race",
+    # Auto-restart the game every N completed Full Auto cycles (0 = off). FH6
+    # performance degrades over a long unattended run; relaunching between cycles
+    # mitigates it. Reuses the game_relaunch path (needs game_relaunch_enabled).
+    "full_auto_restart_cycles": 0,
     # Per-function Setup-tab run counts — persisted so they carry over a relaunch.
     # 0 = unlimited (run until stopped/detection caps it); full_auto_races = FA cycles.
     "full_auto_races":        2,
@@ -387,7 +412,9 @@ DEFAULTS = {
     # Buy gating anchors (optional — if both captured, each purchase is confirmed
     # by the "Buy Car" popup and a dropped key is retried; absent → blind macro).
     "thresh_buy_confirm":         0.70,
-    "thresh_buy_detail":          0.70,
+    "thresh_buy_detail_22b":      0.70,
+    "thresh_buy_detail_gts_acr":  0.70,
+    "thresh_buy_detail_mad_mike": 0.70,
     # Auto Spin Wheel settings. Duplicate cars are SOLD by default (unattended);
     # two independent keep-exceptions: keep_fe and keep_above_price (below).
     "thresh_wheelspin_duplicate": 0.70,
@@ -443,10 +470,16 @@ DEFAULTS = {
     # leaves other apps' sound alone), and unmute when it stops. Settings toggle.
     "mute_game":              False,
     "overlay_enabled":        False,
+    # Cutscene skip mod integration: whether the mod is installed and where.
+    "cutscene_skip_installed": False,
+    "cutscene_skip_game_dir": "",
     # Read-only version check on startup (no download — opens the releases page
     # if a newer version exists). Set false for a fully offline build that makes
     # zero network requests (e.g. to satisfy Nexus's no-internet policy).
     "update_check":           True,
+    # One-click auto-update: download the release installer and run it silently.
+    # Packaged (sys.frozen) builds only. Disable for Nexus/offline builds.
+    "auto_update":            True,
 }
 
 
@@ -502,9 +535,6 @@ def load() -> dict:
                     data[_k] = 0.75
                     added = True
         if schema < 2:
-            if data.get("mastery_gated_menus") is False:
-                data["mastery_gated_menus"] = True
-                added = True
             if "recovery_test_point" in data:
                 data.pop("recovery_test_point", None)
                 added = True

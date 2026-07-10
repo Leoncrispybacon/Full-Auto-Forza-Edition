@@ -106,6 +106,11 @@ def generate_report(cfg: dict, monitor_index: int, logs: dict,
             f.write("\n\n----- fafe_diag.log -----\n")
             try:
                 import config as _c
+                try:   # flush any pending "(repeated Nx)" summary first
+                    import detector as _d
+                    _d.flush_diag()
+                except Exception:
+                    pass
                 _dp = os.path.join(_c.BASE_DIR, "fafe_diag.log")
                 f.write(open(_dp, encoding="utf-8").read()
                         if os.path.exists(_dp) else "(none)")

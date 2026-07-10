@@ -150,6 +150,28 @@
   };
   let curLang = 'en';
   let curFaAvail = false;          // Full Auto only listed when runnable
+  let curLines = [];
+  function logLineCount() {
+    const log = document.getElementById('ovLog');
+    const cs = getComputedStyle(log);
+    const line = parseFloat(cs.lineHeight) || 16;
+    const gap = parseFloat(cs.rowGap || cs.gap) || 0;
+    return Math.max(1, Math.floor((log.clientHeight + gap) / (line + gap)));
+  }
+  function renderLog(lines) {
+    const log = document.getElementById('ovLog');
+    log.innerHTML = '';
+    const shown = lines.slice(-logLineCount());
+    shown.forEach((t, i) => {
+      const el = document.createElement('div');
+      el.textContent = t;
+      const s = String(t).trim();
+      if (s.startsWith('✓') || /detected|match/i.test(s)) el.className = 'ok';
+      else if (i === shown.length - 1) el.className = 'last';
+      log.appendChild(el);
+    });
+  }
+  addEventListener('resize', () => renderLog(curLines));
   window.ovUpdate = (d) => {
     if (!d) return;
     if (d.lang) curLang = d.lang;
@@ -172,16 +194,8 @@
     if (d.sub !== undefined) document.getElementById('ovSub').textContent = d.sub || (running ? '' : L.idle);
     document.getElementById('ovHint').textContent = running ? L.stop : L.start;
     if (Array.isArray(d.lines)) {
-      const log = document.getElementById('ovLog');
-      log.innerHTML = '';
-      d.lines.forEach((t, i) => {
-        const el = document.createElement('div');
-        el.textContent = t;
-        const s = String(t).trim();
-        if (s.startsWith('✓') || /detected|match/i.test(s)) el.className = 'ok';
-        else if (i === d.lines.length - 1) el.className = 'last';
-        log.appendChild(el);
-      });
+      curLines = d.lines;
+      renderLog(curLines);
     }
   };
   // Elapsed timer next to "Running" — Python sends the run-start epoch (ms); JS

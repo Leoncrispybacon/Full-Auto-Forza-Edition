@@ -63,6 +63,9 @@ class MatchResult:
     scale: float
     source: str
     ocr_text: str = ""
+    # Debug-only: absolute frame-pixel box (x0,y0,x1,y1) of the OCR crop — the
+    # whole ROI OCR read to confirm the match.
+    ocr_crop: Optional[tuple] = None
 
 
 DEFAULT_ROIS: dict[str, Rect] = {
@@ -118,10 +121,12 @@ DEFAULT_ROIS: dict[str, Rect] = {
     "subaru":               (0.00, 0.45, 1.00, 0.55),  # Subaru brand tile (brand view, bottom)
     "buy_target_car":       (0.40, 0.45, 0.60, 0.55),  # target car tile (after 1-notch scroll)
     # Buy gating: "Buy Car" confirmation popup (solid lime header, centred) =
-    # the success signal; buy_detail = a stable car-detail-view element (price /
-    # Buy button) used as the safe-to-retry anchor after an Esc recovery.
+    # the success signal; each car's buy_detail_<car> identity template doubles
+    # as the safe-to-retry anchor after an Esc recovery (per-route, OCR-confirmed).
     "buy_confirm":          (0.20, 0.35, 0.60, 0.30),  # centred "Buy Car" header
-    "buy_detail":           (0.00, 0.55, 1.00, 0.45),  # detail-view price/Buy band
+    "buy_detail_22b":       (0.00, 0.00, 1.00, 0.45),  # target detail identity
+    "buy_detail_gts_acr":   (0.00, 0.00, 1.00, 0.45),  # target detail identity
+    "buy_detail_mad_mike":  (0.00, 0.00, 1.00, 0.45),  # target detail identity
     # Post-relaunch route (splash/intro menu -> home -> main menu). These live
     # in the relaunch template folder but behave like normal menu text.
     "launch_start_prompt":  (0.00, 0.82, 0.45, 0.18),  # bottom-left Enter Start Game prompt
@@ -176,6 +181,10 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     "upgrade_tuning": ("upgrade", "tuning", "upgrade & tuning", "升級與調校", "升级与调校", "升級", "調校", "升级", "调校"),
     "car_mastery": ("car mastery", "mastery", "車輛熟練度", "车辆熟练度", "熟練", "熟练", "車熟度", "车熟度"),
     "mastery_tree": ("car mastery", "mastery", "車輛熟練度", "车辆熟练度", "熟練度", "熟練", "熟练度", "熟练", "車熟度", "车熟度"),
+    "ride_cutscene_end": ("esc", "back", "返回"),
+    "delete_confirm": ("remove car from garage", "remove car", "garage",
+                       "從車庫移除車輛", "从车库移除车辆", "移除車輛", "移除车辆",
+                       "車庫", "车库"),
     "wheelspin_duplicate": ("already owned", "owned", "already", "這輛車", "什麼操作", "this car", "what would", "garage", "sell", "車庫", "賣出", "贈送", "这辆车", "什么操作", "车库", "卖出", "赠送"),
     "my_horizon_tab": ("my horizon", "horizon", "我的 horizon", "我的"),
     "super_wheelspin": ("super wheelspin", "wheelspin", "wheel spin"),
@@ -201,10 +210,23 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     "mad_mike_808": ("#123 mad mike", "mad mike", "808 wagon", "fursty"),
     "buy_target_car": (),
     "buy_confirm": ("buy car", "added to your garage", "garage", "added", "購買車輛", "已加入車庫", "車庫", "购买车辆", "已加入车库", "车库"),
-    "buy_detail": (),
+    "buy_detail_22b": ("impreza 22b-sti", "22b-sti version", "22b-sti",
+                       "22b sti", "22b", "impreza", "subaru",
+                       "1998 subaru"),
+    "buy_detail_gts_acr": ("dodge viper gts acr", "viper gts acr",
+                           "gts acr", "viper", "dodge"),
+    "buy_detail_mad_mike": ("#123 mad mike 808 wagon", "mad mike 808",
+                            "mad mike", "808 wagon", "fursty", "mazda",
+                            "1974 mazda"),
     "launch_start_prompt": ("start game", "start", "game", "開始遊戲", "開始", "开始游戏", "开始"),
-    "launch_continue": ("continue", "繼續", "继续"),
-    "tech_points": ("mastery points", "skill points", "points", "可用的技術點數", "技術點數", "點數", "可用", "可用的技术点数", "技术点数", "点数"),
+    # Anchored on the "Options" button (solid white text — reliable), not the
+    # "Continue" button, which sits over the animated backdrop and pixel/OCR-matches
+    # poorly. Still means "we're on the launch continue menu"; ENTER hits Continue.
+    "launch_continue": ("options", "選項", "选项"),
+    "tech_points": ("mastery points", "skill points", "points",
+                    "skill points available", "available",
+                    "可用的技術點數", "技術點數", "點數", "可用",
+                    "可用的技术点数", "技术点数", "点数"),
     "cars_top_tab": ("cars", "car", "車輛", "车辆"),
     "story_top_tab": ("campaign", "story", "劇情", "剧情"),
     "return_home": ("return home", "home", "fast travel", "返回住宅", "返回", "回家"),
@@ -212,11 +234,23 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
     "cars_tab_sell": ("cars", "car", "車輛", "汽車", "车辆", "汽车"),
     "recently_added": ("recently added", "recently", "recent", "added", "最近新增", "最近", "新增"),
     "grind_brand": ("subaru",),
-    "grind_car": ("22b-sti", "22b sti", "22b"),
+    "grind_car": ("22b-sti", "22b sti", "22b", "impreza", "subaru impreza",
+                  "sti version", "22b-sti version", "22b sti version"),
     "select_action": ("select an action", "select", "action", "選擇動作", "選擇", "動作", "选择动作", "选择", "动作"),
     "anna": ("anna",),
     "my_cars": ("my cars", "我的車輛", "車庫", "车库", "我的车辆"),
     "my_cars_header": ("my cars", "我的車輛", "車庫", "我的车辆", "车库"),
+}
+
+# OCR EXCLUSIONS: a positive hint match is REJECTED when the OCR text ALSO
+# contains any of these terms. wheelspin_collect_final's hints ("collect prize" /
+# "取得獎勵") are substrings of the NORMAL collect prompt ("Collect Prize AND SPIN
+# AGAIN"), so the final prompt would false-pass on the normal one and press the
+# wrong button. Requiring the spin-again markers to be ABSENT makes final match
+# ONLY the true single-"Collect Prize" screen.
+OCR_EXCLUDE: dict[str, tuple[str, ...]] = {
+    "wheelspin_collect_final": (
+        "spin again", "again", "再次", "再次抽", "再次抽獎", "再次抽奖"),
 }
 
 # All template images capture text UI elements. Edge matching on text is
@@ -224,6 +258,14 @@ OCR_HINTS: dict[str, tuple[str, ...]] = {
 # so these keys all use the fast grayscale-only, 3-scale path.
 # Keys NOT listed here fall back to the full multi-scale + edge pipeline.
 TEXT_TEMPLATES: frozenset[str] = frozenset(DEFAULT_ROIS.keys()) | frozenset(OCR_HINTS.keys())
+
+# Identity templates must be confirmed by OCR: a pixel-only pass here can buy
+# the wrong car, so no hint confirmation means no match.
+OCR_MANDATORY_KEYS: frozenset[str] = frozenset({
+    "buy_detail_22b",
+    "buy_detail_gts_acr",
+    "buy_detail_mad_mike",
+})
 
 
 def _auto_ocr_borderline(score: float, soft_threshold: float, margin: float) -> bool:
@@ -261,10 +303,25 @@ def _content_box(w: int, h: int) -> tuple[float, float, float, float]:
 
 # Geometry-ROI anchoring: menu/dialog elements live inside the centred 16:9
 # content box (above), so their box must be mapped through that box to survive
-# an aspect change (e.g. an ultrawide capture used on a 16:9 screen). Only true
-# in-game HUD (the race timer) is anchored to the raw screen edge 鈥?listed here
-# so it keeps the edge model. Everything else is treated as a centred menu.
-_GEOM_EDGE_KEYS: frozenset[str] = frozenset({"racing"})
+# an aspect change (e.g. an ultrawide capture used on a 16:9 screen). Screen-EDGE
+# elements (in-game HUD + the bottom-of-screen button prompts) are glued to the
+# raw screen edge instead, so they must use the edge model — otherwise on a
+# non-16:9 aspect (e.g. 16:10 2560x1600, which letterboxes the content box) the
+# centred-box remap pushes them off vertically. Listed here keep the edge model.
+# Full edge model (BOTH axes anchored to the raw screen edge, height-scaled) —
+# true corner HUD only.
+_GEOM_EDGE_KEYS: frozenset[str] = frozenset({"racing", "anna"})
+
+# Mixed model: horizontal follows the centred-16:9 content box, vertical is glued
+# to the raw screen edge. Bottom-of-screen button prompts sit WITHIN the 16:9
+# content horizontally (so X maps like a menu) but hug the true bottom edge
+# vertically — otherwise a letterboxed aspect (16:10, e.g. 2560x1600) rides them
+# up out of position. Pure-edge X was wrong here (pushed left prompts far right).
+_GEOM_EDGE_Y_KEYS: frozenset[str] = frozenset({
+    "restart_menu", "wheelspin_skip", "wheelspin_collect",
+    "wheelspin_collect_final", "launch_start_prompt", "launch_continue",
+    "mastery_esc_hint", "ride_cutscene_end",
+})
 
 
 def _clip_roi(frame: np.ndarray, roi: Optional[Rect]) -> tuple[np.ndarray, int, int]:
@@ -561,15 +618,84 @@ def _box_center(box):
         return None
 
 
+_DIAG_ROTATED = False
+_DIAG_LOCK = threading.Lock()
+_diag_last = None      # last line written (for consecutive-duplicate collapse)
+_diag_repeat = 0       # suppressed consecutive dups not yet summarized
+
+
+def _diag_flush_repeat(f) -> None:
+    """Write the '(repeated Nx)' summary for suppressed consecutive dups. Caller
+    holds _DIAG_LOCK and passes an open file handle."""
+    global _diag_repeat
+    if _diag_repeat > 0:
+        f.write(f"  ... (last line repeated {_diag_repeat}x)\n")
+        _diag_repeat = 0
+
+
 def _diag_log(msg: str) -> None:
     """Best-effort one-line append to fafe_diag.log 鈥?used to surface the OCR
     backend load result (esp. in compiled builds where the import can fail
-    silently). Wrapped so it never affects detection."""
+    silently). Wrapped so it never affects detection.
+
+    On the FIRST write of each process, rotate the previous session's log to
+    fafe_diag.log.prev and start fresh (with a session header). This keeps a
+    bug report scoped to the CURRENT session instead of dumping months of
+    accumulated OCR lines, bounds the file to one session, and still preserves
+    the immediately-prior session (.prev) in case the app was restarted before
+    reporting.
+
+    Consecutive identical lines are collapsed into one '(repeated Nx)' summary
+    so a stuck detection loop can't flood the log with the same OCR miss. The
+    trailing count is written when a different line arrives, or flushed by
+    flush_diag() (called by the F12 report)."""
+    global _DIAG_ROTATED, _diag_last, _diag_repeat
     try:
         import config as _c
-        with open(os.path.join(_c.BASE_DIR, "fafe_diag.log"), "a",
-                  encoding="utf-8") as f:
-            f.write(msg + "\n")
+        path = os.path.join(_c.BASE_DIR, "fafe_diag.log")
+        with _DIAG_LOCK:
+            header = None
+            if not _DIAG_ROTATED:
+                _DIAG_ROTATED = True
+                try:
+                    if os.path.exists(path):
+                        prev = path + ".prev"
+                        if os.path.exists(prev):
+                            os.remove(prev)
+                        os.replace(path, prev)   # rotate last session out
+                except Exception:
+                    pass
+                try:
+                    import version as _v
+                    ver = getattr(_v, "VERSION", "?")
+                except Exception:
+                    ver = "?"
+                header = f"FAFE diag v{ver} {time.strftime('%Y-%m-%d %H:%M:%S')}"
+            if msg == _diag_last:          # same as last → count, don't write yet
+                _diag_repeat += 1
+                return
+            with open(path, "a", encoding="utf-8") as f:
+                if header:
+                    f.write(header + "\n")
+                _diag_flush_repeat(f)      # summarize any pending run first
+                f.write(msg + "\n")
+            _diag_last = msg
+    except Exception:
+        pass
+
+
+def flush_diag() -> None:
+    """Flush any pending consecutive-duplicate summary so an F12 report taken
+    mid-repeat still shows the final '(repeated Nx)' count."""
+    global _diag_last
+    try:
+        import config as _c
+        path = os.path.join(_c.BASE_DIR, "fafe_diag.log")
+        with _DIAG_LOCK:
+            if _diag_repeat > 0:
+                with open(path, "a", encoding="utf-8") as f:
+                    _diag_flush_repeat(f)
+                _diag_last = None   # let the next identical line reprint once
     except Exception:
         pass
 
@@ -594,22 +720,26 @@ class OptionalOCR:
         self._reader_items: Optional[Callable[[np.ndarray], list]] = None
         self.backend: Optional[str] = None       # which OCR backend loaded
         self.load_error: Optional[str] = None    # why all backends failed
+        self._load_lock = threading.Lock()
 
     def available(self) -> bool:
         self._ensure_loaded()
         return self._reader is not None
 
-    def read(self, img: np.ndarray) -> str:
+    def read(self, img: np.ndarray, max_scale: float | None = None) -> str:
         self._ensure_loaded()
         if self._reader is None:
             return ""
         try:
-            return self._reader(self.upscale(img))
+            return self._reader(self.upscale(img, max_scale))
         except Exception:
             return ""
 
-    def upscale(self, img: np.ndarray) -> np.ndarray:
-        return _upscale_for_ocr(img, self._target_h, self._max_scale)
+    def upscale(self, img: np.ndarray, max_scale: float | None = None) -> np.ndarray:
+        # max_scale override lets a specific read (e.g. the small tech-points
+        # digits on 1080p) upscale harder than the global cap, for a crisper read.
+        return _upscale_for_ocr(img, self._target_h,
+                                max_scale if max_scale else self._max_scale)
 
     def read_items(self, img: np.ndarray) -> list:
         """OCR 鈫?[(text, (cx, cy)), 鈥 with each text's box CENTRE in `img` pixel
@@ -626,95 +756,101 @@ class OptionalOCR:
     def _ensure_loaded(self):
         if self._loaded:
             return
-        self._loaded = True
-        errors = []
-        try:
-            from rapidocr_onnxruntime import RapidOCR
-            # Cap onnxruntime's intra-op threads 鈥?it defaults to ALL cores and
-            # cv2.setNumThreads / OMP env don't touch its own pool. Falls back if
-            # the installed version doesn't accept the kwarg.
+        with self._load_lock:
+            if self._loaded:
+                return
+            errors = []
             try:
-                engine = RapidOCR(intra_op_num_threads=_OCR_THREADS)
-            except TypeError:
-                engine = RapidOCR()
+                from rapidocr_onnxruntime import RapidOCR
+                # Cap onnxruntime's intra-op threads 鈥?it defaults to ALL cores and
+                # cv2.setNumThreads / OMP env don't touch its own pool. Falls back if
+                # the installed version doesn't accept the kwarg.
+                try:
+                    engine = RapidOCR(intra_op_num_threads=_OCR_THREADS)
+                except TypeError:
+                    engine = RapidOCR()
 
-            def _read(img):
-                result, _ = engine(img)
-                if not result:
-                    return ""
-                return " ".join(str(item[1]) for item in result if len(item) > 1)
+                def _read(img):
+                    result, _ = engine(img)
+                    if not result:
+                        return ""
+                    return " ".join(str(item[1]) for item in result if len(item) > 1)
 
-            def _read_items(img):
-                result, _ = engine(img)
-                out = []
-                for item in (result or []):
-                    if len(item) >= 2:
-                        c = _box_center(item[0])
-                        if c is not None:
-                            out.append((str(item[1]), c))
-                return out
-
-            self._reader = _read
-            self._reader_items = _read_items
-            self.backend = "rapidocr_onnxruntime"
-            _diag_log(f"[OCR] backend loaded: {self.backend}")
-            return
-        except Exception as e:
-            errors.append(f"rapidocr_onnxruntime: {e!r}")
-        try:
-            from rapidocr import RapidOCR
-            try:
-                engine = RapidOCR(intra_op_num_threads=_OCR_THREADS)
-            except TypeError:
-                engine = RapidOCR()
-
-            def _read(img):
-                result = engine(img)
-                items = getattr(result, "txts", None)
-                if items is not None:
-                    return " ".join(str(x) for x in items)
-                if not result:
-                    return ""
-                return " ".join(str(item[1]) for item in result if len(item) > 1)
-
-            def _read_items(img):
-                result = engine(img)
-                boxes = getattr(result, "boxes", None)
-                txts = getattr(result, "txts", None)
-                out = []
-                if boxes is not None and txts is not None:
-                    for box, text in zip(boxes, txts):
-                        c = _box_center(box)
-                        if c is not None:
-                            out.append((str(text), c))
+                def _read_items(img):
+                    result, _ = engine(img)
+                    out = []
+                    for item in (result or []):
+                        if len(item) >= 2:
+                            c = _box_center(item[0])
+                            if c is not None:
+                                out.append((str(item[1]), c))
                     return out
-                for item in (result or []):
-                    if len(item) >= 2:
-                        c = _box_center(item[0])
-                        if c is not None:
-                            out.append((str(item[1]), c))
-                return out
 
-            self._reader = _read
-            self._reader_items = _read_items
-            self.backend = "rapidocr"
-            _diag_log(f"[OCR] backend loaded: {self.backend}")
-            return
-        except Exception as e:
-            errors.append(f"rapidocr: {e!r}")
-        try:
-            import pytesseract
-            self._reader = lambda img: pytesseract.image_to_string(img)
-            self._reader_items = None   # no box output 鈫?locate_text unavailable
-            self.backend = "pytesseract"
-            _diag_log(f"[OCR] backend loaded: {self.backend}")
-            return
-        except Exception as e:
-            errors.append(f"pytesseract: {e!r}")
-        self._reader = None
-        self._reader_items = None
-        self.load_error = " | ".join(errors)
-        _diag_log(f"[OCR] no backend available 鈥?{self.load_error}")
+                self._reader = _read
+                self._reader_items = _read_items
+                self.backend = "rapidocr_onnxruntime"
+                self._loaded = True
+                _diag_log(f"[OCR] backend loaded: {self.backend}")
+                return
+            except Exception as e:
+                errors.append(f"rapidocr_onnxruntime: {e!r}")
+            try:
+                from rapidocr import RapidOCR
+                try:
+                    engine = RapidOCR(intra_op_num_threads=_OCR_THREADS)
+                except TypeError:
+                    engine = RapidOCR()
+
+                def _read(img):
+                    result = engine(img)
+                    items = getattr(result, "txts", None)
+                    if items is not None:
+                        return " ".join(str(x) for x in items)
+                    if not result:
+                        return ""
+                    return " ".join(str(item[1]) for item in result if len(item) > 1)
+
+                def _read_items(img):
+                    result = engine(img)
+                    boxes = getattr(result, "boxes", None)
+                    txts = getattr(result, "txts", None)
+                    out = []
+                    if boxes is not None and txts is not None:
+                        for box, text in zip(boxes, txts):
+                            c = _box_center(box)
+                            if c is not None:
+                                out.append((str(text), c))
+                        return out
+                    for item in (result or []):
+                        if len(item) >= 2:
+                            c = _box_center(item[0])
+                            if c is not None:
+                                out.append((str(item[1]), c))
+                    return out
+
+                self._reader = _read
+                self._reader_items = _read_items
+                self.backend = "rapidocr"
+                self._loaded = True
+                _diag_log(f"[OCR] backend loaded: {self.backend}")
+                return
+            except Exception as e:
+                errors.append(f"rapidocr: {e!r}")
+            try:
+                import pytesseract
+                self._reader = lambda img: pytesseract.image_to_string(img)
+                self._reader_items = None   # no box output 鈫?locate_text unavailable
+                self.backend = "pytesseract"
+                self._loaded = True
+                _diag_log(f"[OCR] backend loaded: {self.backend}")
+                return
+            except Exception as e:
+                errors.append(f"pytesseract: {e!r}")
+            self._reader = None
+            self._reader_items = None
+            self.load_error = " | ".join(errors)
+            self._loaded = True
+            _diag_log(f"[OCR] no backend available 鈥?{self.load_error}")
 
 
 class ScreenDetector:
@@ -844,36 +980,20 @@ class ScreenDetector:
         # Set to 0 to restore the original per-frame OCR behaviour.
         self._ocr_cooldown: float = float(
             self.cfg.get("detector_ocr_cooldown", 1.0))
+        # Per-key cooldown overrides beat the profile cooldown. wheelspin_skip's
+        # skip prompt only shows ~3s, so low_impact's 3s cooldown allows at most
+        # one OCR attempt in that window — a single mistimed frame misses it.
+        # 0.5s lets OCR retry through the whole window. Only fires in the
+        # borderline pixel band regardless. Extend via detector_ocr_cooldown_by_key.
+        self._ocr_cooldown_by_key: dict[str, float] = {
+            "wheelspin_skip": 0.5,
+            **{k: float(v) for k, v in
+               self.cfg.get("detector_ocr_cooldown_by_key", {}).items()},
+        }
         self._ocr_last_run: dict[str, float] = {}
-        # OCR enablement. Global toggle (Settings -> Developer, on by default).
-        # CPU profile tuning applies when OCR is enabled. PLUS a per-key FORCE set:
-        # these keys always get OCR confirmation
-        # even when the global toggle is off 鈥?for small templates that sit alone
-        # on a varying scene (can't be recaptured bigger) and so pixel-match
-        # weakly at low res. OCR reads the invariant TEXT in the ROI, rescuing
-        # them; scoped to a few low-frequency keys so the CPU cost stays small.
+        # OCR enablement. Global toggle (Settings -> Developer, on by default);
+        # CPU profile tuning applies when enabled.
         self._enable_ocr: bool = bool(self.cfg.get("detector_enable_ocr", True))
-        # Public-safe default; Full Auto adds its own keys (e.g. grind_brand) via
-        # cfg["detector_force_ocr_keys"] so no FA-only key lives in this shared file.
-        self._force_ocr_keys: set[str] = set(self.cfg.get(
-            "detector_force_ocr_keys",
-            ["subaru",
-             # Wheelspin spin-cycle prompts: small text on a busy, animating
-             # reward scene that pixel-matches weakly at low res (Ally X etc.).
-             # (Tile/nav templates 鈥?super/normal_wheelspin, my_horizon_tab 鈥?
-             # are larger and pixel-match fine, so they stay pixel-only.
-             # wheelspin_duplicate is pixel-only too: it can trigger an
-             # unattended sell, so we don't want an OCR false-positive firing it.)
-             "wheelspin_skip", "wheelspin_collect", "wheelspin_collect_final",
-             # Buy confirmation gate 鈥?must be reliable on weak-pixel hardware.
-             "buy_confirm"]))
-        # Forced OCR only helps where pixel-matching is weak 鈥?low resolutions
-        # where the built-in (4K-authored) templates downscale small. Above this
-        # frame height pixel matching is reliable, so forced OCR is skipped to
-        # save CPU. Set per-frame in detect() (the live frame height is the truth;
-        # window/monitor size isn't known here). 0 disables the gate (always on).
-        self._force_ocr_max_h: int = int(self.cfg.get("detector_force_ocr_max_height", 1080))
-        self._force_active: bool = True   # recomputed each detect() from frame h
         # OCR confirmation tuning. When pixel-matching scores poorly (e.g. the
         # built-in templates run on a different machine than they were captured
         # on), text content is what's actually invariant across hardware. OCR is
@@ -947,16 +1067,26 @@ class ScreenDetector:
         # Lets us bridge the cooldown gap so the stability filter still
         # passes on the frame(s) where OCR is cooling down.
         self._ocr_confirmed: dict[str, tuple[float, str]] = {}
-        self._full_roi_ocr_keys = {"wheelspin_collect", "wheelspin_collect_final"}
+        # OCR always reads the WHOLE ROI (never a best-match sub-crop): every ROI
+        # is now hand-drawn tight around its scan item, so reading the full ROI is
+        # both correct and robust — it doesn't depend on the pixel-match peak
+        # landing in the right spot (a drifted peak used to OCR the wrong sub-crop).
+        # Keys that must NEVER reuse a cached OCR confirmation — every detection
+        # requires a genuine current-frame OCR confirm (or a near-perfect pixel
+        # score). The wheelspin collect prompts advance the spin counter, and a
+        # cached confirm (valid for _ocr_cache_duration on any frame scoring only
+        # >= _ocr_cache_pixel_min) makes them "match" on the reveal / next-spin
+        # frames too — counting spins that never happened. These detects run
+        # stable=False anyway, so the cache (which only bridges the stability
+        # filter across the OCR cooldown) buys them nothing.
+        self._ocr_no_cache_keys = set(self.cfg.get(
+            "detector_ocr_no_cache_keys",
+            ["wheelspin_collect", "wheelspin_collect_final"]))
         # Cache prepared (gray, edge) versions of each template 鈥?keyed by
         # id(template) 鈥?to skip equalizeHist + Canny on every frame.
         self._template_cache: dict[int, tuple[np.ndarray, np.ndarray]] = {}
         # Pre-warm OCR in the background so the first detection call doesn't
         # eat the 1鈥? s onnxruntime model-load cost 鈥?ONLY when global OCR is on.
-        # Forced-OCR keys are NOT pre-warmed: they only fire at low resolution
-        # (see _force_active), so loading onnxruntime here would waste startup on
-        # every high-res run. On low-res the first forced-OCR detect lazy-loads it
-        # (one-time, on a gated/infinite wait 鈥?negligible).
         if self._enable_ocr and bool(self.cfg.get("detector_ocr_prewarm", True)):
             threading.Thread(
                 target=self._ocr._ensure_loaded, daemon=True).start()
@@ -1007,17 +1137,24 @@ class ScreenDetector:
                     cap_w: int, cap_h: int, frame_w: int, frame_h: int,
                     variance: float):
         """Map a capture-pixel box (bx,by,bw,bh on cap_w脳cap_h) 鈫?live fractional
-        ROI, anchor-aware: nearest screen EDGE for HUD keys (_GEOM_EDGE_KEYS),
-        else the centred-16:9 CONTENT BOX of both frames (preserves the element's
-        fraction within the content box, so the pillarbox/letterbox offset is
-        handled across aspect changes 鈥?e.g. a 5120x2160 ultrawide capture, menu
-        pillarboxed ~640px in, used on 1920x1080 would otherwise land ~320px off).
+        ROI. Menu/dialog elements map through the centred 16:9 content box.
+        True in-game HUD keys use the edge model via _GEOM_EDGE_KEYS.
         Padded by `variance` (fraction of screen). None if degenerate."""
         if key in _GEOM_EDGE_KEYS:
             scale = frame_h / cap_h
             x = _scale_by_anchor(bx, cap_w, frame_w, scale)
             y = _scale_by_anchor(by, cap_h, frame_h, scale)
             w = bw * scale
+            h = bh * scale
+        elif key in _GEOM_EDGE_Y_KEYS:
+            # horizontal: centred-16:9 content box; vertical: screen edge.
+            ccx, _ccy, ccw, _cch = _content_box(cap_w, cap_h)
+            lcx, _lcy, lcw, _lch = _content_box(frame_w, frame_h)
+            sx = lcw / ccw if ccw else 1.0
+            scale = frame_h / cap_h
+            x = lcx + (bx - ccx) * sx
+            w = bw * sx
+            y = _scale_by_anchor(by, cap_h, frame_h, scale)
             h = bh * scale
         else:
             ccx, ccy, ccw, cch = _content_box(cap_w, cap_h)
@@ -1052,9 +1189,9 @@ class ScreenDetector:
         """The custom ROI for this frame. Stored as fractions of the capture
         frame, so it's already resolution-adaptive. When the capture dims are
         known and the live aspect DIFFERS (and aspect-fix is on), remap it through
-        the same content-box/edge model as a geometry box so a dev-drawn ROI
-        adapts to a user's aspect ratio. Else use the fractions as-is. No variance
-        padding 鈥?the user drew the exact area."""
+        the same content-box model as a geometry box so a dev-drawn ROI adapts to
+        a user's aspect ratio. Else use the fractions as-is. No variance padding:
+        the user drew the exact area."""
         roi = self._custom_rois.get(key)
         if roi is None:
             return None
@@ -1065,7 +1202,7 @@ class ScreenDetector:
         cap_aspect = cap_w / max(1, cap_h)
         live_aspect = frame_w / max(1, frame_h)
         if abs(cap_aspect - live_aspect) <= self._roi_aspect_tol * REF_ASPECT:
-            return roi                          # same aspect 鈫?fractions correct
+            return roi                          # same aspect: fractions correct
         rx, ry, rw, rh = roi
         out = self._box_to_roi(key, rx * cap_w, ry * cap_h, rw * cap_w, rh * cap_h,
                                cap_w, cap_h, frame_w, frame_h, 0.0)
@@ -1073,10 +1210,6 @@ class ScreenDetector:
 
     def detect(self, frame: np.ndarray, key: str, template: np.ndarray,
                threshold: float, stable: bool = True) -> MatchResult:
-        # Forced OCR applies only at/below the configured height (small templates
-        # downscale weakly there); above it, pixel matching is trusted (no OCR).
-        self._force_active = (self._force_ocr_max_h <= 0
-                              or frame.shape[0] <= self._force_ocr_max_h)
         # Prefer a geometry-derived ROI (anchor-aware, from the template's own
         # capture box) when available; else the hand-tuned DEFAULT_ROIS. The
         # geometry ROI already accounts for aspect ratio, so it bypasses the
@@ -1193,10 +1326,23 @@ class ScreenDetector:
         # wait could veto a genuine screen (no cache yet) until it expires.
         self._ocr_last_run.pop(key, None)
 
+    def reset_ocr_cache(self) -> None:
+        """Drop ALL cached OCR confirmations + cooldown timestamps (every key).
+        Called when a stage route's recovery activates: the screen is in an
+        unexpected/transitional state, so a stale confirm (valid for
+        _ocr_cache_duration on any frame scoring only >= _ocr_cache_pixel_min)
+        could make a WRONG anchor 'match' and re-anchor recovery in the wrong
+        place. Clearing forces genuine current-frame confirmation during
+        re-anchoring, and clearing the cooldowns lets that OCR run immediately.
+        Preventive hardening; cheap because recovery is rare."""
+        self._ocr_confirmed.clear()
+        self._ocr_last_run.clear()
+
     def wait_for(self, frame_cb: Callable[[], np.ndarray], key: str,
                  template: np.ndarray, threshold: float,
                  stop_cb: Callable[[], bool], interval: float,
                  timeout: float = float("inf"),
+                 pause_cb: Callable[[], bool] | None = None,
                  on_warn: Callable[[MatchResult], None] | None = None) -> MatchResult:
         self._reset_match_state(key)   # start each wait with a clean slate
         start = time.time()
@@ -1205,6 +1351,12 @@ class ScreenDetector:
         while time.time() - start < timeout:
             if stop_cb():
                 return best
+            if pause_cb and pause_cb():
+                paused_at = time.time()
+                while pause_cb() and not stop_cb():
+                    time.sleep(interval)
+                start += time.time() - paused_at
+                continue
             result = self.detect(frame_cb(), key, template, threshold)
             if result.score > best.score:
                 best = result
@@ -1280,11 +1432,13 @@ class ScreenDetector:
         # (keeps the stability filter intact); cached confirms only apply when
         # image_score >= _ocr_cache_pixel_min (safeguard vs the screen changing).
         ocr_text = ""
+        ocr_crop_box = None        # frame-px box OCR read (the whole ROI)
+        ocr_confirmed = False
         has_hints = bool(OCR_HINTS.get(key))
-        forced_ocr = self._force_active and key in self._force_ocr_keys
+        mandatory_ocr = key in OCR_MANDATORY_KEYS
         if (self._auto_ocr_on_borderline
                 and not self._enable_ocr
-                and not forced_ocr
+                and not mandatory_ocr
                 and key_is_text and has_hints):
             auto_key = f"{key}:{source}"
             if _auto_ocr_borderline(image_score, soft_threshold,
@@ -1320,11 +1474,13 @@ class ScreenDetector:
         # backend is installed the whole gate is skipped (pixel-only).
         if (key_is_text and has_hints
                 and (self._enable_ocr
-                     or forced_ocr)
-                and self._ocr_skip_below <= image_score < self._ocr_skip_above
+                     or mandatory_ocr)
+                and (mandatory_ocr or self._ocr_skip_below <= image_score)
+                and (mandatory_ocr or image_score < self._ocr_skip_above)
                 and self._ocr.available()):
             now = time.time()
-            cached = self._ocr_confirmed.get(key)
+            no_cache = key in self._ocr_no_cache_keys
+            cached = None if no_cache else self._ocr_confirmed.get(key)
             cache_valid = (
                 cached is not None
                 and (now - cached[0]) < self._ocr_cache_duration
@@ -1334,49 +1490,51 @@ class ScreenDetector:
                 # Recent OCR confirmation still applies 鈥?skip the OCR call.
                 image_score = max(image_score, self._ocr_confirm_score)
                 ocr_text = cached[1] + " [cached]"
+                ocr_confirmed = True
             else:
-                th = max(1, int(gray_tpl.shape[0] * gray_scale))
-                tw = max(1, int(gray_tpl.shape[1] * gray_scale))
-                ocr_area = area if key in self._full_roi_ocr_keys else self._matched_ocr_area(area, gray_loc, tw, th)
-                bonus, ocr_text = self._ocr_bonus(ocr_area, key)
+                # OCR reads the WHOLE ROI — ROIs are drawn tight around their scan
+                # item, so there's no best-match sub-crop (and no dependence on the
+                # pixel-match peak location).
+                ah, aw = area.shape[:2]
+                ocr_crop_box = (off_x, off_y, off_x + aw, off_y + ah)
+                bonus, ocr_text = self._ocr_bonus(area, key)
                 if bonus > 0:
                     # Hint text confirmed on screen 鈥?genuine match.
                     image_score = max(image_score, self._ocr_confirm_score)
-                    self._ocr_confirmed[key] = (now, ocr_text)
+                    if not no_cache:      # collect prompts never cache (see above)
+                        self._ocr_confirmed[key] = (now, ocr_text)
+                    ocr_confirmed = True
+                elif mandatory_ocr:
+                    # Buy-detail identity screens are different: buying the
+                    # wrong car is worse than stopping, so OCR must confirm the
+                    # target name. Silent OCR is also treated as a miss here.
+                    image_score = min(image_score, self._ocr_veto_ceiling)
                 elif self._ocr_veto and ocr_text.strip():
                     # Opt-in veto, and only on a positive contradiction: OCR
                     # read real text that isn't the hint 鈫?coincidental pixel
                     # match 鈫?cap below threshold. Never vetoes a silent OCR.
                     image_score = min(image_score, self._ocr_veto_ceiling)
 
+        if mandatory_ocr and not ocr_confirmed:
+            image_score = min(image_score, self._ocr_veto_ceiling)
+
         score = image_score
         loc = (gray_loc[0] + off_x, gray_loc[1] + off_y)
         matched = (score >= soft_threshold if not stable
                    else self._stable_match(f"{key}:{source}", score, threshold))
         return MatchResult(matched, score, gray_conf, loc, gray_scale, source,
-                           ocr_text=ocr_text)
-
-    def _matched_ocr_area(self, area: np.ndarray, loc, tw: int, th: int) -> np.ndarray:
-        h, w = area.shape[:2]
-        x, y = loc
-        pad_x = max(4, int(tw * 0.5))
-        pad_y = max(4, int(th * 0.5))
-        x0 = max(0, int(x) - pad_x)
-        y0 = max(0, int(y) - pad_y)
-        x1 = min(w, int(x) + int(tw) + pad_x)
-        y1 = min(h, int(y) + int(th) + pad_y)
-        if x1 <= x0 or y1 <= y0:
-            return area
-        return area[y0:y1, x0:x1]
+                           ocr_text=ocr_text, ocr_crop=ocr_crop_box)
 
     def read_text(self, frame: np.ndarray, key: str,
-                  template: Optional[np.ndarray] = None) -> str:
+                  template: Optional[np.ndarray] = None,
+                  max_scale: float | None = None) -> str:
         """OCR the text inside `key`'s ROI and return the raw string ('' on
         failure). Unlike detect()'s OCR (gated to the borderline pixel band, used
         only to CONFIRM a match), this ALWAYS runs OCR 鈥?for READING a value such
         as the tech-points number, where there's no pixel match to gate on. The
-        crop is upscaled for small text by _ocr.read(). `template` is unused (kept
-        for call-site symmetry with detect())."""
+        crop is upscaled for small text by _ocr.read(); pass `max_scale` to upscale
+        harder than the global cap (small digits on 1080p). `template` is unused
+        (kept for call-site symmetry with detect())."""
         try:
             h, w = frame.shape[:2]
             roi = self._custom_roi_for_frame(key, w, h)
@@ -1394,7 +1552,7 @@ class ScreenDetector:
                 area = frame
             if area is None or getattr(area, "size", 0) == 0:
                 return ""
-            return self._ocr.read(area)
+            return self._ocr.read(area, max_scale=max_scale)
         except Exception:
             return ""
 
@@ -1421,8 +1579,8 @@ class ScreenDetector:
 
     def duplicate_info(self, frame: np.ndarray):
         """Read the duplicate modal from TWO tight ROIs 鈫?(fe, price, text):
-          鈥?fe    鈥?True  : the car-name line ends in 'fe' 鈫?Forza Edition
-                    False : name read, no FE suffix
+          鈥?fe    鈥?True  : the car name contains UPPERCASE 'FE' 鈫?Forza Edition
+                    False : name read, no uppercase 'FE'
                     None  : no name text read
           鈥?price 鈥?int sell price read from the 'Sell for CR N' row, or None.
           鈥?text  鈥?the car name, for logging.
@@ -1445,9 +1603,9 @@ class ScreenDetector:
                 if not n:
                     continue
                 seen.append(text.strip())
-                if n.endswith("fe"):          # 'FE' suffix (also matches 'FE' alone)
-                    fe = True
-            if name_items and fe is None:     # name read, no FE suffix
+                if "FE" in text:              # UPPERCASE 'FE' anywhere in the name
+                    fe = True                 # (case-sensitive; matches middle or end)
+            if name_items and fe is None:     # name read, no uppercase FE
                 fe = False
 
             price_items, price_roi = self._ocr_region(frame, "wheelspin_dup_price")
@@ -1516,23 +1674,33 @@ class ScreenDetector:
         except Exception:
             return None
 
-    def _ocr_bonus(self, area: np.ndarray, key: str) -> tuple[float, str]:
+    def _ocr_bonus(self, area: np.ndarray, key: str,
+                   use_cooldown: bool = True) -> tuple[float, str]:
         hints = OCR_HINTS.get(key)
         if not hints or not (self._enable_ocr
-                             or (self._force_active and key in self._force_ocr_keys)):
+                             or key in OCR_MANDATORY_KEYS):
             return 0.0, ""
         # Cooldown gate: skip OCR if it ran too recently for this key.
         # Prevents repeated 100鈥?00 ms rapidocr calls when the score is stuck
         # in the borderline zone during a long failed-detection streak.
-        if self._ocr_cooldown > 0:
+        cooldown = self._ocr_cooldown_by_key.get(key, self._ocr_cooldown)
+        if use_cooldown and cooldown > 0:
             now = time.time()
-            if now - self._ocr_last_run.get(key, 0.0) < self._ocr_cooldown:
+            if now - self._ocr_last_run.get(key, 0.0) < cooldown:
                 return 0.0, ""
             self._ocr_last_run[key] = now
         text = self._ocr.read(area)
         if not text:
             return 0.0, ""
         if _ocr_hint_matches(text, hints):
+            excl = OCR_EXCLUDE.get(key)
+            if excl and _ocr_hint_matches(text, excl):
+                # A hint matched, but an exclusion term is present → this is a
+                # look-alike screen (e.g. the normal "…and Spin Again" prompt
+                # matching the final "Collect Prize"): reject, don't confirm.
+                _diag_log(f"[OCR] {key} hint matched but excluded: "
+                          f"{ascii(_normalize_text(text))}")
+                return 0.0, text.strip()
             return 0.10, text.strip()
         # Read text but matched no hint. Log the EXACT codepoints (ascii() escapes
         # non-ASCII to \uXXXX) so a variant-glyph or hidden-char mismatch is

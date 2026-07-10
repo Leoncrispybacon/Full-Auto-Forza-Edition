@@ -82,9 +82,7 @@ def load_recovery_safety_templates(detector, cfg: dict, tpl_lang: str,
                 key, box, meta.get("screen_width", width),
                 meta.get("screen_height", height))
         if meta.get("roi"):
-            detector.set_template_roi(key, meta["roi"],
-                                      meta.get("screen_width", 0),
-                                      meta.get("screen_height", 0))
+            detector.set_template_roi(key, meta["roi"], *(meta.get("roi_dims") or (meta.get("screen_width", 0), meta.get("screen_height", 0))))
         out[key] = img
     return out
 
@@ -110,7 +108,8 @@ def run_stage_route(label: str,
                     log_cb: Callable[[str], None],
                     max_retries: int = 1,
                     recover_fn: Callable[[], bool] | None = None,
-                    trigger_cb: Callable[[str], None] | None = None) -> bool:
+                    trigger_cb: Callable[[str], None] | None = None,
+                    on_recover: Callable[[], None] | None = None) -> bool:
     """Run one known stage route with bounded retries.
 
     The helper never presses keys itself. It re-runs the caller's
@@ -133,6 +132,11 @@ def run_stage_route(label: str,
             return False
         if failures_since_anchor < max_retries:
             failures_since_anchor += 1
+            # Recovery is activating: the screen is in an unexpected state, so
+            # drop any stale OCR confirm cache before re-anchoring (preventive —
+            # a leftover confirm could false-match a wrong anchor).
+            if on_recover is not None:
+                on_recover()
             log_cb(_at("log_route_retry", _log_lang, label=label,
                        n=failures_since_anchor, max=max_retries))
             if not reported:

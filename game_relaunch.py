@@ -321,6 +321,25 @@ def return_to_main_menu_after_launch(cfg: dict, log_cb=None,
         press("enter")
         if stop_cb():
             return False
+        # The launching window resizes as the game loads (small splash → full
+        # screen). GameIO registered/height-scaled the templates at that initial
+        # SMALL size, but detection now runs on the full-size frame — so
+        # launch_continue's template is scaled ~2.4x too small and misses at ~56%
+        # even with its ROI correctly on the prompt (the template-test tool never
+        # sees this: it registers on the already-settled full-size window). Now
+        # that the start prompt has fired, the window is at its final size: refresh
+        # it and re-register the remaining templates at the current dimensions.
+        io._maybe_refresh_window(force=True)
+        log_cb(f"  > Relaunch route: window at {io.width}x{io.height}; "
+               f"re-loading templates at current size.")
+        for _k, _folder in (("launch_continue", relaunch_folder),
+                            ("cars_tab", full_auto_folder),
+                            ("anna", full_auto_folder),
+                            ("creative_hub", race_folder)):
+            try:
+                templates[_k] = register_template(_folder, _k)
+            except FileNotFoundError:
+                pass
         if not wait_for("launch_continue", "game_launch_continue_timeout",
                         "continue menu"):
             return False

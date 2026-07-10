@@ -98,9 +98,8 @@ class GameRelaunchTests(unittest.TestCase):
         self.assertIn("import game_relaunch", source)
         self.assertIn('key == "my_history" and retry_to == "choose_race_type"', source)
         self.assertIn("game_relaunch.relaunch_game", source)
-        self.assertIn("_RACE_HISTORY_DEAD_ZONE_WINDOW = 60.0", source)
-        self.assertIn("_HISTORY_RETRY_CHECK_WINDOW = 3.0", source)
-        self.assertIn("_HISTORY_POST_RETRY_RECOVERY_WINDOW = 10.0", source)
+        self.assertIn("_HISTORY_RETRY_GAP = 1.5", source)
+        self.assertIn("_HISTORY_MAX_RETRIES = 2", source)
 
     def test_race_history_retries_only_when_still_on_history(self):
         source = Path("race.py").read_text(encoding="utf-8")
@@ -109,10 +108,12 @@ class GameRelaunchTests(unittest.TestCase):
 
         self.assertNotIn("def _enter_until", source)
         self.assertNotIn("log_race_nav_retry", source)
-        self.assertIn('_detect_nav_any((retry_to, key), _HISTORY_RETRY_CHECK_WINDOW)', block)
-        self.assertIn("_HISTORY_POST_RETRY_RECOVERY_WINDOW", block)
+        # waits for choose_race_type over the gap (a lingering MY HISTORY must NOT
+        # short-circuit the wait), and re-presses only while MY HISTORY is still up
+        self.assertIn("_detect_nav(retry_to, _HISTORY_RETRY_GAP)", block)
+        self.assertIn("_detect_nav(key, _HISTORY_RECHECK)", block)
+        self.assertIn("range(_HISTORY_MAX_RETRIES)", block)
         self.assertIn('_kp("enter", post_wait=0.0)', block)
-        self.assertIn("_RACE_HISTORY_DEAD_ZONE_WINDOW", block)
 
     def test_race_relaunch_waits_until_entry_recovery_fails(self):
         source = Path("race.py").read_text(encoding="utf-8")
@@ -318,9 +319,7 @@ class GameRelaunchTests(unittest.TestCase):
 
     def test_race_and_full_auto_launch_missing_game_before_routes(self):
         self.assertIn("ensure_game_ready_for_start", Path("race.py").read_text(encoding="utf-8"))
-        full_auto = Path("full_auto.py")
-        if full_auto.exists():
-            self.assertIn("ensure_game_ready_for_start", full_auto.read_text(encoding="utf-8"))
+        self.assertIn("ensure_game_ready_for_start", Path("full_auto.py").read_text(encoding="utf-8"))
 
     def test_launch_on_start_setting_is_exposed_in_webui(self):
         app_js = Path("webui/app.js").read_text(encoding="utf-8")
@@ -347,7 +346,9 @@ class GameRelaunchTests(unittest.TestCase):
         import detector
 
         self.assertIn("start game", detector.OCR_HINTS["launch_start_prompt"])
-        self.assertIn("continue", detector.OCR_HINTS["launch_continue"])
+        # launch_continue is anchored on the "Options" button (reliable text),
+        # not "Continue" (sits over the animated backdrop) — see detector.py.
+        self.assertIn("options", detector.OCR_HINTS["launch_continue"])
         self.assertIn("anna", detector.OCR_HINTS["anna"])
 
     def test_post_launch_route_sequence_is_template_gated(self):
@@ -374,6 +375,19 @@ class GameRelaunchTests(unittest.TestCase):
         self.assertNotIn("describe_window", source)
         self.assertNotIn("force_foreground_input", gameio)
         self.assertIn("io.start_keepalive(stop_cb, fresh)", source)
+
+    def test_route_reregisters_templates_after_window_settles(self):
+        # The launch window grows from a small splash to full size; templates
+        # registered at the initial small size are scaled wrong for the final
+        # frame (launch_continue misses at ~56% though its ROI is on the prompt).
+        # The route must refresh the window + re-register after the start prompt.
+        source = Path("game_relaunch.py").read_text(encoding="utf-8")
+        after_prompt = source.split('press("enter")', 1)[1]
+        self.assertIn("_maybe_refresh_window(force=True)", after_prompt)
+        # re-register happens BEFORE the continue-menu wait
+        reblock = after_prompt.split('"continue menu"', 1)[0]
+        self.assertIn("register_template(", reblock)
+        self.assertIn('"launch_continue"', reblock)
 
 
 if __name__ == "__main__":

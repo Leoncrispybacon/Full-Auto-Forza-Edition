@@ -16,6 +16,7 @@ import ctypes
 from ctypes import wintypes
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -48,6 +49,7 @@ _TITLE = f"Full Auto Forza Edition v{VERSION}"
 _TITLEBAR_COLORS = {
     "default": ("#121A28", "#F4F8FD", "#243044"),
     "denia": ("#FFFFFF", "#160E1C", "#EFD6E4"),
+    "denia_running": ("#150E24", "#F3ECFF", "#30204F"),
     "horizon": ("#1E1710", "#FBF5EC", "#3A2C1A"),
 }
 
@@ -57,17 +59,46 @@ def _colorref(hex_color: str) -> int:
     return r | (g << 8) | (b << 16)
 
 
-def _apply_titlebar_theme(theme: str) -> None:
+def _is_dark(hex_color: str) -> bool:
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128
+
+
+def _hwnd_from_window(window=None):
+    native = getattr(window, "native", None)
+    for obj in (native, window):
+        if obj is None:
+            continue
+        for name in ("Handle", "handle", "HWND", "hwnd"):
+            handle = getattr(obj, name, None)
+            if handle:
+                try:
+                    return int(handle.ToInt64())
+                except Exception:
+                    try:
+                        return int(handle)
+                    except Exception:
+                        pass
+    return 0
+
+
+def _apply_titlebar_theme(theme: str, running: bool = False, window=None) -> None:
     """Tint the native Windows caption to match the WebUI theme."""
     if os.name != "nt":
         return
     try:
-        ctypes.windll.user32.FindWindowW.restype = ctypes.c_void_p
-        hwnd = ctypes.windll.user32.FindWindowW(None, _TITLE)
+        hwnd = _hwnd_from_window(window)
+        if not hwnd:
+            ctypes.windll.user32.FindWindowW.restype = ctypes.c_void_p
+            hwnd = ctypes.windll.user32.FindWindowW(None, _TITLE)
         if not hwnd:
             return
         dwm = ctypes.windll.dwmapi
-        for attr, color in zip((35, 36, 34), _TITLEBAR_COLORS.get(theme, _TITLEBAR_COLORS["default"])):
+        key = "denia_running" if theme == "denia" and running else theme
+        colors = _TITLEBAR_COLORS.get(key, _TITLEBAR_COLORS["default"])
+        dark = ctypes.c_int(1 if _is_dark(colors[0]) else 0)
+        dwm.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), 20, ctypes.byref(dark), ctypes.sizeof(dark))
+        for attr, color in zip((35, 36, 34), colors):
             value = ctypes.c_int(_colorref(color))
             dwm.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), attr, ctypes.byref(value), ctypes.sizeof(value))
     except Exception:
@@ -78,6 +109,24 @@ def _is_frozen() -> bool:
     """True in a packaged build — PyInstaller (sys.frozen) OR Nuitka (__compiled__).
     Used to turn DevTools off and harden the UI in release."""
     return bool(getattr(sys, "frozen", False) or globals().get("__compiled__"))
+
+
+UPDATE_DIR = os.path.join(
+    os.environ.get("LOCALAPPDATA") or config.BASE_DIR, "FAFE", "update")
+
+
+def _purge_update_dir() -> None:
+    """Delete any leftover downloaded installer (unlocked once an update finished
+    and FAFE relaunched). Best-effort; self-heals interrupted updates."""
+    import glob
+    try:
+        for p in glob.glob(os.path.join(UPDATE_DIR, "*")):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+    except Exception:
+        pass
 
 
 def _res_dir() -> str:
@@ -286,6 +335,9 @@ MASTERY_GATED_TEMPLATE_KEYS = (
     "my_cars",
     "my_cars_header",
     "recently_added",
+    # Post-cutscene screen — the ride-cutscene Esc is gated on detecting it
+    # (mastery.py) so the Esc waits for the cutscene to end, not on a timer.
+    "ride_cutscene_end",
 )
 
 RELAUNCH_TEMPLATE_KEYS = (
@@ -296,8 +348,29 @@ RELAUNCH_TEMPLATE_KEYS = (
 FULL_AUTO_EXPECTED_TEMPLATE_KEYS = (
     "dodge",
     "gts_acr",
+    "buy_detail_gts_acr",
     "mazda",
     "mad_mike_808",
+    "buy_detail_mad_mike",
+    "tech_points",
+)
+
+BUY_EXPECTED_TEMPLATE_KEYS = (
+    "buy_detail_22b",
+)
+
+# Wheelspin's duplicate modal is read with two OCR-only sub-ROIs (no template
+# image is matched): the FE-name band and the sell-price band. Surfaced so the
+# user can draw/test/recapture those ROIs; testing one OCR-reads the region.
+WHEELSPIN_DUP_OCR_KEYS = (
+    "wheelspin_dup_name",
+    "wheelspin_dup_price",
+)
+
+# Delete is keyboard-driven; the ONE optional template gates the final
+# irreversible "confirm delete" keypress (delete_cars.py). Absent → blind macro.
+DELETE_EXPECTED_TEMPLATE_KEYS = (
+    "delete_confirm",
 )
 
 _GRID_22B_FALLBACK = [(3, 0), (3, 1), (2, 1), (1, 1), (0, 1), (0, 0)]
@@ -366,10 +439,12 @@ class Api:
     def __init__(self):
         self._window = None
         self._stop = threading.Event()
+        self._pause = threading.Event()
         self._thread = None
         self._cap_session = None
+        self._template_test_stop = threading.Event()
         self._overlay = None
-        self._loglines = collections.deque(maxlen=3)
+        self._loglines = collections.deque(maxlen=80)
         # Per-function log buffers (name -> recent lines) so the F12 report bundles
         # EACH function's log separately (Full Auto, Auto Wheelspins, …) — the UI
         # log is a single shared stream that's cleared per run, so it alone would
@@ -418,6 +493,7 @@ class Api:
         elif not running:
             self._run_start = None
         self._running_flag = running
+        _apply_titlebar_theme(config.load().get("theme_preset", "default"), running, self._window)
         self._js(f"setStatus({json.dumps(str(text))}, {str(running).lower()})")
         self._push_overlay()
 
@@ -460,7 +536,9 @@ class Api:
                 "sub": self._status_text,
                 "lines": list(self._loglines),
                 "key": str(cfg.get("toggle_key", "f9")).upper(),
+                "pause_key": str(cfg.get("pause_key", "f8")).upper(),
                 "running": self._running_flag,
+                "paused": self._pause.is_set(),
                 "lang": cfg.get("lang", "en"),
                 "theme": cfg.get("theme_preset", "default"),
                 # Only offer Full Auto in the overlay switcher when it's actually
@@ -504,6 +582,9 @@ class Api:
         return {"version": VERSION, "licensed": licensed, "config": cfg,
                 "monitors": monitors, "machine_id": mid, "store_url": store,
                 "frozen": _is_frozen(),
+                "auto_update": bool(config.load().get("auto_update", True)),
+                "update_installable": bool(_is_frozen()
+                                           and updater.running_from_installed_copy()),
                 "first_run": self._first_run,
                 # Builds without the private Full Auto module are teaser builds.
                 # A private build leaves teaser mode only when full_auto is bundled.
@@ -528,7 +609,11 @@ class Api:
         if ok and key in ("theme_preset", "lang"):
             self._push_overlay()
         if ok and key == "theme_preset":
-            _apply_titlebar_theme(str(value))
+            _apply_titlebar_theme(str(value), self._running_flag, self._window)
+        if ok and key == "monitor_index" and self._overlay is not None and self._overlay.is_visible():
+            cfg = config.load()
+            self._overlay.show(cfg.get("overlay_x", 60), cfg.get("overlay_y", 60),
+                               monitor_index=cfg.get("monitor_index", 1))
         if not ok:
             self._log(f"WARNING: couldn't save setting '{key}' to config.json — "
                       f"is FAFE in a write-protected folder (e.g. Downloads)? "
@@ -560,6 +645,84 @@ class Api:
             self._log("Game launch browse failed: " + str(e))
             return ""
 
+    def cutscene_mod_status(self):
+        """State for the Settings control: {installed, files_present, game_dir,
+        running}. While the game is OPEN we can read its exe dir — persist it so
+        install still works after the user closes the game (no window to read then)."""
+        import cutscene_mod
+        cfg = config.load()
+        running = cutscene_mod.game_running(cfg)
+        game_dir = cutscene_mod.resolve_game_dir(cfg)
+        if running and game_dir and game_dir != cfg.get("cutscene_skip_game_dir"):
+            self._update_cfg(cutscene_skip_game_dir=game_dir)
+        files = cutscene_mod.status(game_dir)["files_present"] if game_dir else False
+        return {"installed": bool(cfg.get("cutscene_skip_installed", False)),
+                "files_present": files,
+                "game_dir": game_dir or "",
+                "running": running}
+
+    def cutscene_mod_install(self):
+        """Edit Cinematics.zip. Returns {ok, msg}. UI shows the warning modal
+        BEFORE calling this — this method assumes consent. Refuses while the game
+        is running (the archive is locked / would be re-verified on exit)."""
+        import cutscene_mod
+        cfg = config.load()
+        lang = cfg.get("lang", "en")
+        if cutscene_mod.game_running(cfg):
+            return {"ok": False, "msg": _at("cutscene_skip_close_game", lang)}
+        game_dir = cutscene_mod.resolve_game_dir(cfg)
+        if not game_dir:
+            return {"ok": False, "msg": _at("cutscene_skip_no_game", lang)}
+        self._log("Cutscene skip: resolved game dir = " + str(game_dir))
+        try:
+            paths = cutscene_mod.install(game_dir)
+            self._update_cfg(cutscene_skip_installed=True,
+                             cutscene_skip_game_dir=game_dir)
+            self._log("Cutscene skip installed: " + "; ".join(paths))
+            return {"ok": True, "msg": _at("cutscene_skip_installed_ok", lang)}
+        except Exception as e:
+            self._log("Cutscene skip install failed: " + str(e))
+            return {"ok": False, "msg": _at("cutscene_skip_failed", lang, err=str(e))}
+
+    def cutscene_mod_uninstall(self):
+        """Restore Cinematics.zip from the backup. Returns {ok, msg}. Refuses
+        while the game is running (same file-lock reason as install)."""
+        import cutscene_mod
+        cfg = config.load()
+        lang = cfg.get("lang", "en")
+        if cutscene_mod.game_running(cfg):
+            return {"ok": False, "msg": _at("cutscene_skip_close_game", lang)}
+        game_dir = (cutscene_mod.resolve_game_dir(cfg)
+                    or cfg.get("cutscene_skip_game_dir", ""))
+        try:
+            if game_dir:
+                cutscene_mod.uninstall(game_dir)
+            self._update_cfg(cutscene_skip_installed=False)
+            self._log("Cutscene skip uninstalled")
+            return {"ok": True, "msg": _at("cutscene_skip_uninstalled", lang)}
+        except Exception as e:
+            self._log("Cutscene skip uninstall failed: " + str(e))
+            return {"ok": False, "msg": _at("cutscene_skip_failed", lang, err=str(e))}
+
+    def cutscene_mod_browse_game_dir(self):
+        """Manual fallback: let the user pick the Forza Horizon 6 folder; persist
+        it for resolution. Returns the chosen path ('' if cancelled)."""
+        try:
+            win = webview.windows[0] if webview.windows else None
+            if not win:
+                return ""
+            paths = win.create_file_dialog(webview.FOLDER_DIALOG)
+            if not paths:
+                return ""
+            path = paths[0] if isinstance(paths, (list, tuple)) else paths
+            path = str(path or "").strip()
+            if path:
+                self.set_cfg("cutscene_skip_game_dir", path)
+            return path
+        except Exception as e:
+            self._log("Cutscene game-dir browse failed: " + str(e))
+            return ""
+
     def get_templates(self, tab):
         """Template chips for a tab — [{name, threshold, pct}] from the function's
         built-in template folder + its thresh_* config. Read-only for now (capture
@@ -575,6 +738,7 @@ class Api:
             "buy": config.get_buy_templates,
             "wheelspin": config.get_wheelspin_templates,
             "full_auto": config.get_full_auto_templates,
+            "delete": config.get_delete_templates,
         }
         g = getters.get(tab)
         if g is None:
@@ -587,6 +751,12 @@ class Api:
                            for p in glob.glob(os.path.join(folder, "*.json")))
             if tab == "mastery":
                 names = sorted(set(names).union(MASTERY_GATED_TEMPLATE_KEYS))
+            if tab == "buy":
+                names = sorted(set(names).union(BUY_EXPECTED_TEMPLATE_KEYS))
+            if tab == "wheelspin":
+                names = sorted(set(names).union(WHEELSPIN_DUP_OCR_KEYS))
+            if tab == "delete":
+                names = sorted(set(names).union(DELETE_EXPECTED_TEMPLATE_KEYS))
             if tab == "full_auto":
                 names = sorted(set(names).union(FULL_AUTO_EXPECTED_TEMPLATE_KEYS))
             if tab == "race":
@@ -620,6 +790,7 @@ class Api:
             "buy": config.get_buy_templates,
             "wheelspin": config.get_wheelspin_templates,
             "full_auto": config.get_full_auto_templates,
+            "delete": config.get_delete_templates,
         }
         g = getters.get(tab)
         if g is None:
@@ -639,6 +810,11 @@ class Api:
         if folder is None:
             return False
         cfg = config.load()
+        # Normal users recapture into the preserved sibling "custom" folder (so an
+        # installer upgrade can't wipe it; load_template prefers custom). Dev mode
+        # authors the SHIPPED set, so it writes straight to built-in.
+        if not cfg.get("dev_mode", False):
+            folder = config.custom_dir(folder)
         mon = self._int(cfg.get("monitor_index", 1)) or 1
         cap_key = cfg.get("capture_key", "caps lock")
         try:
@@ -669,6 +845,219 @@ class Api:
         up = str(cap_key).upper()
         self._status(f"Press {up} over the game to capture '{key}'", False)
         self._log(f"Waiting for {up} — drag-select '{key}', ENTER to save, ESC to cancel.")
+        self._cap_session.start()
+        return True
+
+    def _run_template_test_once(self, tab, key):
+        """Run one detector check for a single template. Sends no input."""
+        folder = self._tpl_folder(tab, key)
+        if folder is None:
+            return False
+        cfg = config.load()
+        lang = cfg.get("lang", "en")
+        io = None
+        try:
+            from detector import ScreenDetector
+            from gameio import GameIO
+            from capture import load_template
+            import logfmt
+
+            io = GameIO(cfg, self._log, crop_letterbox=True)
+            test_cfg = dict(cfg)
+            test_cfg["debug_detection"] = True
+            debug_dir = os.path.join(config.BASE_DIR, "debug")
+            detector = ScreenDetector(
+                test_cfg, debug_dir=debug_dir, on_auto_ocr=self._log)
+
+            # The duplicate modal's FE-name / price bands are OCR-only regions
+            # (no template image is matched) — test them by OCR-reading the ROI
+            # and dumping the annotated band, not by pixel detection.
+            if key in WHEELSPIN_DUP_OCR_KEYS:
+                return self._run_dup_roi_test(detector, io, folder, key, debug_dir)
+
+            template, _scale, meta = load_template(
+                folder, key, io.width, io.height, grayscale=True,
+                ref_folder=folder,
+                prefer_ref=bool(cfg.get("template_prefer_reference", True)))
+            if meta.get("box"):
+                detector.set_template_geometry(
+                    key, meta["box"],
+                    int(meta.get("screen_width", io.width)),
+                    int(meta.get("screen_height", io.height)))
+            if meta.get("roi"):
+                dims = meta.get("roi_dims") or [
+                    meta.get("screen_width", 0),
+                    meta.get("screen_height", 0),
+                ]
+                detector.set_template_roi(key, meta["roi"], *dims)
+
+            frame = io.grab()
+            threshold = float(cfg.get("thresh_" + key, 0.70))
+            result = detector.detect(frame, key, template, threshold, stable=False)
+            verdict = "MATCH" if result.matched else "miss"
+            self._log(
+                f"Template test {key}: {verdict} "
+                f"({logfmt.detail(result, lang)}, threshold {threshold:.0%})")
+            png_path = os.path.join(debug_dir, key + ".png")
+            self._log("Debug snapshot saved: " + png_path)
+            # Open the annotated result immediately so it's not a hunt in debug/.
+            try:
+                if os.path.exists(png_path):
+                    os.startfile(png_path)
+            except Exception:
+                pass
+            return bool(result.matched)
+        except FileNotFoundError:
+            self._log("Template test failed: " + key + " is not captured yet.")
+            return False
+        except Exception as e:
+            self._log("Template test failed: " + str(e))
+            return False
+        finally:
+            try:
+                if io is not None:
+                    io.cleanup()
+            except Exception:
+                pass
+
+    def _run_dup_roi_test(self, detector, io, folder, key, debug_dir):
+        """OCR-read one duplicate-modal band (FE-name / price) and dump the
+        annotated ROI. Applies a user-captured/adjusted sidecar (box -> geometry,
+        roi -> custom ROI) so the test reflects the tuned region."""
+        import json
+        meta_path = os.path.join(folder, key + ".json")
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path, encoding="utf-8") as f:
+                    meta = json.load(f)
+            except Exception:
+                meta = {}
+            if meta.get("box"):
+                detector.set_template_geometry(
+                    key, meta["box"],
+                    int(meta.get("screen_width", io.width)),
+                    int(meta.get("screen_height", io.height)))
+            if meta.get("roi"):
+                dims = meta.get("roi_dims") or [
+                    meta.get("screen_width", 0), meta.get("screen_height", 0)]
+                detector.set_template_roi(key, meta["roi"], *dims)
+        if not detector._ocr.available():
+            self._log("ROI test " + key +
+                      ": OCR engine unavailable — enable OCR (dev options) to test this ROI.")
+            return False
+        frame = io.grab()
+        fe, price, text = detector.duplicate_info(frame)  # debug on -> dumps bands
+        if key == "wheelspin_dup_name":
+            self._log(f"ROI test {key}: read '{text}' -> FE={fe}")
+        else:
+            self._log(f"ROI test {key}: sell price read = {price}")
+        png_path = os.path.join(debug_dir, key + ".png")
+        if os.path.exists(png_path):
+            self._log("Debug snapshot saved: " + png_path)
+            try:
+                os.startfile(png_path)
+            except Exception:
+                pass
+        return True
+
+    def test_template(self, tab, key):
+        """Arm a developer-only one-shot template test.
+        The actual frame is captured after the user presses the capture key so
+        they can focus/unpause the game first."""
+        cfg = config.load()
+        if not cfg.get("dev_mode", False):
+            return False
+        if self._running():
+            self._log("Template test unavailable while automation is running.")
+            return False
+        if self._tpl_folder(tab, key) is None:
+            return False
+        try:
+            self._template_test_stop.set()
+        except Exception:
+            pass
+        stop = threading.Event()
+        self._template_test_stop = stop
+        cap_key = str(cfg.get("capture_key", "caps lock") or "caps lock")
+        up = cap_key.upper()
+        self._status(f"Press {up} over the game to test '{key}'", False)
+        self._log(f"Template test armed: focus the game, then press {up} for '{key}'. ESC cancels.")
+
+        def _wait():
+            try:
+                import keyboard
+                triggered = threading.Event()
+                cap_hook = keyboard.add_hotkey(
+                    cap_key, lambda: triggered.set(), suppress=False)
+                esc_hook = keyboard.on_press_key(
+                    "esc", lambda _e: stop.set(), suppress=False)
+                try:
+                    while not stop.is_set():
+                        if triggered.wait(0.1):
+                            break
+                    if stop.is_set():
+                        self._log("Template test cancelled.")
+                        return
+                    self._run_template_test_once(tab, key)
+                finally:
+                    try:
+                        keyboard.remove_hotkey(cap_hook)
+                    except Exception:
+                        pass
+                    try:
+                        keyboard.unhook(esc_hook)
+                    except Exception:
+                        pass
+            except Exception as e:
+                self._log("Template test failed: " + str(e))
+            finally:
+                if self._template_test_stop is stop:
+                    self._template_test_stop = threading.Event()
+                self._status("Ready", False)
+
+        threading.Thread(target=_wait, daemon=True).start()
+        return True
+
+    def capture_roi(self, tab, key):
+        """Start a CAPS-LOCK region drag-select and save it as the template's
+        DETECTION AREA (not a new template image). Mirrors capture_template but
+        the drawn box is stored via save_roi (merged into the sidecar's "roi"
+        field), which overrides the geometry/default ROI at detect time. Dev-only
+        (the WebUI only shows the button under Settings -> Developer)."""
+        folder = self._tpl_folder(tab, key)
+        if folder is None:
+            return False
+        cfg = config.load()
+        mon = self._int(cfg.get("monitor_index", 1)) or 1
+        cap_key = cfg.get("capture_key", "caps lock")
+        try:
+            if self._cap_session:
+                self._cap_session.stop()
+        except Exception:
+            pass
+
+        def _done(crop, w, h, bx, by, bw, bh):
+            try:
+                capture.save_roi(folder, key, (bx, by, bw, bh), w, h)
+                self._log("Saved detection area: " + key)
+            except Exception as e:
+                self._log("Detection-area save failed: " + str(e))
+            self._status("Ready", False)
+            self._js(f"onCaptureDone({json.dumps(tab)})")
+
+        def _cancel():
+            self._log("Detection-area capture cancelled.")
+            self._status("Ready", False)
+            self._js(f"onCaptureDone({json.dumps(tab)})")
+
+        self._cap_session = capture.CaptureSession(
+            monitor_index=mon,
+            window_title="Select detection area - " + key,
+            callback=_done, on_cancel=_cancel,
+            capture_key=cap_key, template_key=None, examples_dir=None)
+        up = str(cap_key).upper()
+        self._status(f"Press {up} over the game to set '{key}' detection area", False)
+        self._log(f"Waiting for {up} - drag-select detection area for '{key}', ENTER to save, ESC to cancel.")
         self._cap_session.start()
         return True
 
@@ -742,6 +1131,7 @@ class Api:
         if self._running():
             return False
         self._stop = threading.Event()
+        self._pause = threading.Event()
         self._auto_reported = set()
         # fresh per-function log buffer for this run (the report keeps each
         # function's latest run; other functions' buffers are untouched)
@@ -756,6 +1146,8 @@ class Api:
             if not cfg.get("background_input", True):
                 self._log(_at("startup_switch_to_game", lang))
             for i in range(3, 0, -1):
+                while self._pause.is_set() and not self._stop.is_set():
+                    time.sleep(0.1)
                 if self._stop.is_set():
                     self._status("Ready", False)
                     return
@@ -775,7 +1167,8 @@ class Api:
             _recovery.set_trigger_callback(self._auto_report)
             try:
                 result = runner(cfg, self._stop, self._log,
-                                lambda m: self._status(m, True), **kwargs)
+                                lambda m: self._status(m, True),
+                                pause_event=self._pause, **kwargs)
                 if result is False and not self._stop.is_set():
                     self._auto_report(f"{self._func or 'Automation'} auto stopped")
             except Exception as e:
@@ -788,6 +1181,8 @@ class Api:
                 _recovery.set_trigger_callback(None)
                 _recovery.set_log_lang("en")
             self._status("Ready", False)
+            self._pause.clear()
+            self._js("setPaused(false)")
 
         self._thread = threading.Thread(target=_run, daemon=True)
         self._thread.start()
@@ -823,6 +1218,7 @@ class Api:
             branch_mode=cfg.get("full_auto_branch_mode", "racing"),
             start_from=cfg.get("full_auto_start_from", "race"),
             grind_type=cfg.get("full_auto_grind_type", "wheelspin"),
+            restart_cycles=self._int(cfg.get("full_auto_restart_cycles", 0)),
             stage_cb=self._fa_stage, progress_cb=self._fa_progress)
 
     def _fa_stage(self, n):
@@ -872,7 +1268,27 @@ class Api:
 
     def stop(self):
         self._stop.set()
+        self._pause.clear()
+        self._js("setPaused(false)")
         return True
+
+    def pause(self):
+        if not self._running():
+            return False
+        self._pause.set()
+        self._status("Paused", True)
+        self._js("setPaused(true)")
+        return True
+
+    def resume(self):
+        self._pause.clear()
+        if self._running():
+            self._status("Running", True)
+        self._js("setPaused(false)")
+        return True
+
+    def toggle_pause(self):
+        return self.resume() if self._pause.is_set() else self.pause()
 
     def report(self, log_text=""):
         """F12 — build the bug-report bundle on a worker thread, then open it."""
@@ -924,6 +1340,45 @@ class Api:
             pass
         return True
 
+    def install_update(self):
+        """Download and silently run the installer; packaged builds only,
+        opt-out via auto_update."""
+        cfg = config.load()
+        lang = cfg.get("lang", "en")
+        if not _is_frozen():
+            return {"ok": False, "msg": _at("update_not_packaged", lang)}
+        if not updater.running_from_installed_copy():
+            return {"ok": False, "msg": _at("update_not_installed", lang)}
+        if not cfg.get("auto_update", True):
+            return {"ok": False, "msg": _at("update_disabled", lang)}
+        if self._running():
+            self._stop.set()
+            if self._thread:
+                self._thread.join(timeout=5)
+        url, size = updater.fetch_installer_asset()
+        if not url:
+            return {"ok": False, "msg": _at("update_fetch_fail", lang)}
+        dest = os.path.join(UPDATE_DIR, updater.INSTALLER_NAME)
+        try:
+            os.makedirs(UPDATE_DIR, exist_ok=True)
+            updater.download_installer(
+                url, dest,
+                on_progress=lambda d, t: self._js(f"updateProgress({int(d)},{int(t)})"))
+        except Exception as e:
+            return {"ok": False, "msg": _at("update_download_fail", lang, err=str(e))}
+        if not updater.verify_installer(dest, size):
+            try:
+                os.remove(dest)
+            except OSError:
+                pass
+            return {"ok": False, "msg": _at("update_verify_fail", lang)}
+        self._log("[Updater] launching silent installer")
+        try:
+            subprocess.Popen([dest, "/VERYSILENT"], close_fds=True)
+        except Exception as e:
+            return {"ok": False, "msg": _at("update_launch_fail", lang, err=str(e))}
+        return {"ok": True, "msg": _at("update_launched", lang)}
+
     def _clear_hotkeys(self):
         try:
             if getattr(self, "_win_hotkeys", None) is not None:
@@ -951,6 +1406,7 @@ class Api:
         bindings = [
             (cfg.get("toggle_key", "f9"),
              lambda: self._js(f"onHotkey({json.dumps('f9')})")),
+            (cfg.get("pause_key", "f8"), self.toggle_pause),
             (cfg.get("report_key", "f12"),
              lambda: self._js(f"onHotkey({json.dumps('f12')})")),
             (cfg.get("overlay_key", "f10"), self.toggle_overlay),
@@ -981,7 +1437,7 @@ class Api:
             except Exception:
                 pass
 
-    _SHORTCUT_KEYS = {"toggle": "toggle_key", "capture": "capture_key",
+    _SHORTCUT_KEYS = {"toggle": "toggle_key", "pause": "pause_key", "capture": "capture_key",
                       "report": "report_key", "overlay": "overlay_key"}
 
     def set_shortcut(self, which, keyname):
@@ -994,7 +1450,7 @@ class Api:
         if not cfgkey or not keyname:
             return False
         self._update_cfg(**{cfgkey: keyname})
-        if which in ("toggle", "report", "overlay"):
+        if which in ("toggle", "pause", "report", "overlay"):
             self._register_hotkeys()
         return True
 
@@ -1011,6 +1467,8 @@ class Api:
         loop still doesn't unwind."""
         try:
             self._stop.set()
+            self._pause.clear()
+            self._template_test_stop.set()
         except Exception:
             pass
         try:
@@ -1042,7 +1500,8 @@ class Api:
         cfg = config.load()
         html = _webui("overlay.html")
         self._overlay = WebOverlay(html, on_move=self._save_overlay_pos,
-                                   on_func=self._overlay_select_func, log=self._log)
+                                   on_func=self._overlay_select_func, log=self._log,
+                                   monitor_index=cfg.get("monitor_index", 1))
         self._overlay.create(x=cfg.get("overlay_x", 60), y=cfg.get("overlay_y", 60),
                              visible=bool(cfg.get("overlay_enabled", False)))
         self._overlay.update(self._overlay_data())   # seed initial state
@@ -1054,7 +1513,8 @@ class Api:
         if self._overlay is not None:
             cfg = config.load()
             if on:
-                self._overlay.show(cfg.get("overlay_x", 60), cfg.get("overlay_y", 60))
+                self._overlay.show(cfg.get("overlay_x", 60), cfg.get("overlay_y", 60),
+                                   monitor_index=cfg.get("monitor_index", 1))
                 self._overlay.update(self._overlay_data())
             else:
                 self._overlay.hide()
@@ -1200,13 +1660,15 @@ def main():
         min_size=(1040, 640),   # never thin enough to wrap the loop progress bar
     )
     api._window = window
-    window.events.loaded += lambda: _apply_titlebar_theme(config.load().get("theme_preset", "default"))
+    window.events.loaded += lambda: _apply_titlebar_theme(
+        config.load().get("theme_preset", "default"), api._running_flag, window)
     api.create_overlay()        # second window (hidden unless overlay was left on)
     api._register_hotkeys()     # global F9 / F12 / F10 (work while the game is focused)
     # Closing the main window must tear down the overlay window + hotkeys too,
     # else webview.start() never returns and msedgewebview2.exe lingers.
     window.events.closing += api.shutdown
     # DevTools (right-click ▸ Inspect) on in dev, OFF in a packaged build.
+    _purge_update_dir()
     webview.start(debug=not _is_frozen())
     # Loop ended (all windows closed) → force a clean full teardown so no daemon
     # thread or WebView2 child process is left behind.

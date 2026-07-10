@@ -54,6 +54,7 @@ reports/
 
 # runtime diagnostics
 fafe_diag.log
+fafe_diag.log.prev
 build_log.txt
 license.dat
 
@@ -62,3 +63,8 @@ templates/**/custom/
 templates/*/mastery_full/mastery_presets.json
 compiled/
 nuitka_build/
+
+# Forza game cinematic XML + reference mod (copyrighted third-party content - dev references only, never commit)
+assets/pgc*.xml
+assets/*homespace*.xml
+fh-less-anims-*.zip

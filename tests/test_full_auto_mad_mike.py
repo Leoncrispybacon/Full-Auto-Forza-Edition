@@ -6,12 +6,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FullAutoMadMikeTests(unittest.TestCase):
-    def _protected_source_or_skip(self, name):
-        path = ROOT / name
-        if not path.exists():
-            self.skipTest(f"{name} is protected local source and is not in the public repo")
-        return path.read_text(encoding="utf-8")
-
     def test_config_tracks_car_pass_answer_separately_from_owned_value(self):
         import config
 
@@ -71,7 +65,7 @@ class FullAutoMadMikeTests(unittest.TestCase):
         self.assertIn("launch_path_prompt", i18n)
 
     def test_full_auto_has_mad_mike_target_grid_and_21_point_math(self):
-        source = self._protected_source_or_skip("full_auto.py")
+        source = (ROOT / "full_auto.py").read_text(encoding="utf-8")
 
         self.assertIn("_GRID_MAD_MIKE", source)
         self.assertIn("MAD_MIKE_PRESET_NAME", source)
@@ -82,7 +76,7 @@ class FullAutoMadMikeTests(unittest.TestCase):
         self.assertIn("target = _target_for_grind", source)
 
     def test_target_car_tiles_are_double_clicked_to_open_details(self):
-        source = self._protected_source_or_skip("full_auto.py")
+        source = (ROOT / "full_auto.py").read_text(encoding="utf-8")
         money = source.split("def _money_target_nav", 1)[1].split(
             "def _mad_mike_target_nav", 1)[0]
         mad_mike = source.split("def _mad_mike_target_nav", 1)[1].split(
@@ -93,9 +87,23 @@ class FullAutoMadMikeTests(unittest.TestCase):
                 self.assertIn("wait(0.5)", block)
                 self.assertGreaterEqual(block.count("io.click(hit.location[0]"), 2)
 
+    def test_full_auto_target_nav_confirms_car_detail_before_buy_macro(self):
+        source = (ROOT / "full_auto.py").read_text(encoding="utf-8")
+        money = source.split("def _money_target_nav", 1)[1].split(
+            "def _mad_mike_target_nav", 1)[0]
+        mad_mike = source.split("def _mad_mike_target_nav", 1)[1].split(
+            "def _navigate_to_mastery_start", 1)[0]
+
+        self.assertIn('_confirm_buy_detail("buy_detail_gts_acr"', money)
+        self.assertIn('_confirm_buy_detail("buy_detail_mad_mike"', mad_mike)
+
+    def test_buy_22b_confirms_target_detail_before_buy_macro(self):
+        source = (ROOT / "buy.py").read_text(encoding="utf-8")
+
+        self.assertIn('"buy_detail_22b"', source)
+        self.assertIn('_confirm_target_detail("buy_detail_22b")', source)
+
     def test_tech_points_666_ocr_read_is_treated_as_999(self):
-        if not (ROOT / "full_auto.py").exists():
-            self.skipTest("full_auto.py is protected local source and is not in the public repo")
         import full_auto
 
         logs = []
@@ -104,12 +112,34 @@ class FullAutoMadMikeTests(unittest.TestCase):
             999)
         self.assertTrue(any("666" in line and "999" in line for line in logs))
 
+    def test_tech_points_parse_anchors_number_to_points_suffix(self):
+        import full_auto
+
+        # Digits are taken from immediately before the points label, so stray
+        # digits elsewhere in the band are ignored (hardening against misreads).
+        self.assertEqual(full_auto._parse_tech_points_ocr("66點可用的技術點數"), 66)
+        self.assertEqual(full_auto._parse_tech_points_ocr("66 Skill Points Available"), 66)
+        self.assertEqual(full_auto._parse_tech_points_ocr("9 3 Skill Points Available"), 93)
+        self.assertEqual(full_auto._parse_tech_points_ocr("9 9 9 Skill Points Available"), 999)
+        self.assertEqual(full_auto._parse_tech_points_ocr("5 66點 7"), 66)
+        # OCR reordered the boxes: stray '2' before the label, real number at end.
+        self.assertEqual(
+            full_auto._parse_tech_points_ocr("2點可用的技術點數 642"), 642)
+        self.assertEqual(full_auto._parse_tech_points_ocr("66"), 66)  # bare fallback
+        self.assertIsNone(full_auto._parse_tech_points_ocr("no digits here"))
+
+    def test_full_auto_spin_step_forces_super_wheelspin(self):
+        source = (ROOT / "full_auto.py").read_text(encoding="utf-8")
+        self.assertIn('force_type="super"', source)
+
     def test_full_auto_exposes_mad_mike_templates_for_capture(self):
         source = (ROOT / "app_web.py").read_text(encoding="utf-8")
 
         self.assertIn("FULL_AUTO_EXPECTED_TEMPLATE_KEYS", source)
         self.assertIn('"mazda"', source)
         self.assertIn('"mad_mike_808"', source)
+        self.assertIn('"buy_detail_gts_acr"', source)
+        self.assertIn('"buy_detail_mad_mike"', source)
 
     def test_mad_mike_templates_have_ocr_hints(self):
         import detector
@@ -121,6 +151,34 @@ class FullAutoMadMikeTests(unittest.TestCase):
         self.assertIn("mazda", detector.OCR_HINTS["mazda"])
         self.assertIn("mad mike", detector.OCR_HINTS["mad_mike_808"])
         self.assertIn("808 wagon", detector.OCR_HINTS["mad_mike_808"])
+
+    def test_buy_detail_templates_are_ocr_mandatory_identity_gates(self):
+        import detector
+
+        for key, hint in {
+            "buy_detail_22b": "22b-sti",
+            "buy_detail_gts_acr": "viper gts acr",
+            "buy_detail_mad_mike": "mad mike",
+        }.items():
+            with self.subTest(key=key):
+                self.assertIn(key, detector.OCR_HINTS)
+                self.assertIn(hint, detector.OCR_HINTS[key])
+                self.assertIn(key, detector.OCR_MANDATORY_KEYS)
+
+    def test_wrong_buy_detail_backs_out_before_retry(self):
+        buy_source = (ROOT / "buy.py").read_text(encoding="utf-8")
+        full_source = (ROOT / "full_auto.py").read_text(encoding="utf-8")
+
+        self.assertIn("def _back_out_wrong_detail", buy_source)
+        buy_backout = buy_source.split("def _back_out_wrong_detail", 1)[1].split(
+            "def _nav_click", 1)[0]
+        self.assertIn("range(2)", buy_backout)
+        self.assertIn("press('escape'", buy_backout)
+        self.assertIn("def _back_out_wrong_detail", full_source)
+        fa_backout = full_source.split("def _back_out_wrong_detail", 1)[1].split(
+            "def _money_target_nav", 1)[0]
+        self.assertIn("range(2)", fa_backout)
+        self.assertIn('press("escape"', fa_backout)
 
     def test_full_auto_money_and_sell_templates_have_ocr_hints(self):
         import detector
@@ -137,19 +195,16 @@ class FullAutoMadMikeTests(unittest.TestCase):
                 self.assertIn(hint, detector.OCR_HINTS[key])
 
     def test_chinese_mad_mike_templates_use_shared_hint_keys(self):
-        template_dir = ROOT / "templates" / "cht" / "full_auto" / "built-in"
-        expected = [
-            template_dir / "mazda.json",
-            template_dir / "mazda.png",
-            template_dir / "mad_mike_808.json",
-            template_dir / "mad_mike_808.png",
-        ]
-        if not all(path.exists() for path in expected):
-            self.skipTest("Full Auto templates are protected local assets and are not in the public repo")
         for key in ("mazda", "mad_mike_808"):
             with self.subTest(key=key):
-                self.assertTrue((template_dir / f"{key}.json").exists())
-                self.assertTrue((template_dir / f"{key}.png").exists())
+                self.assertTrue(
+                    (ROOT / "templates" / "cht" / "full_auto" / "built-in"
+                     / f"{key}.json").exists()
+                )
+                self.assertTrue(
+                    (ROOT / "templates" / "cht" / "full_auto" / "built-in"
+                     / f"{key}.png").exists()
+                )
 
 
 if __name__ == "__main__":

@@ -9,6 +9,30 @@ class StageRouteRecoveryTests(unittest.TestCase):
             self.skipTest("full_auto.py is protected local source and is not in the public repo")
         return p.read_text(encoding="utf-8")
 
+    def test_no_toplevel_function_uses_undefined_lang(self):
+        # Regression: _find_mastery_entry_recovery_anchor logged with a bare `lang`
+        # it never defined → NameError, but only on the recovery path (so normal
+        # runs never hit it). Guard the whole module: every top-level function that
+        # reads `lang` must also assign it or receive it as a param.
+        import ast
+        src = self._source_or_skip("full_auto.py")
+        tree = ast.parse(src)
+        offenders = []
+        for node in tree.body:
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            params = {a.arg for a in node.args.args}
+            assigns, uses = set(), False
+            for n in ast.walk(node):
+                if isinstance(n, ast.Name) and n.id == "lang":
+                    if isinstance(n.ctx, ast.Store):
+                        assigns.add("lang")
+                    elif isinstance(n.ctx, ast.Load):
+                        uses = True
+            if uses and "lang" not in assigns and "lang" not in params:
+                offenders.append(f"{node.name} (line {node.lineno})")
+        self.assertEqual(offenders, [], f"top-level funcs use undefined 'lang': {offenders}")
+
     def test_retries_failed_route_before_giving_up(self):
         import recovery
 
@@ -26,6 +50,35 @@ class StageRouteRecoveryTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(calls, [1, 2])
         self.assertTrue(any("retrying stage route" in line for line in logs))
+
+    def test_on_recover_fires_when_recovery_activates(self):
+        import recovery
+
+        fired = []
+        calls = {"n": 0}
+
+        def route():
+            calls["n"] += 1
+            return calls["n"] >= 2      # fail once, then succeed
+
+        ok = recovery.run_stage_route(
+            "Race entry", route, stop=lambda: False, log_cb=lambda _m: None,
+            max_retries=1, on_recover=lambda: fired.append(1))
+
+        self.assertTrue(ok)
+        self.assertEqual(fired, [1])    # fired exactly once, on the failure
+
+    def test_on_recover_not_called_when_route_succeeds_first_try(self):
+        import recovery
+
+        fired = []
+        ok = recovery.run_stage_route(
+            "Race entry", lambda: True, stop=lambda: False,
+            log_cb=lambda _m: None, max_retries=1,
+            on_recover=lambda: fired.append(1))
+
+        self.assertTrue(ok)
+        self.assertEqual(fired, [])
 
     def test_purpose_done_result_does_not_retry_same_loop(self):
         import recovery
@@ -199,6 +252,45 @@ class StageRouteRecoveryTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(clicks, ["click"])
 
+    def test_click_until_advanced_freezes_verify_timer_while_paused(self):
+        import navutil
+
+        class Match:
+            def __init__(self, matched):
+                self.matched = matched
+                self.location = (10, 20)
+
+        ticks = {"now": 0.0, "paused": False}
+        real_time, real_sleep = navutil.time.time, navutil.time.sleep
+
+        class Detector:
+            def detect(self, _frame, key, _tpl, _thr, stable=True):
+                return Match(key == "prev" or (key == "next" and not ticks["paused"]))
+
+        try:
+            navutil.time.time = lambda: ticks["now"]
+
+            def fake_sleep(_seconds):
+                ticks["now"] += 10.0
+                ticks["paused"] = False
+
+            navutil.time.sleep = fake_sleep
+            result = navutil.click_until_advanced(
+                lambda: None,
+                Detector(),
+                lambda _loc: ticks.__setitem__("paused", True),
+                ("prev", None, 0.7),
+                ("next", None, 0.7),
+                stop=lambda: False,
+                pause_cb=lambda: ticks["paused"],
+                grace=0.0,
+                ceiling=0.01,
+                interval=0.0)
+        finally:
+            navutil.time.time, navutil.time.sleep = real_time, real_sleep
+
+        self.assertIsNotNone(result)
+
     def test_full_auto_checks_mastery_run_result_before_selling(self):
         source = self._source_or_skip("full_auto.py")
         block = source.split("def _step_mastery", 1)[1].split(
@@ -236,6 +328,66 @@ class StageRouteRecoveryTests(unittest.TestCase):
         self.assertIn("dx + fx * dbox_w", block)
         self.assertIn("_click_template_center(\"cars_top_tab\", r.location)", block)
         self.assertIn("_click_template_center(\"story_top_tab\", rb.location)", block)
+
+    def test_tech_point_read_accepts_already_loaded_cars_tab(self):
+        source = self._source_or_skip("full_auto.py")
+        block = source.split("def _tech_points_route", 1)[1].split(
+            "try:", 1)[0]
+
+        self.assertIn('_read_points_on_cars_tab()', block)
+        self.assertLess(block.index('_read_points_on_cars_tab()'),
+                        block.index('_detect("cars_top_tab"'))
+
+    def test_tech_point_read_ocr_reads_number_without_pixel_gate(self):
+        # tech_points is OCR-READ, never pixel-matched: the number varies each run,
+        # so a fixed-number pixel template can't confirm the tab (a live '162 …'
+        # won't match a captured '929 …'). _read_points_on_cars_tab settles for the
+        # slide-in (_POINTS_SETTLE) then OCR-reads; a parseable number is itself the
+        # proof we're on the CARS tab. No pixel detection of tech_points OR the
+        # always-present cars_top_tab button as a state anchor.
+        block = self._source_or_skip("full_auto.py").split(
+            "def _read_points_on_cars_tab", 1)[1].split(
+            "def _detect_safety_anchor", 1)[0]
+
+        self.assertIn("_POINTS_SETTLE", block)
+        self.assertIn("_try_read_points()", block)
+        self.assertNotIn('_detect_on_frame(io.grab(), "tech_points")', block)
+        self.assertNotIn('_detect_on_frame(io.grab(), "cars_top_tab")', block)
+        self.assertNotIn("last_points_anchor_seen", block)
+
+    def test_tech_point_route_navigates_to_cars_without_journal_gate(self):
+        # Entry: whenever tech_points isn't readable we're not on the CARS tab,
+        # so click cars_top_tab (present on every tab) to switch there directly.
+        # The navigation must NOT be gated on first detecting story_top_tab (that
+        # stalled the chain when the campaign/Journal tab template didn't match,
+        # e.g. the English "CAMPAIGN" tab). story_top_tab is used only on the way
+        # OUT (click back to campaign).
+        route = self._source_or_skip("full_auto.py").split(
+            "def _tech_points_route", 1)[1].split("return True", 1)[0]
+        entry = route.split("# OUT", 1)[0]
+
+        self.assertIn("_read_points_on_cars_tab()", entry)
+        self.assertIn('_click_template_center("cars_top_tab"', entry)
+        # entry no longer gates navigation on the campaign/Journal tab
+        self.assertNotIn('_detect_on_frame(io.grab(), "story_top_tab")', entry)
+        self.assertNotIn("last_points_anchor_seen", route)
+
+    def test_tech_point_recovery_can_anchor_on_points_template(self):
+        source = self._source_or_skip("full_auto.py")
+        block = source.split("def _recover_tech_points_route", 1)[1].split(
+            "def _tech_points_route", 1)[0]
+
+        self.assertIn('_detect("tech_points"', block)
+        self.assertIn('anchor="tech_points"', block)
+        self.assertNotIn("change" + "_car", block)
+
+    def test_obsolete_cars_tab_tile_template_is_removed(self):
+        key = "change" + "_car"
+        for path in ("app_lang.py", "config.py", "detector.py", "app_web.py",
+                     "full_auto.py"):
+            source = self._source_or_skip(path)
+            with self.subTest(path=path):
+                self.assertNotIn(key, source)
 
     def test_route_helper_no_longer_has_fault_injection_hook(self):
         source = Path("recovery.py").read_text(encoding="utf-8")
@@ -277,8 +429,8 @@ class StageRouteRecoveryTests(unittest.TestCase):
         block = source.split("def _handle_history_enter", 1)[1].split(
             "def _navigate_to_event", 1)[0]
 
-        self.assertIn("_HISTORY_RETRY_CHECK_WINDOW", block)
-        self.assertIn("_detect_nav_any((retry_to, key), _HISTORY_RETRY_CHECK_WINDOW)", block)
+        self.assertIn("_HISTORY_RETRY_GAP", block)
+        self.assertIn("_detect_nav(retry_to, _HISTORY_RETRY_GAP)", block)
         self.assertIn('_kp("enter", post_wait=0.0)', block)
 
     def test_race_recovery_scans_route_anchors_backwards_from_expected_step(self):
@@ -304,7 +456,7 @@ class StageRouteRecoveryTests(unittest.TestCase):
             "wheelspin.py": "def _recover_wheelspin_entry_route",
         }
         for path, marker in checks.items():
-            source = self._source_or_skip(path)
+            source = Path(path).read_text(encoding="utf-8")
             block = source.split(marker, 1)[1].split("if not recovery.run_stage_route", 1)[0]
             with self.subTest(path=path):
                 self.assertIn("recovery.backtrack_anchor_keys", block)

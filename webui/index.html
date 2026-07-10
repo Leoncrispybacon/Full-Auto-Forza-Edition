@@ -96,6 +96,8 @@
         <div class="panel-body">
           <div class="row"><span class="lab" data-i18n="fa_races_per_cycle">Races per cycle (for mastery points):</span>
             <input class="num" id="faRaces" value="2" /></div>
+          <div class="row"><span class="lab"><span data-i18n="fa_restart_every">Auto-restart game every N loops:</span><span class="note" data-i18n="fa_restart_note">0 = off. Mitigates long-run performance drop.</span></span>
+            <input class="num" id="faRestart" value="0" /></div>
           <div class="row"><span class="lab" data-i18n="fa_start_from">Start cycle from:</span>
             <select class="dropdown" id="faStart">
               <option value="race" data-i18n="fa_start_race">Race (full cycle)</option>
@@ -111,8 +113,8 @@
 
       <div class="controls">
         <button class="start" id="faStartBtn" onclick="startFA()" data-i18n="start">▶ Start</button>
-        <button class="stop" onclick="API('stop')" data-i18n="stop">■ Stop</button>
-        <span class="hint" data-i18n="startstop_hint">F9 to start / stop</span>
+        <button class="pause" onclick="togglePause()" data-i18n="pause">Pause</button>
+        <span class="hint" data-i18n="startstop_hint">F9 to start / stop · F8 pause / resume</span>
       </div>
 
       <section class="log">
@@ -170,8 +172,8 @@
 
       <div class="controls">
         <button class="start" id="modeStart" data-i18n="start">▶ Start</button>
-        <button class="stop" onclick="API('stop')" data-i18n="stop">■ Stop</button>
-        <span class="hint" data-i18n="startstop_hint">F9 to start / stop</span>
+        <button class="pause" onclick="togglePause()" data-i18n="pause">Pause</button>
+        <span class="hint" data-i18n="startstop_hint">F9 to start / stop · F8 pause / resume</span>
       </div>
 
       <section class="log">
@@ -221,7 +223,7 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
             </div>
             <div style="font-size:12.5px;color:var(--muted);margin-top:5px;" data-i18n="locked_activates">Activates on up to 2 machines · 3-day offline grace</div>
           </div>
-          <button onclick="API('buy')" style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;">
+          <button onclick="buyNow()" style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             <span data-i18n="locked_buy">Buy Full Auto</span>
           </button>
@@ -245,7 +247,9 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
           <h1 class="set-title" data-i18n="set_title">Settings</h1>
         </div>
 
-        <div class="set-section" data-i18n="set_appearance">Appearance</div>
+        <div class="set-block" data-sect="appearance">
+        <div class="set-section" role="button" tabindex="0"><span data-i18n="set_appearance">Appearance</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
         <div class="set-group">
           <div class="set-row"><span class="lbl" data-i18n="set_theme">Theme</span>
             <select class="dropdown accent" id="setTheme"><option value="default" data-i18n="theme_default">Default</option><option value="denia" data-i18n="theme_denia">Dasvidaniya</option><option value="horizon" data-i18n="theme_horizon">Amber</option></select></div>
@@ -256,17 +260,45 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
           <div class="set-row"><span class="lbl" data-i18n="set_overlay">Game overlay</span>
             <button class="switch" id="setOverlay"><span class="knob"></span></button></div>
         </div>
+        </div></div>
 
-        <div class="set-section" data-i18n="set_system">System</div>
+        <div class="set-block" data-sect="system">
+        <div class="set-section" role="button" tabindex="0"><span data-i18n="set_system">System</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
         <div class="set-group" id="systemToggles"></div>
+        </div>
+        </div></div>
 
-        <div class="set-section" data-i18n="set_shortcuts">Shortcuts</div>
+        <div class="set-block" data-sect="mods">
+        <div class="set-section" role="button" tabindex="0"><span data-i18n="set_mods">Mods</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
+        <div class="set-group">
+          <div class="set-row">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-size:15px;color:var(--text)" data-i18n="cutscene_skip_title">New-car cutscene skip</span>
+              <span style="font-size:12px;color:var(--text2)" data-i18n="cutscene_skip_desc">Speeds the new-car home-space cutscene to instant.</span>
+              <span style="font-size:12px" id="cutsceneSkipState"></span>
+            </div>
+            <button class="lic-btn" id="cutsceneSkipBtn" onclick="cutsceneSkipClick()"></button>
+          </div>
+        </div>
+        </div></div>
+
+        <div class="set-block" data-sect="shortcuts">
+        <div class="set-section" role="button" tabindex="0"><span data-i18n="set_shortcuts">Shortcuts</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
         <div class="set-group" id="shortcutGroup"></div>
+        </div></div>
 
-        <div class="set-section" data-i18n="set_timing">Timing</div>
+        <div class="set-block" data-sect="timing">
+        <div class="set-section" role="button" tabindex="0"><span data-i18n="set_timing">Timing</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
         <div class="set-group" id="timingGroup"></div>
+        </div></div>
 
-        <div class="set-section" id="licSection" data-i18n="set_license">License</div>
+        <div class="set-block" data-sect="license">
+        <div class="set-section" id="licSection" role="button" tabindex="0"><span data-i18n="set_license">License</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
         <div class="set-group" id="licGroup" style="gap:0">
           <div class="lic-status"><span class="d" id="licDot"></span><span id="licState"></span><span class="lic-key" id="licKey"></span></div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -276,8 +308,11 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
           <div class="lic-mid" id="licMachine">Machine ID: —</div>
           <div id="licMsg" style="font-size:12.5px;margin-top:10px;"></div>
         </div>
+        </div></div>
 
-        <div class="set-section" data-i18n="set_developer">Developer</div>
+        <div class="set-block" data-sect="developer">
+        <div class="set-section" role="button" tabindex="0"><span data-i18n="set_developer">Developer</span><span class="set-caret">▶</span></div>
+        <div class="set-body">
         <div class="set-group">
           <div class="set-row">
             <div style="display:flex;flex-direction:column;gap:3px">
@@ -296,6 +331,17 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
             </div>
             <div class="set-row">
               <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font-size:15px;color:var(--text)" data-i18n="sys_ocr_preset">OCR preset</span>
+                <span style="font-size:12px;color:var(--text2)" data-i18n="sys_ocr_preset_h">Auto picks by CPU. Force Low Impact if a slow PC stutters or misses detections.</span>
+              </div>
+              <select class="dropdown accent" id="setOcrPreset">
+                <option value="auto" data-i18n="ocr_preset_auto">Auto (by CPU)</option>
+                <option value="balanced" data-i18n="ocr_preset_balanced">Balanced</option>
+                <option value="low_impact" data-i18n="ocr_preset_low">Low Impact</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <div style="display:flex;flex-direction:column;gap:3px">
                 <span style="font-size:15px;color:var(--text)" data-i18n="sys_debug_detection">Debug snapshots</span>
                 <span style="font-size:12px;color:var(--text2)" data-i18n="sys_debug_detection_h">Saves annotated detection images to /debug for bug reports.</span>
               </div>
@@ -303,6 +349,7 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
             </div>
           </div>
         </div>
+        </div></div>
       </div>
     </div>
   </main>
@@ -337,7 +384,11 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
     </div>
     <div class="how-body">
       <p id="updateBody" style="margin:0 0 18px">Open the releases page to get the latest installer?</p>
-      <button class="lic-btn" onclick="openUpdatePage()" data-i18n="update_open">Open releases page</button>
+      <div id="updateProgressText" style="font-size:13px;color:var(--text2);margin:0 0 12px;display:none"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="lic-btn ghost" onclick="openUpdatePage()" data-i18n="update_open">Open releases page</button>
+        <button class="lic-btn" id="updateNowBtn" onclick="runUpdateNow()" data-i18n="update_now" style="display:none">Update now</button>
+      </div>
     </div>
   </div>
 </div>
@@ -355,6 +406,23 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
     <div class="how-body">
       <p data-i18n="report_intro" style="margin:0 0 14px">Found a problem? Follow these steps:</p>
       <ol id="reportSteps" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px"></ol>
+    </div>
+  </div>
+</div>
+
+<!-- Taiwan purchase notice -->
+<div id="twBuyModal" class="how-overlay" onclick="closeTwBuy()">
+  <div class="how-card" onclick="event.stopPropagation()">
+    <div class="how-head">
+      <div>
+        <div class="how-kicker" data-i18n="tw_buy_kicker">Purchase</div>
+        <h2 class="how-title" data-i18n="locked_buy">Buy Full Auto</h2>
+      </div>
+      <button class="how-close" onclick="closeTwBuy()">&#10005;</button>
+    </div>
+    <div class="how-body">
+      <p data-i18n="tw_buy_body" style="margin:0 0 16px"></p>
+      <button class="sup-btn" onclick="API('open_link','jko')" data-i18n="support_jko">JKOPAY</button>
     </div>
   </div>
 </div>
@@ -378,6 +446,27 @@ Unlock it with a one-time purchase. Your license activates on up to 2 machines.<
     </div>
   </div>
 </div>
+
+<!-- Cutscene skip warning modal (install modifies game files — gated behind explicit confirm) -->
+<div id="cutsceneWarnModal" class="how-overlay" onclick="closeCutsceneWarn()">
+  <div class="how-card" onclick="event.stopPropagation()">
+    <div class="how-head">
+      <div>
+        <div class="how-kicker" data-i18n="cutscene_skip_title">New-car cutscene skip</div>
+        <h2 class="how-title" data-i18n="cutscene_skip_warn_title">This modifies game files</h2>
+      </div>
+      <button class="how-close" onclick="closeCutsceneWarn()">&#10005;</button>
+    </div>
+    <div class="how-body">
+      <p data-i18n="cutscene_skip_warn_body" style="margin:0 0 18px"></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="lic-btn ghost" onclick="closeCutsceneWarn()" data-i18n="cutscene_skip_warn_cancel">Cancel</button>
+        <button class="lic-btn danger" onclick="confirmCutsceneInstall()" data-i18n="cutscene_skip_warn_confirm">I understand the risk — install</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- first-run language picker (shown once on a fresh install; bilingual, before i18n applies) -->
 <div id="langPicker">
