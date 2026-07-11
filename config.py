@@ -323,6 +323,10 @@ DEFAULTS = {
     # keyboard mastery-tree nav. Higher helps weaker hardware register the
     # unlock; default 1.25, Settings slider 1–2s.
     "mastery_grid_unlock_wait": 1.25,
+    # Settle after the post-cutscene screen (ride_cutscene_end) is detected,
+    # BEFORE pressing ESC — gives the menu time to become ready. Default 2.0,
+    # Settings slider 1–3s.
+    "mastery_cutscene_settle": 2.0,
     "thresh_ride_this_car":       0.70,
     "thresh_upgrade_tuning":      0.70,
     "thresh_car_mastery":         0.70,

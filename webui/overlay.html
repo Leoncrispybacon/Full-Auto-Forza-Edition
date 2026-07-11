@@ -239,7 +239,8 @@
 
   // Function switcher (top-right dropdown) — picking one drives the main window.
   // Labels are localized from OV_I18N[curLang].funcs; curFunc holds the KEY.
-  const FUNC_KEYS = ['full_auto','race','buy','wheelspin','mastery','delete'];
+  // Order mirrors the main app sidebar (index.html nav).
+  const FUNC_KEYS = ['full_auto','race','buy','mastery','delete','wheelspin'];
   let curFunc = '';
   const ovMenu = document.getElementById('ovMenu');
   const ovFuncBtn = document.getElementById('ovFuncBtn');

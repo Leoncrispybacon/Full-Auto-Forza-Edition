@@ -177,10 +177,11 @@ _CUTSCENE_END_KEY = "ride_cutscene_end"
 _RECOVERY_SETTLE = 1.25
 # Gated flow no longer blind-waits the cutscene — it detects the post-cutscene
 # screen (ride_cutscene_end, a built-in) instead. The window must span the whole
-# cutscene (~11-13s) since there's no pre-wait; after it's detected, settle 1s so
-# the menu is ready before Esc.
+# cutscene (~11-13s) since there's no pre-wait; after it's detected, settle
+# _CUTSCENE_SETTLE (default 2s, Settings slider mastery_cutscene_settle) so the
+# menu is ready before Esc.
 _CUTSCENE_DETECT_WINDOW = 25.0
-_CUTSCENE_SETTLE        = 1.0
+_CUTSCENE_SETTLE        = 2.0   # default for mastery_cutscene_settle
 
 
 def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
@@ -279,7 +280,9 @@ def _run_gated_menus(_fresh, io, grid_order, start_loop, max_cars,
                 return False           # cutscene-end not seen → let recovery re-anchor
             log_cb(_at("log_detected", lang, label=_CUTSCENE_END_KEY,
                        conf=logfmt.detail(r, lang)))
-            wait(_CUTSCENE_SETTLE)     # settle so the menu is ready before Esc
+            # settle so the menu is ready before Esc (Settings slider, 1–3s)
+            wait(max(1.0, min(3.0, float(_fresh.get(
+                "mastery_cutscene_settle", _CUTSCENE_SETTLE)))))
             if stop():
                 return False
         log_cb(_at("log_pressing", lang, key="ESC", label="upgrade_tuning"))

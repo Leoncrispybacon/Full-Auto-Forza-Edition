@@ -898,6 +898,7 @@ const LAUNCH_PLATFORMS = [
 const TIMING = [
   ['race_post_key_wait',       'AFK Races — key interval',           'Pause after each keypress in race nav.',                            0.75, 3.0, 0.05],
   ['mastery_grid_unlock_wait', 'Unlock — per-node interval',         'Pause after each mastery-tree node unlock.',                        1.0, 2.0, 0.25],
+  ['mastery_cutscene_settle',  'Unlock — cutscene ESC settle',       'Wait after the post-cutscene screen appears, before pressing ESC.', 1.0, 3.0, 0.25],
   ['menu_tap_wait',            'Menu cursor tap interval',           'Interval after each Up/Down menu tap. Higher helps weak hardware.', 0.1, 0.5, 0.05],
   ['buy_post_key_wait',        'Buy — key interval',                 'Pause between Buy macro keys.',                                     0.4, 3.0, 0.1],
   ['delete_post_key_wait',     'Delete — key interval',              'Pause between Delete macro keys.',                                  0.2, 3.0, 0.1],

@@ -167,6 +167,7 @@ const I18N = {
     // timing
     tm_race_post_key_wait: "AFK Races — key interval", tm_race_post_key_wait_h: "Pause after each keypress in race nav.",
     tm_mastery_grid_unlock_wait: "Unlock — per-node interval", tm_mastery_grid_unlock_wait_h: "Pause after each mastery-tree node unlock.",
+    tm_mastery_cutscene_settle: "Unlock — cutscene ESC settle", tm_mastery_cutscene_settle_h: "Wait after the post-cutscene screen appears, before pressing ESC. Higher helps slower PCs.",
     tm_menu_tap_wait: "Menu cursor tap interval", tm_menu_tap_wait_h: "Interval after each Up/Down menu tap. Higher helps weak hardware.",
     tm_buy_post_key_wait: "Buy — key interval", tm_buy_post_key_wait_h: "Pause between Buy macro keys.",
     tm_delete_post_key_wait: "Delete — key interval", tm_delete_post_key_wait_h: "Pause between Delete macro keys.",
@@ -328,6 +329,7 @@ const I18N = {
     sys_auto_update_h: "\u4e00\u9375\u4e0b\u8f09\u4e26\u5b89\u88dd\u66f4\u65b0\uff08\u50c5\u5b89\u88dd\u7248\uff09\u3002",
     tm_race_post_key_wait: "掛機刷車 — 按鍵間隔", tm_race_post_key_wait_h: "賽車導航中每次按鍵後的暫停。",
     tm_mastery_grid_unlock_wait: "解鎖 — 每節點間隔", tm_mastery_grid_unlock_wait_h: "每解鎖一個熟練度節點後的暫停。",
+    tm_mastery_cutscene_settle: "解鎖 — 過場後 ESC 緩衝", tm_mastery_cutscene_settle_h: "偵測到過場結束畫面後、按下 ESC 前的等待時間。較高值有助於較慢的電腦。",
     tm_menu_tap_wait: "選單游標點按間隔", tm_menu_tap_wait_h: "每次上/下選單點按後的間隔。較高有助於較弱的硬體。",
     tm_buy_post_key_wait: "購買 — 按鍵間隔", tm_buy_post_key_wait_h: "購買巨集按鍵之間的暫停。",
     tm_delete_post_key_wait: "刪除 — 按鍵間隔", tm_delete_post_key_wait_h: "刪除巨集按鍵之間的暫停。",
